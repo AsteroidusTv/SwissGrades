@@ -3,6 +3,7 @@ package me.asteroidus.swissgrades.ui.app
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,6 +73,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HistoryEdu
@@ -95,12 +98,25 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import me.asteroidus.swissgrades.ui.theme.AppBackgroundDark
+import me.asteroidus.swissgrades.ui.theme.AppOutlineDark
+import me.asteroidus.swissgrades.ui.theme.AppOutlineLight
+import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerDark
+import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerLight
+import me.asteroidus.swissgrades.ui.theme.AppPositiveDark
+import me.asteroidus.swissgrades.ui.theme.AppPositiveLight
+import me.asteroidus.swissgrades.ui.theme.AppSurfaceDark
+import me.asteroidus.swissgrades.ui.theme.AppSurfaceLight
+import me.asteroidus.swissgrades.ui.theme.AppSurfaceVariantDark
+import me.asteroidus.swissgrades.ui.theme.AppSurfaceVariantLight
+import me.asteroidus.swissgrades.ui.theme.AppWarningContainerDark
+import me.asteroidus.swissgrades.ui.theme.AppWarningContainerLight
+import me.asteroidus.swissgrades.ui.theme.AppWarningDark
+import me.asteroidus.swissgrades.ui.theme.AppWarningLight
+import me.asteroidus.swissgrades.ui.theme.SwissBlue
+import me.asteroidus.swissgrades.ui.theme.SwissBlueDark
 
 private val DashboardCardShape = RoundedCornerShape(24.dp)
-private val DashboardCardBorder = BorderStroke(1.dp, Color(0xFFD5DCEA))
-private val DashboardCardSurface = Color.White
-private val DashboardSoftBlue = Color(0xFFEAF2FF)
-private val DashboardBorderBlue = Color(0xFFD5DCEA)
 private val AddSubjectAvailableColors = listOf(
     SubjectColorChoice.BLUE,
     SubjectColorChoice.TEAL,
@@ -125,6 +141,67 @@ private val AddSubjectAvailableIcons = listOf(
     SubjectIconChoice.WORLD,
     SubjectIconChoice.SPORT
 )
+
+@Composable
+private fun appAccentBlue(): Color = MaterialTheme.colorScheme.primary
+
+@Composable
+private fun appCardSurface(): Color = MaterialTheme.colorScheme.surface
+
+@Composable
+private fun appCardBorderColor(): Color = MaterialTheme.colorScheme.outlineVariant
+
+@Composable
+private fun appCardBorder(): BorderStroke = BorderStroke(1.dp, appCardBorderColor())
+
+@Composable
+private fun appSoftAccentContainer(): Color = MaterialTheme.colorScheme.secondaryContainer
+
+@Composable
+private fun appProgressTrack(): Color = if (isSystemInDarkTheme()) Color(0xFF304053) else Color(0xFFDCE4F2)
+
+@Composable
+private fun appSelectedOptionContainer(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF16263B) else Color(0xFFF7FAFF)
+
+@Composable
+private fun appSelectedOptionBorder(): Color = MaterialTheme.colorScheme.primary
+
+@Composable
+private fun appIdleOptionBorder(): Color = appCardBorderColor()
+
+@Composable
+private fun appIdleBadgeBackground(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF22344B) else Color(0xFFE1ECFF)
+
+@Composable
+private fun appSelectedBadgeBackground(): Color = MaterialTheme.colorScheme.primary
+
+@Composable
+private fun appIdleBadgeTint(): Color =
+    if (isSystemInDarkTheme()) SwissBlueDark else Color(0xFF1459B2)
+
+@Composable
+private fun appPositiveColor(): Color = if (isSystemInDarkTheme()) AppPositiveDark else AppPositiveLight
+
+@Composable
+private fun appPositiveBackground(): Color =
+    if (isSystemInDarkTheme()) AppPositiveContainerDark else AppPositiveContainerLight
+
+@Composable
+private fun appWarningColor(): Color = if (isSystemInDarkTheme()) AppWarningDark else AppWarningLight
+
+@Composable
+private fun appWarningBackground(): Color =
+    if (isSystemInDarkTheme()) AppWarningContainerDark else AppWarningContainerLight
+
+@Composable
+private fun appNeutralBackground(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF223046) else Color(0xFFF1F5FB)
+
+@Composable
+private fun appSwipeDeleteBackground(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF8A3F55) else Color(0xFFE85A7A)
 
 @Composable
 fun GradeTrackerApp(
@@ -269,7 +346,7 @@ private fun OnboardingScreen(
     onContinue: (InitialOptionChoice) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = Color(0xFF1F74E7)
+    val accentBlue = appAccentBlue()
 
     Column(
         modifier = modifier
@@ -362,14 +439,14 @@ private fun OnboardingOptionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val selectedContainer = Color(0xFFF7FAFF)
-    val selectedBorder = Color(0xFF1F74E7)
-    val idleBorder = Color(0xFFD5DCEA)
-    val idleBadgeBackground = Color(0xFFE1ECFF)
-    val selectedBadgeBackground = Color(0xFF1F74E7)
-    val idleBadgeTint = Color(0xFF1459B2)
+    val selectedContainer = appSelectedOptionContainer()
+    val selectedBorder = appSelectedOptionBorder()
+    val idleBorder = appIdleOptionBorder()
+    val idleBadgeBackground = appIdleBadgeBackground()
+    val selectedBadgeBackground = appSelectedBadgeBackground()
+    val idleBadgeTint = appIdleBadgeTint()
     val selectedBadgeTint = Color.White
-    val selectedSecondaryText = Color(0xFF1F74E7)
+    val selectedSecondaryText = appAccentBlue()
 
     OutlinedCard(
         onClick = onClick,
@@ -465,7 +542,7 @@ private fun MainScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = Color(0xFF1F74E7)
+    val accentBlue = appAccentBlue()
     var pendingDeleteSubjectId by remember { mutableStateOf<String?>(null) }
     val pendingDeleteSubject = pendingDeleteSubjectId?.let { pendingId ->
         state.userSubjects.firstOrNull { it.id == pendingId }
@@ -514,7 +591,7 @@ private fun MainScreen(
                     modifier = Modifier.testTag("show-add-subject-header"),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DashboardSoftBlue,
+                        containerColor = appSoftAccentContainer(),
                         contentColor = accentBlue
                     )
                 ) {
@@ -592,7 +669,7 @@ private fun SwipeableSubjectCard(
                     .fillMaxSize()
                     .testTag("delete-subject-${subject.id}"),
                 shape = DashboardCardShape,
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE85A7A))
+                colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
             ) {
                 Box(
                     modifier = Modifier
@@ -624,7 +701,7 @@ private fun AddSubjectScreen(
     onCreate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = Color(0xFF1F74E7)
+    val accentBlue = appAccentBlue()
     val activeColor = state.selectedColor
         .takeIf { it in AddSubjectAvailableColors }
         ?: SubjectColorChoice.BLUE
@@ -637,21 +714,19 @@ private fun AddSubjectScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 18.dp),
+                .padding(horizontal = 16.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("back-from-add-subject")) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
-            }
+            HeaderBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("back-from-add-subject")
+            )
             Text(
                 text = if (isEditing) "Edit subject" else "Add a subject",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = accentBlue
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -683,12 +758,12 @@ private fun AddSubjectScreen(
                         fontWeight = FontWeight.Medium
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = DashboardBorderBlue,
-                        unfocusedBorderColor = DashboardBorderBlue,
+                        focusedBorderColor = appCardBorderColor(),
+                        unfocusedBorderColor = appCardBorderColor(),
                         errorBorderColor = MaterialTheme.colorScheme.error,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        errorContainerColor = Color.White,
+                        focusedContainerColor = appCardSurface(),
+                        unfocusedContainerColor = appCardSurface(),
+                        errorContainerColor = appCardSurface(),
                         focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -698,8 +773,8 @@ private fun AddSubjectScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = DashboardCardShape,
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF7FAFF)),
-                border = DashboardCardBorder
+                colors = CardDefaults.cardColors(containerColor = appSelectedOptionContainer()),
+                border = appCardBorder()
             ) {
                 Row(
                     modifier = Modifier
@@ -763,7 +838,7 @@ private fun AddSubjectScreen(
                             row.forEach { iconChoice ->
                                 IconChoiceChip(
                                     iconChoice = iconChoice,
-                                    accentColor = activeColor.toColor(),
+                                    accentColor = activeColor.toColor(isSystemInDarkTheme()),
                                     isSelected = state.selectedIcon == iconChoice,
                                     onClick = { onIconSelected(iconChoice) },
                                     modifier = Modifier.weight(1f)
@@ -810,12 +885,12 @@ private fun AddSubjectScreen(
 
 @Composable
 private fun SummaryCard(summary: DashboardSummaryUiState) {
-    val accentBlue = Color(0xFF1F74E7)
-    val positiveGreen = Color(0xFF2E7D32)
-    val positiveBackground = Color(0xFFE8F5E9)
-    val warningRed = Color(0xFFC62828)
-    val warningBackground = Color(0xFFFFEBEE)
-    val neutralBackground = Color(0xFFF1F5FB)
+    val accentBlue = appAccentBlue()
+    val positiveGreen = appPositiveColor()
+    val positiveBackground = appPositiveBackground()
+    val warningRed = appWarningColor()
+    val warningBackground = appWarningBackground()
+    val neutralBackground = appNeutralBackground()
     val statusColor = when (summary.statusTone) {
         DashboardStatusTone.POSITIVE -> positiveGreen
         DashboardStatusTone.NEGATIVE -> warningRed
@@ -924,8 +999,8 @@ private fun HighlightMetricCard(
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = DashboardCardShape,
-        border = DashboardCardBorder,
-        colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
@@ -944,7 +1019,7 @@ private fun HighlightMetricCard(
                 )
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = DashboardSoftBlue)
+                    colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
                 ) {
                     Box(
                         modifier = Modifier.size(48.dp),
@@ -991,7 +1066,7 @@ private fun HighlightMetricCard(
                     .fillMaxWidth()
                     .height(8.dp),
                 color = accentColor,
-                trackColor = Color(0xFFDCE4F2)
+                trackColor = appProgressTrack()
             )
         }
     }
@@ -1008,8 +1083,8 @@ private fun CompactMetricCard(
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = DashboardCardShape,
-        border = DashboardCardBorder,
-        colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Row(
             modifier = Modifier
@@ -1034,7 +1109,7 @@ private fun CompactMetricCard(
             }
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = DashboardSoftBlue)
+                colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
             ) {
                 Box(
                     modifier = Modifier.size(48.dp),
@@ -1056,12 +1131,12 @@ private fun SubjectCard(
     subject: SubjectListItemUiState,
     onOpenSubject: (String) -> Unit
 ) {
-    val accentBlue = Color(0xFF1F74E7)
-    val warningRed = Color(0xFFC62828)
+    val isDarkTheme = isSystemInDarkTheme()
+    val warningRed = appWarningColor()
     val valueColor = when {
         subject.averageValue == null -> MaterialTheme.colorScheme.onSurfaceVariant
         subject.averageValue < 4.0 -> warningRed
-        else -> subject.colorChoice.toColor()
+        else -> subject.colorChoice.toColor(isDarkTheme)
     }
     val secondaryText = when {
         subject.averageValue == null && subject.subtitle != null -> subject.subtitle
@@ -1081,9 +1156,9 @@ private fun SubjectCard(
         border = if (subject.averageValue != null && subject.averageValue < 4.0) {
             BorderStroke(1.5.dp, warningRed.copy(alpha = 0.45f))
         } else {
-            DashboardCardBorder
+            appCardBorder()
         },
-        colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
@@ -1096,7 +1171,9 @@ private fun SubjectCard(
             ) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = subject.colorChoice.toSoftBackgroundColor())
+                    colors = CardDefaults.cardColors(
+                        containerColor = subject.colorChoice.toSoftBackgroundColor(isDarkTheme)
+                    )
                 ) {
                     Box(
                         modifier = Modifier
@@ -1109,7 +1186,7 @@ private fun SubjectCard(
                             tint = if (subject.averageValue != null && subject.averageValue < 4.0) {
                                 warningRed
                             } else {
-                                subject.colorChoice.toColor()
+                                subject.colorChoice.toColor(isDarkTheme)
                             }
                         )
                     }
@@ -1176,31 +1253,31 @@ private fun SubjectIconChoice.toImageVector(): ImageVector {
     }
 }
 
-private fun SubjectColorChoice.toColor(): Color {
+private fun SubjectColorChoice.toColor(darkTheme: Boolean = false): Color {
     return when (this) {
-        SubjectColorChoice.BLUE -> Color(0xFF1F74E7)
-        SubjectColorChoice.RED -> Color(0xFFD11F1F)
-        SubjectColorChoice.TEAL -> Color(0xFF0E7C90)
-        SubjectColorChoice.SLATE -> Color(0xFF546E7A)
-        SubjectColorChoice.PURPLE -> Color(0xFF8E44AD)
-        SubjectColorChoice.PINK -> Color(0xFFD85AA3)
-        SubjectColorChoice.GREEN -> Color(0xFF27AE60)
-        SubjectColorChoice.AMBER -> Color(0xFFF39C12)
-        SubjectColorChoice.ORANGE -> Color(0xFFD35400)
+        SubjectColorChoice.BLUE -> if (darkTheme) SwissBlueDark else SwissBlue
+        SubjectColorChoice.RED -> if (darkTheme) AppWarningDark else Color(0xFFD11F1F)
+        SubjectColorChoice.TEAL -> if (darkTheme) Color(0xFF4CB9CB) else Color(0xFF0E7C90)
+        SubjectColorChoice.SLATE -> if (darkTheme) Color(0xFF9BB0BA) else Color(0xFF546E7A)
+        SubjectColorChoice.PURPLE -> if (darkTheme) Color(0xFFC48AEB) else Color(0xFF8E44AD)
+        SubjectColorChoice.PINK -> if (darkTheme) Color(0xFFFF8BCF) else Color(0xFFD85AA3)
+        SubjectColorChoice.GREEN -> if (darkTheme) AppPositiveDark else Color(0xFF27AE60)
+        SubjectColorChoice.AMBER -> if (darkTheme) Color(0xFFFFC34D) else Color(0xFFF39C12)
+        SubjectColorChoice.ORANGE -> if (darkTheme) Color(0xFFFF9D57) else Color(0xFFD35400)
     }
 }
 
-private fun SubjectColorChoice.toSoftBackgroundColor(): Color {
+private fun SubjectColorChoice.toSoftBackgroundColor(darkTheme: Boolean): Color {
     return when (this) {
-        SubjectColorChoice.BLUE -> Color(0xFFEAF2FF)
-        SubjectColorChoice.RED -> Color(0xFFFFECEC)
-        SubjectColorChoice.TEAL -> Color(0xFFE7F7FA)
-        SubjectColorChoice.SLATE -> Color(0xFFEDF3F6)
-        SubjectColorChoice.PURPLE -> Color(0xFFF3EAFB)
-        SubjectColorChoice.PINK -> Color(0xFFFCEAF4)
-        SubjectColorChoice.GREEN -> Color(0xFFEAF8F0)
-        SubjectColorChoice.AMBER -> Color(0xFFFFF4DD)
-        SubjectColorChoice.ORANGE -> Color(0xFFFFEEE4)
+        SubjectColorChoice.BLUE -> if (darkTheme) Color(0xFF1B2A40) else Color(0xFFEAF2FF)
+        SubjectColorChoice.RED -> if (darkTheme) Color(0xFF41232A) else Color(0xFFFFECEC)
+        SubjectColorChoice.TEAL -> if (darkTheme) Color(0xFF173741) else Color(0xFFE7F7FA)
+        SubjectColorChoice.SLATE -> if (darkTheme) Color(0xFF26343C) else Color(0xFFEDF3F6)
+        SubjectColorChoice.PURPLE -> if (darkTheme) Color(0xFF332145) else Color(0xFFF3EAFB)
+        SubjectColorChoice.PINK -> if (darkTheme) Color(0xFF46253B) else Color(0xFFFCEAF4)
+        SubjectColorChoice.GREEN -> if (darkTheme) Color(0xFF183827) else Color(0xFFEAF8F0)
+        SubjectColorChoice.AMBER -> if (darkTheme) Color(0xFF403115) else Color(0xFFFFF4DD)
+        SubjectColorChoice.ORANGE -> if (darkTheme) Color(0xFF432819) else Color(0xFFFFEEE4)
     }
 }
 
@@ -1211,9 +1288,11 @@ private fun ColorChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val chipColor = colorChoice.toColor(isSystemInDarkTheme())
     Box(
         modifier = modifier
             .aspectRatio(1f)
+            .clip(CircleShape)
             .clickable(onClick = onClick)
             .testTag("subject-color-${colorChoice.name}"),
         contentAlignment = Alignment.Center
@@ -1223,9 +1302,38 @@ private fun ColorChoiceChip(
                 .fillMaxSize()
                 .padding(2.dp),
             shape = CircleShape,
-            border = BorderStroke(if (isSelected) 3.dp else 0.dp, Color.White),
-            colors = CardDefaults.cardColors(containerColor = colorChoice.toColor())
+            border = BorderStroke(
+                if (isSelected) 2.dp else 0.dp,
+                MaterialTheme.colorScheme.surface
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = chipColor
+            )
         ) {}
+
+        if (isSelected) {
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(28.dp),
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Selected color",
+                        tint = chipColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1245,9 +1353,9 @@ private fun IconChoiceChip(
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             if (isSelected) 2.dp else 1.dp,
-            if (isSelected) accentColor else Color(0xFFDCE4F2)
+            if (isSelected) accentColor else appCardBorderColor()
         ),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = appCardSurface())
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Icon(
@@ -1278,9 +1386,10 @@ private fun BranchDetailScreen(
     onAddNote: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = Color(0xFF1F74E7)
-    val positiveGreen = Color(0xFFCCF5D5)
-    val warningRed = Color(0xFFC62828)
+    val accentBlue = appAccentBlue()
+    val positiveGreen = appPositiveColor()
+    val warningRed = appWarningColor()
+    val onBlueSupport = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val activeSubSubject = detail.subSubjects.firstOrNull { it.id == detail.selectedSubSubjectId }
         ?: detail.subSubjects.firstOrNull()
@@ -1291,10 +1400,10 @@ private fun BranchDetailScreen(
     val statusColor = when (detail.statusTone) {
         DashboardStatusTone.POSITIVE -> positiveGreen
         DashboardStatusTone.NEGATIVE -> warningRed
-        DashboardStatusTone.NEUTRAL -> Color.White
+        DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onPrimary
     }
     val statusLabelColor = when (detail.statusTone) {
-        DashboardStatusTone.NEUTRAL -> Color(0xFFE8F1FF)
+        DashboardStatusTone.NEUTRAL -> onBlueSupport
         else -> statusColor
     }
 
@@ -1311,12 +1420,10 @@ private fun BranchDetailScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("back-from-detail")) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
-            }
+            HeaderBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("back-from-detail")
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = detail.title,
@@ -1334,7 +1441,7 @@ private fun BranchDetailScreen(
                 }
             }
             if (!detail.isOptionSubject) {
-                IconButton(
+                HeaderActionButton(
                     onClick = { onEditSubject(detail.subjectId) },
                     modifier = Modifier.testTag("edit-subject")
                 ) {
@@ -1368,7 +1475,7 @@ private fun BranchDetailScreen(
                                 Text(
                                     text = "OFFICIAL AVERAGE",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFFE8F1FF),
+                                    color = onBlueSupport,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Row(
@@ -1379,19 +1486,21 @@ private fun BranchDetailScreen(
                                         text = detail.officialAverageLabel,
                                         style = MaterialTheme.typography.displayMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onPrimary
                                     )
                                     Text(
                                         text = "/ 6.0",
                                         style = MaterialTheme.typography.titleLarge,
-                                        color = Color(0xFFE8F1FF),
+                                        color = onBlueSupport,
                                         modifier = Modifier.padding(bottom = 8.dp)
                                     )
                                 }
                             }
                             Card(
                                 shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x1FFFFFFF))
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+                                )
                             ) {
                                 Column(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -1401,13 +1510,13 @@ private fun BranchDetailScreen(
                                     Text(
                                         text = detail.pointsLabel,
                                         style = MaterialTheme.typography.headlineSmall,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         text = "Point",
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = Color(0xFFE8F1FF)
+                                        color = onBlueSupport
                                     )
                                 }
                             }
@@ -1421,12 +1530,12 @@ private fun BranchDetailScreen(
                                 Text(
                                     text = detail.secondaryAverageTitle,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFFE8F1FF)
+                                    color = onBlueSupport
                                 )
                                 Text(
                                     text = detail.secondaryAverageLabel,
                                     style = MaterialTheme.typography.headlineSmall,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -1434,7 +1543,7 @@ private fun BranchDetailScreen(
                                 Text(
                                     text = "Status",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFFE8F1FF)
+                                    color = onBlueSupport
                                 )
                                 Text(
                                     text = detail.statusLabel.uppercase(),
@@ -1453,13 +1562,13 @@ private fun BranchDetailScreen(
                         Text(
                             text = "OFFICIAL AVERAGE",
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFE8F1FF),
+                            color = onBlueSupport,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = EMPTY_NOTES_MESSAGE,
                             style = MaterialTheme.typography.displaySmall,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Bold,
                             maxLines = 2
                         )
@@ -1471,8 +1580,8 @@ private fun BranchDetailScreen(
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = DashboardCardShape,
-                border = DashboardCardBorder,
-                colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+                border = appCardBorder(),
+                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1493,9 +1602,9 @@ private fun BranchDetailScreen(
                             shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(
                                 if (isSelected) 2.dp else 1.dp,
-                                if (isSelected) accentBlue else DashboardBorderBlue
+                                if (isSelected) accentBlue else appCardBorderColor()
                             ),
-                            colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
+                            colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1530,7 +1639,7 @@ private fun BranchDetailScreen(
                                     modifier = Modifier
                                         .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(if (isSelected) accentBlue else Color(0xFFDCE4F2))
+                                        .background(if (isSelected) accentBlue else appCardBorderColor())
                                 )
                             }
                         }
@@ -1543,8 +1652,8 @@ private fun BranchDetailScreen(
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = DashboardCardShape,
-                border = DashboardCardBorder,
-                colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+                border = appCardBorder(),
+                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
@@ -1587,7 +1696,7 @@ private fun BranchDetailScreen(
                                         .height((76.dp * (note.numericValue / maxValue).toFloat()).coerceAtLeast(18.dp))
                                         .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
                                         .background(
-                                            if (index == evolutionNotes.lastIndex) accentBlue else Color(0xFFDDE4F2)
+                                            if (index == evolutionNotes.lastIndex) accentBlue else appProgressTrack()
                                         )
                                 )
                             }
@@ -1634,8 +1743,8 @@ private fun BranchDetailScreen(
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = DashboardCardShape,
-                border = DashboardCardBorder,
-                colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+                border = appCardBorder(),
+                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
             ) {
                 Text(
                     text = EMPTY_NOTES_MESSAGE,
@@ -1685,7 +1794,7 @@ private fun BranchDetailScreen(
             ModalBottomSheet(
                 onDismissRequest = onDismissAddNoteSheet,
                 sheetState = sheetState,
-                containerColor = Color.White
+                containerColor = appCardSurface()
             ) {
                 AddGradeSheetContent(
                     detail = detail,
@@ -1723,12 +1832,12 @@ private fun DetailMiniMetric(
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFFE8F1FF)
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onPrimary,
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -1777,8 +1886,10 @@ private fun AddGradeSheetContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             isError = detail.draft.errorMessage != null,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = DashboardBorderBlue,
-                unfocusedBorderColor = DashboardBorderBlue
+                focusedBorderColor = appCardBorderColor(),
+                unfocusedBorderColor = appCardBorderColor(),
+                focusedContainerColor = appCardSurface(),
+                unfocusedContainerColor = appCardSurface()
             ),
             shape = RoundedCornerShape(20.dp)
         )
@@ -1796,10 +1907,10 @@ private fun AddGradeSheetContent(
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(
                         if (isSelected) 2.dp else 1.dp,
-                        if (isSelected) accentBlue else DashboardBorderBlue
+                        if (isSelected) accentBlue else appCardBorderColor()
                     ),
                     colors = CardDefaults.outlinedCardColors(
-                        containerColor = if (isSelected) DashboardSoftBlue else Color.White
+                        containerColor = if (isSelected) appSoftAccentContainer() else appCardSurface()
                     )
                 ) {
                     Box(
@@ -1828,8 +1939,10 @@ private fun AddGradeSheetContent(
                 .testTag("note-description-input"),
             label = { Text("Description (optional)") },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = DashboardBorderBlue,
-                unfocusedBorderColor = DashboardBorderBlue
+                focusedBorderColor = appCardBorderColor(),
+                unfocusedBorderColor = appCardBorderColor(),
+                focusedContainerColor = appCardSurface(),
+                unfocusedContainerColor = appCardSurface()
             ),
             shape = RoundedCornerShape(20.dp)
         )
@@ -1903,7 +2016,7 @@ private fun SwipeableNoteHistoryCard(
                     .fillMaxSize()
                     .testTag("delete-note-${note.id}"),
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE85A7A))
+                colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
             ) {
                 Box(
                     modifier = Modifier
@@ -1932,15 +2045,16 @@ private fun NoteHistoryCard(
     note: NoteUiState,
     onClick: () -> Unit
 ) {
-    val accentBlue = Color(0xFF1F74E7)
+    val accentBlue = appAccentBlue()
+    val warningRed = appWarningColor()
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag("note-card-${note.id}"),
         shape = RoundedCornerShape(22.dp),
-        border = DashboardCardBorder,
-        colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -1949,8 +2063,8 @@ private fun NoteHistoryCard(
         ) {
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = DashboardSoftBlue),
-                border = BorderStroke(1.dp, DashboardBorderBlue)
+                colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer()),
+                border = BorderStroke(1.dp, appCardBorderColor())
             ) {
                 Box(
                     modifier = Modifier.size(width = 68.dp, height = 76.dp),
@@ -1960,7 +2074,7 @@ private fun NoteHistoryCard(
                         text = note.displayValue,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (note.numericValue < 4.0) Color(0xFFC62828) else accentBlue
+                        color = if (note.numericValue < 4.0) warningRed else accentBlue
                     )
                 }
             }
@@ -1983,7 +2097,7 @@ private fun NoteHistoryCard(
                     )
                     Card(
                         shape = RoundedCornerShape(999.dp),
-                        colors = CardDefaults.cardColors(containerColor = DashboardSoftBlue)
+                        colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
                     ) {
                         Text(
                             text = note.noteTypeLabel.uppercase(),
@@ -2033,11 +2147,11 @@ private fun ConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val accentBlue = Color(0xFF1F74E7)
+    val accentBlue = appAccentBlue()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
-        containerColor = Color.White,
+        containerColor = appCardSurface(),
         title = {
             Text(
                 text = title,
@@ -2076,7 +2190,6 @@ private fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = Color(0xFF1F74E7)
     var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     Column(
         modifier = modifier
@@ -2090,17 +2203,15 @@ private fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("back-from-settings")) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
-            }
+            HeaderBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("back-from-settings")
+            )
             Text(
                 text = "Option settings",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = accentBlue
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -2149,5 +2260,47 @@ private fun SettingsScreen(
                 onSelectOption(choice)
             }
         )
+    }
+}
+
+@Composable
+private fun HeaderBackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .clickable(
+                onClick = onClick,
+                role = Role.Button
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back"
+        )
+    }
+}
+
+@Composable
+private fun HeaderActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .clickable(
+                onClick = onClick,
+                role = Role.Button
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
