@@ -4,24 +4,6 @@ SwissGrades is an Android app for students in Switzerland who want to track thei
 
 Instead of waiting for a report card, you can enter grades as they come in, organize your subjects, and see how your current results affect your average, promotion points, basket, and insufficiencies.
 
-## Why this app exists
-
-A lot of grade calculators are either too rigid, too technical, or too focused on one final “simulation”.
-
-SwissGrades is designed around a more realistic student workflow:
-
-- choose your option once when you start
-- add subjects gradually as the year goes on
-- enter grades one by one
-- keep everything saved locally on your phone
-- understand where you stand without needing all subjects or all grades upfront
-
-The app stays usable even when your data is incomplete:
-
-- no crash when a subject has no grades yet
-- empty subjects can exist while you build your school year setup
-- the promotion summary becomes more precise as more grades are added
-
 ## Current features
 
 - onboarding flow to choose your option
