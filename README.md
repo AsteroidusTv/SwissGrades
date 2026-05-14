@@ -1,6 +1,87 @@
 # SwissGrades
 
-Android app in Kotlin + Jetpack Compose for tracking and simulating Swiss grades.
+SwissGrades is an Android app for students in Switzerland who want to track their grades progressively during the school year.
+
+Instead of waiting for a report card, you can enter grades as they come in, organize your subjects, and see how your current results affect your average, promotion points, basket, and insufficiencies.
+
+## Why this app exists
+
+A lot of grade calculators are either too rigid, too technical, or too focused on one final “simulation”.
+
+SwissGrades is designed around a more realistic student workflow:
+
+- choose your option once when you start
+- add subjects gradually as the year goes on
+- enter grades one by one
+- keep everything saved locally on your phone
+- understand where you stand without needing all subjects or all grades upfront
+
+The app stays usable even when your data is incomplete:
+
+- no crash when a subject has no grades yet
+- empty subjects can exist while you build your school year setup
+- the promotion summary becomes more precise as more grades are added
+
+## Current features
+
+- onboarding flow to choose your option
+- local persistence of your setup and grades
+- editable required Option subject
+- custom subjects with name, icon, color, and basket flag
+- simple and composite options
+- multi-grade subject support
+- weighted grades:
+  - full grade
+  - half grade
+  - quarter grade
+- promotion summary with:
+  - overall average
+  - promotion points
+  - basket
+  - insufficiencies
+- subject detail pages with grade history
+- edit and delete for subjects and grades
+
+## Supported option types
+
+Simple options:
+
+- Economics-Law
+- Spanish
+- Italian
+- Latin
+- Music
+- Philosophy
+- Visual Arts
+- Other
+
+Composite options:
+
+- PYAM
+  - Physics
+  - Applications of Mathematics
+- BICH
+  - Biology
+  - Chemistry
+
+## Product direction
+
+SwissGrades is currently focused on being a strong personal-use app:
+
+- clear grade entry
+- reliable averages
+- useful promotion overview
+- simple local persistence
+
+It is not yet a full school-management app, and it does not try to be one.
+
+## Tech stack
+
+- Kotlin
+- Jetpack Compose
+- Android SDK 36
+- Gradle
+- pure Kotlin grade/promotion calculation engine
 
 ## Local setup
 
@@ -14,21 +95,21 @@ Gradle daemon usage is also disabled locally on this machine to avoid an observe
 ## Useful commands
 
 ```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
+./gradlew testDebugUnitTest --no-parallel
+./gradlew assembleDebug --no-parallel
 ```
 
 ## Test commands
 
-There are 3 different levels of test validation in this project:
+There are 3 validation levels in this project:
 
-1. JVM unit tests only
+1. JVM unit tests
 
 ```bash
 ./gradlew testDebugUnitTest --no-parallel
 ```
 
-2. Compile Android instrumented tests only
+2. Compile Android instrumented tests
 
 ```bash
 ./gradlew assembleAndroidTest --no-parallel
@@ -40,9 +121,7 @@ There are 3 different levels of test validation in this project:
 ./gradlew pixel2Api36DebugAndroidTest --no-parallel
 ```
 
-This third command is the supported end-to-end instrumented test flow for the project.
-It creates or reuses the Gradle Managed Device `pixel2Api36`, installs the app and test APKs,
-and executes the current Android instrumented suite on that target.
+This third command is the supported end-to-end Android validation path.
 
 ## Instrumented target
 
@@ -53,47 +132,31 @@ The project uses a Gradle Managed Device instead of relying on a manually create
 - System image source: `google`
 - ABI used in practice: `x86_64`
 
-This makes the instrumented test target reproducible from the project itself.
-
 ## CI validation
 
-GitHub Actions runs the same validation path in 3 separate layers:
+GitHub Actions runs validation in 3 separate layers:
 
 1. JVM unit tests
-
-```bash
-./gradlew testDebugUnitTest --no-parallel
-```
-
 2. Android assembly
-
-```bash
-./gradlew assembleDebug --no-parallel
-./gradlew assembleAndroidTest --no-parallel
-```
-
 3. Managed-device instrumented tests
 
-```bash
-./gradlew pixel2Api36DebugAndroidTest --no-parallel
-```
+Workflow:
 
-The workflow file is [.github/workflows/android-validation.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-validation.yml).
-CI runs these layers as separate jobs so it is obvious whether a failure comes from unit tests,
-Android assembly, or the real managed-emulator execution.
+- [/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-validation.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-validation.yml)
 
 ## Release workflow
 
-The project also supports a manual GitHub release flow through
-[.github/workflows/android-release.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml).
+The project supports a manual GitHub release flow through:
 
-It is triggered with `workflow_dispatch` and does all of the following:
+- [/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml)
 
-1. builds a signed `release` APK
-2. builds a signed `release` AAB
-3. creates or reuses the requested Git tag
-4. publishes a GitHub Release
-5. uploads the APK and AAB to that release
+It can:
+
+- build a signed release APK
+- build a signed release AAB
+- create or reuse a Git tag
+- publish a GitHub Release
+- upload release artifacts
 
 ### Required GitHub Secrets
 
@@ -102,24 +165,8 @@ It is triggered with `workflow_dispatch` and does all of the following:
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-`ANDROID_KEYSTORE_BASE64` should be the base64-encoded contents of your signing keystore.
+`ANDROID_KEYSTORE_BASE64` must contain the base64-encoded contents of your Android signing keystore.
 
-### Release inputs
+## Current state
 
-When you launch the workflow manually, provide:
-
-- `release_tag`
-- `release_name`
-- `version_name`
-- `version_code`
-- `prerelease`
-
-The workflow passes `version_name` and `version_code` into Gradle, so the generated release
-artifacts use the requested Android version metadata without requiring a source edit.
-
-## Current project state
-
-- Compose app with persisted editable grade simulation flow
-- JVM unit test suite
-- Android instrumented test suite
-- Gradle Managed Device support for reproducible instrumented execution
+SwissGrades already has a usable first version of the student workflow, with local persistence, editable subjects, editable grades, and automated validation in CI.

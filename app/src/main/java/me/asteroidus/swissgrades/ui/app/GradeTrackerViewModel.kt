@@ -59,13 +59,15 @@ data class NoteDraftUiState(
     val valueInput: String = "",
     val selectedType: NoteTypeUi = NoteTypeUi.FULL,
     val descriptionInput: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val editingNoteId: String? = null
 )
 
 data class SubjectDetailUiState(
     val subjectId: String,
     val title: String,
     val subtitle: String?,
+    val isOptionSubject: Boolean = false,
     val notes: List<NoteUiState>,
     val isCompositeOption: Boolean = false,
     val subSubjects: List<CompositeSubSubjectDetailUiState> = emptyList(),
@@ -90,6 +92,7 @@ data class CompositeSubSubjectDetailUiState(
 
 data class AddSubjectFormUiState(
     val isVisible: Boolean = false,
+    val editingSubjectId: String? = null,
     val nameInput: String = "",
     val isInBasket: Boolean = false,
     val selectedColor: SubjectColorChoice = SubjectColorChoice.BLUE,
@@ -210,9 +213,25 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    fun showEditSubjectForm(subjectId: String) {
+        val subject = state.subjects.firstOrNull { it.id == subjectId && !it.isOptionSubject } ?: return
+        currentScreen = InternalScreen.AddSubject(
+            addSubjectForm = AddSubjectFormUiState(
+                isVisible = true,
+                editingSubjectId = subject.id,
+                nameInput = subject.name,
+                isInBasket = subject.isInBasket,
+                selectedColor = subject.subjectColor,
+                selectedIcon = subject.subjectIcon
+            ),
+            returnToSubjectId = subject.id
+        )
+        publish()
+    }
+
     fun hideAddSubjectForm() {
-        if (currentScreen !is InternalScreen.AddSubject) return
-        currentScreen = InternalScreen.Main
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.returnToSubjectId?.let(InternalScreen::BranchDetail) ?: InternalScreen.Main
         publish()
     }
 
@@ -254,28 +273,62 @@ class GradeTrackerViewModel(
         val normalizedName = form.nameInput.trim()
         val error = when {
             normalizedName.isEmpty() -> EMPTY_SUBJECT_NAME_MESSAGE
-            state.subjects.any { it.name.equals(normalizedName, ignoreCase = true) } -> DUPLICATE_SUBJECT_NAME_MESSAGE
+            state.subjects.any {
+                it.id != form.editingSubjectId && it.name.equals(normalizedName, ignoreCase = true)
+            } -> DUPLICATE_SUBJECT_NAME_MESSAGE
             else -> null
         }
         if (error != null) {
-            currentScreen = InternalScreen.AddSubject(addSubjectForm = form.copy(errorMessage = error))
+            currentScreen = screen.copy(addSubjectForm = form.copy(errorMessage = error))
             publish()
             return
         }
 
-        val subject = StoredSubject(
-            id = "subject-${state.nextSubjectSequence}",
-            name = normalizedName,
-            isInBasket = form.isInBasket,
-            subjectColor = form.selectedColor,
-            subjectIcon = form.selectedIcon
-        )
-        state = state.copy(
-            subjects = state.subjects + subject,
-            nextSubjectSequence = state.nextSubjectSequence + 1
-        )
-        currentScreen = InternalScreen.Main
+        val editingSubjectId = form.editingSubjectId
+        if (editingSubjectId == null) {
+            val subject = StoredSubject(
+                id = "subject-${state.nextSubjectSequence}",
+                name = normalizedName,
+                isInBasket = form.isInBasket,
+                subjectColor = form.selectedColor,
+                subjectIcon = form.selectedIcon
+            )
+            state = state.copy(
+                subjects = state.subjects + subject,
+                nextSubjectSequence = state.nextSubjectSequence + 1
+            )
+        } else {
+            state = state.copy(
+                subjects = state.subjects.map { subject ->
+                    if (subject.id == editingSubjectId) {
+                        subject.copy(
+                            name = normalizedName,
+                            isInBasket = form.isInBasket,
+                            subjectColor = form.selectedColor,
+                            subjectIcon = form.selectedIcon
+                        )
+                    } else {
+                        subject
+                    }
+                }
+            )
+        }
+        currentScreen = screen.returnToSubjectId?.let(InternalScreen::BranchDetail) ?: InternalScreen.Main
         persistAndPublish()
+    }
+
+    fun requestEditNote(noteId: String) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val target = findStoredNoteTarget(screen.subjectId, noteId) ?: return
+        screen.selectedSubSubjectId = target.subSubjectId ?: screen.selectedSubSubjectId
+        screen.draft = NoteDraftUiState(
+            valueInput = formatOneOrTwoDecimals(target.note.value),
+            selectedType = target.note.weight.toNoteTypeUi(),
+            descriptionInput = target.note.description,
+            editingNoteId = target.note.id
+        )
+        screen.isAddGradeSheetVisible = true
+        publish()
     }
 
     fun deleteSubject(subjectId: String) {
@@ -297,6 +350,7 @@ class GradeTrackerViewModel(
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         if (screen.isAddGradeSheetVisible) {
             screen.isAddGradeSheetVisible = false
+            screen.draft = NoteDraftUiState()
             publish()
         } else {
             currentScreen = InternalScreen.Main
@@ -306,12 +360,14 @@ class GradeTrackerViewModel(
 
     fun showAddGradeSheet() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.draft = NoteDraftUiState()
         screen.isAddGradeSheetVisible = true
         publish()
     }
 
     fun hideAddGradeSheet() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.draft = NoteDraftUiState()
         screen.isAddGradeSheetVisible = false
         publish()
     }
@@ -391,34 +447,71 @@ class GradeTrackerViewModel(
             value = draft.valueInput.trim().toDouble(),
             weight = draft.selectedType.weight
         )
-        val note = StoredNote(
-            id = "note-${state.nextNoteSequence}",
-            value = grade.value,
-            weight = grade.weight,
-            description = draft.descriptionInput.trim(),
-            createdAtEpochMillis = System.currentTimeMillis()
-        )
-        state = state.copy(
-            subjects = state.subjects.map { subject ->
-                if (subject.id != screen.subjectId) {
-                    subject
-                } else if (subject.subSubjects.isEmpty()) {
-                    subject.copy(notes = subject.notes + note)
-                } else {
-                    val targetSubSubjectId = screen.selectedSubSubjectId ?: subject.subSubjects.first().id
-                    subject.copy(
-                        subSubjects = subject.subSubjects.map { subSubject ->
-                            if (subSubject.id == targetSubSubjectId) {
-                                subSubject.copy(notes = subSubject.notes + note)
-                            } else {
-                                subSubject
+        val editingNoteId = draft.editingNoteId
+        if (editingNoteId == null) {
+            val note = StoredNote(
+                id = "note-${state.nextNoteSequence}",
+                value = grade.value,
+                weight = grade.weight,
+                description = draft.descriptionInput.trim(),
+                createdAtEpochMillis = System.currentTimeMillis()
+            )
+            state = state.copy(
+                subjects = state.subjects.map { subject ->
+                    if (subject.id != screen.subjectId) {
+                        subject
+                    } else if (subject.subSubjects.isEmpty()) {
+                        subject.copy(notes = subject.notes + note)
+                    } else {
+                        val targetSubSubjectId = screen.selectedSubSubjectId ?: subject.subSubjects.first().id
+                        subject.copy(
+                            subSubjects = subject.subSubjects.map { subSubject ->
+                                if (subSubject.id == targetSubSubjectId) {
+                                    subSubject.copy(notes = subSubject.notes + note)
+                                } else {
+                                    subSubject
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                },
+                nextNoteSequence = state.nextNoteSequence + 1
+            )
+        } else {
+            val target = findStoredNoteTarget(screen.subjectId, editingNoteId) ?: return
+            val updatedNote = target.note.copy(
+                value = grade.value,
+                weight = grade.weight,
+                description = draft.descriptionInput.trim()
+            )
+            state = state.copy(
+                subjects = state.subjects.map { subject ->
+                    if (subject.id != screen.subjectId) {
+                        subject
+                    } else if (target.subSubjectId == null) {
+                        subject.copy(
+                            notes = subject.notes.map { note ->
+                                if (note.id == editingNoteId) updatedNote else note
+                            }
+                        )
+                    } else {
+                        subject.copy(
+                            subSubjects = subject.subSubjects.map { subSubject ->
+                                if (subSubject.id == target.subSubjectId) {
+                                    subSubject.copy(
+                                        notes = subSubject.notes.map { note ->
+                                            if (note.id == editingNoteId) updatedNote else note
+                                        }
+                                    )
+                                } else {
+                                    subSubject
+                                }
+                            }
+                        )
+                    }
                 }
-            },
-            nextNoteSequence = state.nextNoteSequence + 1
-        )
+            )
+        }
         screen.draft = NoteDraftUiState()
         screen.isAddGradeSheetVisible = false
         persistAndPublish()
@@ -542,6 +635,7 @@ class GradeTrackerViewModel(
                 subjectId = subject.id,
                 title = subject.name,
                 subtitle = subject.optionChoice?.label,
+                isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
                 officialAverageLabel = roundedAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
                 secondaryAverageTitle = "Composite average",
@@ -575,6 +669,7 @@ class GradeTrackerViewModel(
             subjectId = subject.id,
             title = subject.name,
             subtitle = subject.optionChoice?.label,
+            isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.map(::toNoteUiState),
             officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
             secondaryAverageTitle = "Raw average",
@@ -674,13 +769,21 @@ class GradeTrackerViewModel(
     }
 
     private fun findNoteTitle(subjectId: String, noteId: String): String {
-        val subject = state.subjects.firstOrNull { it.id == subjectId } ?: return "this grade"
-        val noteDescription = subject.notes.firstOrNull { it.id == noteId }?.description
-            ?: subject.subSubjects
-                .flatMap { it.notes }
-                .firstOrNull { it.id == noteId }
-                ?.description
+        val noteDescription = findStoredNoteTarget(subjectId, noteId)?.note?.description
         return noteDescription?.takeIf { it.isNotBlank() } ?: "this grade"
+    }
+
+    private fun findStoredNoteTarget(subjectId: String, noteId: String): StoredNoteTarget? {
+        val subject = state.subjects.firstOrNull { it.id == subjectId } ?: return null
+        subject.notes.firstOrNull { it.id == noteId }?.let { note ->
+            return StoredNoteTarget(note = note, subSubjectId = null)
+        }
+        subject.subSubjects.forEach { subSubject ->
+            subSubject.notes.firstOrNull { it.id == noteId }?.let { note ->
+                return StoredNoteTarget(note = note, subSubjectId = subSubject.id)
+            }
+        }
+        return null
     }
 
     private fun publish() {
@@ -711,7 +814,8 @@ private sealed interface InternalScreen {
     data object Onboarding : InternalScreen
     data object Main : InternalScreen
     data class AddSubject(
-        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(isVisible = true)
+        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(isVisible = true),
+        val returnToSubjectId: String? = null
     ) : InternalScreen
     data class BranchDetail(
         val subjectId: String,
@@ -723,6 +827,11 @@ private sealed interface InternalScreen {
     ) : InternalScreen
     data object Settings : InternalScreen
 }
+
+private data class StoredNoteTarget(
+    val note: StoredNote,
+    val subSubjectId: String?
+)
 
 private fun StoredSubject.toBranch(): Branch {
     return if (subSubjects.isEmpty()) toSimpleBranch() else toCompositeBranch()
@@ -799,6 +908,14 @@ private fun createStoredOptionSubject(choice: InitialOptionChoice): StoredSubjec
 
 private fun StoredNote.toGrade(): Grade {
     return Grade(value = value, weight = weight)
+}
+
+private fun AssessmentWeight.toNoteTypeUi(): NoteTypeUi {
+    return when (this) {
+        AssessmentWeight.FULL -> NoteTypeUi.FULL
+        AssessmentWeight.HALF -> NoteTypeUi.HALF
+        AssessmentWeight.QUARTER -> NoteTypeUi.QUARTER
+    }
 }
 
 private fun storedSubjectAverageValue(subject: StoredSubject): Double? {

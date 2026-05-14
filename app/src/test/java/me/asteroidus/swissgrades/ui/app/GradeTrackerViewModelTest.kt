@@ -94,6 +94,64 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun editingSubject_updatesExistingMetadata() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.LATIN)
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.showEditSubjectForm(historyId)
+        viewModel.updateAddSubjectName("Geography")
+        viewModel.updateAddSubjectBasketFlag(true)
+        viewModel.updateAddSubjectColor(SubjectColorChoice.GREEN)
+        viewModel.updateAddSubjectIcon(SubjectIconChoice.WORLD)
+        viewModel.addSubject()
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals("Geography", detail.title)
+
+        viewModel.backFromDetail()
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+        val updatedSubject = main.userSubjects.single()
+        assertEquals("Geography", updatedSubject.title)
+        assertTrue(updatedSubject.isInBasket)
+        assertEquals(SubjectColorChoice.GREEN, updatedSubject.colorChoice)
+        assertEquals(SubjectIconChoice.WORLD, updatedSubject.iconChoice)
+    }
+
+    @Test
+    fun editingGrade_updatesExistingNoteAndAverage() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("5.0")
+        viewModel.updateDraftDescription("Essay")
+        viewModel.addNote()
+
+        val initialDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        val noteId = initialDetail.notes.single().id
+
+        viewModel.requestEditNote(noteId)
+        viewModel.updateDraftValue("4.0")
+        viewModel.updateDraftType(NoteTypeUi.HALF)
+        viewModel.updateDraftDescription("Updated essay")
+        viewModel.addNote()
+
+        val updatedDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        val updatedNote = updatedDetail.notes.single()
+        assertEquals("4.0", updatedDetail.officialAverageLabel)
+        assertEquals("4.00", updatedDetail.secondaryAverageLabel)
+        assertEquals("Updated essay", updatedNote.description)
+        assertEquals(NoteTypeUi.HALF.label, updatedNote.noteTypeLabel)
+    }
+
+    @Test
     fun changingOption_canReplaceSimpleWithComposite() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())

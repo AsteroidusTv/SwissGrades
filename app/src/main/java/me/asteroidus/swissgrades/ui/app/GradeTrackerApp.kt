@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MusicNote
@@ -188,8 +189,10 @@ fun GradeTrackerApp(
             is ScreenUiState.BranchDetail -> BranchDetailScreen(
                 detail = screen.detail,
                 onBack = viewModel::backFromDetail,
+                onEditSubject = viewModel::showEditSubjectForm,
                 onShowAddNoteSheet = viewModel::showAddGradeSheet,
                 onDismissAddNoteSheet = viewModel::hideAddGradeSheet,
+                onRequestEditNote = viewModel::requestEditNote,
                 onRequestDeleteNote = viewModel::requestDeleteNote,
                 onDismissDeleteNoteDialog = viewModel::dismissDeleteNoteDialog,
                 onConfirmDeleteNote = viewModel::confirmDeleteNote,
@@ -463,7 +466,10 @@ private fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     val accentBlue = Color(0xFF1F74E7)
-    var pendingDeleteSubject by remember(state.userSubjects) { mutableStateOf<SubjectListItemUiState?>(null) }
+    var pendingDeleteSubjectId by remember { mutableStateOf<String?>(null) }
+    val pendingDeleteSubject = pendingDeleteSubjectId?.let { pendingId ->
+        state.userSubjects.firstOrNull { it.id == pendingId }
+    }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp),
@@ -531,7 +537,7 @@ private fun MainScreen(
             SwipeableSubjectCard(
                 subject = subject,
                 onOpenSubject = onOpenSubject,
-                onRequestDeleteSubject = { pendingDeleteSubject = subject }
+                onRequestDeleteSubject = { pendingDeleteSubjectId = subject.id }
             )
         }
     }
@@ -540,10 +546,10 @@ private fun MainScreen(
         DeleteConfirmationDialog(
             title = "Delete subject?",
             message = "Remove ${subject.title} and all its grades? This action cannot be undone.",
-            onDismiss = { pendingDeleteSubject = null },
+            onDismiss = { pendingDeleteSubjectId = null },
             onConfirm = {
+                pendingDeleteSubjectId = null
                 onDeleteSubject(subject.id)
-                pendingDeleteSubject = null
             }
         )
     }
@@ -622,6 +628,7 @@ private fun AddSubjectScreen(
     val activeColor = state.selectedColor
         .takeIf { it in AddSubjectAvailableColors }
         ?: SubjectColorChoice.BLUE
+    val isEditing = state.editingSubjectId != null
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -641,7 +648,7 @@ private fun AddSubjectScreen(
                 )
             }
             Text(
-                text = "Add a subject",
+                text = if (isEditing) "Edit subject" else "Add a subject",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = accentBlue
@@ -790,9 +797,9 @@ private fun AddSubjectScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text("Create subject", style = MaterialTheme.typography.titleMedium)
+                Text(if (isEditing) "Save changes" else "Create subject", style = MaterialTheme.typography.titleMedium)
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Add,
                     contentDescription = null,
                     modifier = Modifier.padding(start = 10.dp)
                 )
@@ -1257,8 +1264,10 @@ private fun IconChoiceChip(
 private fun BranchDetailScreen(
     detail: SubjectDetailUiState,
     onBack: () -> Unit,
+    onEditSubject: (String) -> Unit,
     onShowAddNoteSheet: () -> Unit,
     onDismissAddNoteSheet: () -> Unit,
+    onRequestEditNote: (String) -> Unit,
     onRequestDeleteNote: (String) -> Unit,
     onDismissDeleteNoteDialog: () -> Unit,
     onConfirmDeleteNote: () -> Unit,
@@ -1321,6 +1330,17 @@ private fun BranchDetailScreen(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (!detail.isOptionSubject) {
+                IconButton(
+                    onClick = { onEditSubject(detail.subjectId) },
+                    modifier = Modifier.testTag("edit-subject")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit subject"
                     )
                 }
             }
@@ -1630,6 +1650,7 @@ private fun BranchDetailScreen(
             visibleNotes.forEach { note ->
                 SwipeableNoteHistoryCard(
                     note = note,
+                    onRequestEdit = { onRequestEditNote(note.id) },
                     onRequestDelete = { onRequestDeleteNote(note.id) }
                 )
             }
@@ -1734,10 +1755,12 @@ private fun AddGradeSheetContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = if (detail.isCompositeOption) {
-                "Add a grade to ${activeSubSubjectName ?: detail.title}"
-            } else {
-                "Add a grade"
+            text = when {
+                detail.draft.editingNoteId != null && detail.isCompositeOption ->
+                    "Edit grade in ${activeSubSubjectName ?: detail.title}"
+                detail.draft.editingNoteId != null -> "Edit grade"
+                detail.isCompositeOption -> "Add a grade to ${activeSubSubjectName ?: detail.title}"
+                else -> "Add a grade"
             },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
@@ -1830,9 +1853,12 @@ private fun AddGradeSheetContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text("Add a grade", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (detail.draft.editingNoteId != null) "Save changes" else "Add a grade",
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = if (detail.draft.editingNoteId != null) Icons.Filled.Edit else Icons.Filled.Add,
                     contentDescription = null,
                     modifier = Modifier.padding(start = 10.dp)
                 )
@@ -1844,6 +1870,7 @@ private fun AddGradeSheetContent(
 @Composable
 private fun SwipeableNoteHistoryCard(
     note: NoteUiState,
+    onRequestEdit: () -> Unit,
     onRequestDelete: () -> Unit
 ) {
     var shouldResetSwipe by remember(note.id) { mutableStateOf(false) }
@@ -1893,15 +1920,24 @@ private fun SwipeableNoteHistoryCard(
             }
         }
     ) {
-        NoteHistoryCard(note = note)
+        NoteHistoryCard(
+            note = note,
+            onClick = onRequestEdit
+        )
     }
 }
 
 @Composable
-private fun NoteHistoryCard(note: NoteUiState) {
+private fun NoteHistoryCard(
+    note: NoteUiState,
+    onClick: () -> Unit
+) {
     val accentBlue = Color(0xFF1F74E7)
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .testTag("note-card-${note.id}"),
         shape = RoundedCornerShape(22.dp),
         border = DashboardCardBorder,
         colors = CardDefaults.outlinedCardColors(containerColor = DashboardCardSurface)
@@ -1980,6 +2016,23 @@ private fun DeleteConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    ConfirmationDialog(
+        title = title,
+        message = message,
+        confirmLabel = "Delete",
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
+    )
+}
+
+@Composable
+private fun ConfirmationDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
     val accentBlue = Color(0xFF1F74E7)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2005,7 +2058,7 @@ private fun DeleteConfirmationDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = accentBlue),
                 shape = RoundedCornerShape(18.dp)
             ) {
-                Text("Delete")
+                Text(confirmLabel)
             }
         },
         dismissButton = {
@@ -2024,6 +2077,7 @@ private fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val accentBlue = Color(0xFF1F74E7)
+    var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -2072,11 +2126,28 @@ private fun SettingsScreen(
             OnboardingOptionCard(
                 choice = choice,
                 isSelected = settings.selectedOption == choice,
-                onClick = { if (settings.selectedOption != choice) onSelectOption(choice) },
+                onClick = {
+                    if (settings.selectedOption != choice) {
+                        pendingOptionChange = choice
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("settings-option-${choice.name}")
             )
         }
+    }
+
+    pendingOptionChange?.let { choice ->
+        ConfirmationDialog(
+            title = "Change option?",
+            message = "Changing your option will delete the grades currently saved in the Option subject. This action cannot be undone.",
+            confirmLabel = "Change option",
+            onDismiss = { pendingOptionChange = null },
+            onConfirm = {
+                pendingOptionChange = null
+                onSelectOption(choice)
+            }
+        )
     }
 }
