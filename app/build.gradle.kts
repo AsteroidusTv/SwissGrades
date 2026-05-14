@@ -4,6 +4,19 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val releaseVersionCode = providers.gradleProperty("RELEASE_VERSION_CODE")
+    .orElse(providers.environmentVariable("RELEASE_VERSION_CODE"))
+    .map(String::toInt)
+    .orElse(1)
+
+val releaseVersionName = providers.gradleProperty("RELEASE_VERSION_NAME")
+    .orElse(providers.environmentVariable("RELEASE_VERSION_NAME"))
+    .orElse("1.0")
+
+val releaseKeystorePath = providers.gradleProperty("ANDROID_KEYSTORE_PATH")
+    .orElse(providers.environmentVariable("ANDROID_KEYSTORE_PATH"))
+    .orNull
+
 android {
     namespace = "me.asteroidus.swissgrades"
     compileSdk = 36
@@ -12,15 +25,35 @@ android {
         applicationId = "me.asteroidus.swissgrades"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = releaseVersionCode.get()
+        versionName = releaseVersionName.get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (!releaseKeystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = providers.gradleProperty("ANDROID_KEYSTORE_PASSWORD")
+                    .orElse(providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD"))
+                    .orNull
+                keyAlias = providers.gradleProperty("ANDROID_KEY_ALIAS")
+                    .orElse(providers.environmentVariable("ANDROID_KEY_ALIAS"))
+                    .orNull
+                keyPassword = providers.gradleProperty("ANDROID_KEY_PASSWORD")
+                    .orElse(providers.environmentVariable("ANDROID_KEY_PASSWORD"))
+                    .orNull
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (!releaseKeystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

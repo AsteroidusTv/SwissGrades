@@ -82,6 +82,41 @@ The workflow file is [.github/workflows/android-validation.yml](/home/achille/An
 CI runs these layers as separate jobs so it is obvious whether a failure comes from unit tests,
 Android assembly, or the real managed-emulator execution.
 
+## Release workflow
+
+The project also supports a manual GitHub release flow through
+[.github/workflows/android-release.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml).
+
+It is triggered with `workflow_dispatch` and does all of the following:
+
+1. builds a signed `release` APK
+2. builds a signed `release` AAB
+3. creates or reuses the requested Git tag
+4. publishes a GitHub Release
+5. uploads the APK and AAB to that release
+
+### Required GitHub Secrets
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+`ANDROID_KEYSTORE_BASE64` should be the base64-encoded contents of your signing keystore.
+
+### Release inputs
+
+When you launch the workflow manually, provide:
+
+- `release_tag`
+- `release_name`
+- `version_name`
+- `version_code`
+- `prerelease`
+
+The workflow passes `version_name` and `version_code` into Gradle, so the generated release
+artifacts use the requested Android version metadata without requiring a source edit.
+
 ## Current project state
 
 - Compose app with persisted editable grade simulation flow
