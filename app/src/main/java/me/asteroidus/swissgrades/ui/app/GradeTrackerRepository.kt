@@ -11,49 +11,60 @@ private const val KEY_APP_STATE = "app_state"
 
 enum class InitialOptionChoice(
     val label: String,
+    val categoryLabel: String,
     val optionType: OptionType?,
     val compositeSubSubjectNames: List<String> = emptyList()
 ) {
     PHYSICS_AND_APPLICATIONS_OF_MATH(
-        label = "Physics and Applications of Mathematics",
+        label = "PYAM",
+        categoryLabel = "Experimental sciences",
         optionType = OptionType.PHYSICS_AND_MATH_APPLICATIONS,
         compositeSubSubjectNames = listOf("Physics", "Applications of Mathematics")
     ),
     BIOLOGY_CHEMISTRY(
-        label = "Biology-Chemistry",
+        label = "BICH",
+        categoryLabel = "Experimental sciences",
         optionType = OptionType.BIOLOGY_CHEMISTRY,
         compositeSubSubjectNames = listOf("Biology", "Chemistry")
     ),
     ECONOMICS_LAW(
         label = "Economics-Law",
+        categoryLabel = "Management & society",
         optionType = OptionType.ECONOMICS_LAW
     ),
     SPANISH(
         label = "Spanish",
+        categoryLabel = "Modern languages",
         optionType = OptionType.SPANISH
     ),
     ITALIAN(
         label = "Italian",
+        categoryLabel = "Modern languages",
         optionType = OptionType.ITALIAN
     ),
     LATIN(
         label = "Latin",
+        categoryLabel = "Classical languages",
         optionType = OptionType.LATIN
     ),
     MUSIC(
         label = "Music",
+        categoryLabel = "Arts",
         optionType = OptionType.MUSIC
     ),
     PHILOSOPHY(
         label = "Philosophy",
+        categoryLabel = "Humanities",
         optionType = OptionType.PHILOSOPHY
     ),
     VISUAL_ARTS(
         label = "Visual Arts",
+        categoryLabel = "Arts",
         optionType = OptionType.VISUAL_ARTS
     ),
     OTHER(
         label = "Other",
+        categoryLabel = "Custom option",
         optionType = OptionType.OTHER
     );
 
@@ -75,12 +86,41 @@ data class StoredSubSubject(
     val notes: List<StoredNote>
 )
 
+enum class SubjectColorChoice {
+    BLUE,
+    RED,
+    TEAL,
+    SLATE,
+    PURPLE,
+    PINK,
+    GREEN,
+    AMBER,
+    ORANGE
+}
+
+enum class SubjectIconChoice {
+    BOOK,
+    SCIENCE,
+    LANGUAGE,
+    MUSIC,
+    ART,
+    MIND,
+    BALANCE,
+    CATEGORY,
+    HISTORY,
+    MATH,
+    WORLD,
+    SPORT
+}
+
 data class StoredSubject(
     val id: String,
     val name: String,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean = false,
     val optionChoice: InitialOptionChoice? = null,
+    val subjectColor: SubjectColorChoice = SubjectColorChoice.BLUE,
+    val subjectIcon: SubjectIconChoice = SubjectIconChoice.BOOK,
     val notes: List<StoredNote> = emptyList(),
     val subSubjects: List<StoredSubSubject> = emptyList()
 )
@@ -126,6 +166,8 @@ class SharedPreferencesGradeTrackerRepository(
                 .put("isInBasket", subject.isInBasket)
                 .put("isOptionSubject", subject.isOptionSubject)
                 .put("optionChoice", subject.optionChoice?.name)
+                .put("subjectColor", subject.subjectColor.name)
+                .put("subjectIcon", subject.subjectIcon.name)
 
             val notesJson = JSONArray()
             subject.notes.forEach { note ->
@@ -199,6 +241,14 @@ class SharedPreferencesGradeTrackerRepository(
                         optionChoice = subjectJson.optString("optionChoice")
                             .takeIf { it.isNotBlank() }
                             ?.let(InitialOptionChoice::valueOf),
+                        subjectColor = subjectJson.optString("subjectColor")
+                            .takeIf { it.isNotBlank() }
+                            ?.let(SubjectColorChoice::valueOf)
+                            ?: SubjectColorChoice.BLUE,
+                        subjectIcon = subjectJson.optString("subjectIcon")
+                            .takeIf { it.isNotBlank() }
+                            ?.let(SubjectIconChoice::valueOf)
+                            ?: SubjectIconChoice.BOOK,
                         notes = notes,
                         subSubjects = subSubjects
                     )

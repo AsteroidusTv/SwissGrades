@@ -1,5 +1,6 @@
 package me.asteroidus.swissgrades.domain
 
+import kotlin.math.floor
 import kotlin.math.round
 import me.asteroidus.swissgrades.domain.model.Branch
 import me.asteroidus.swissgrades.domain.model.Grade
@@ -16,7 +17,7 @@ object GradeCalculator {
         return weightedSum / totalWeight
     }
 
-    fun roundToHalf(value: Double): Double = round(value * 2.0) / 2.0
+    fun roundToHalf(value: Double): Double = floor((value * 2.0) + 0.5 + 1e-9) / 2.0
 
     fun roundToHundredth(value: Double): Double = round(value * 100.0) / 100.0
 

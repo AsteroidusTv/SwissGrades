@@ -32,7 +32,9 @@ class GradeCalculatorTest {
 
     @Test
     fun roundToHalf_roundsToNearestHalf() {
+        assertEquals(4.5, GradeCalculator.roundToHalf(4.25), 0.0)
         assertEquals(4.5, GradeCalculator.roundToHalf(4.26), 0.0)
+        assertEquals(5.0, GradeCalculator.roundToHalf(4.75), 0.0)
         assertEquals(5.0, GradeCalculator.roundToHalf(4.83), 0.0)
     }
 
@@ -198,5 +200,17 @@ class GradeCalculatorTest {
         )
 
         assertEquals(5.0, GradeCalculator.computeBranchAverage(branch)!!, 0.0)
+    }
+
+    @Test
+    fun computeBranchAverage_roundsQuarterBoundaryUpToNextHalf() {
+        val branch = Branch.Simple.create(
+            name = "German",
+            grades = listOf(
+                Grade(value = 4.25, weight = FULL)
+            )
+        )
+
+        assertEquals(4.5, GradeCalculator.computeBranchAverage(branch)!!, 0.0)
     }
 }

@@ -33,6 +33,7 @@ enum class NoteTypeUi(val label: String, val weight: AssessmentWeight) {
 
 data class NoteUiState(
     val id: String,
+    val numericValue: Double,
     val displayValue: String,
     val noteTypeLabel: String,
     val description: String,
@@ -45,14 +46,13 @@ data class SubjectListItemUiState(
     val subtitle: String?,
     val averageLabel: String,
     val pointsLabel: String,
+    val averageValue: Double?,
+    val pointsValue: Double?,
+    val colorChoice: SubjectColorChoice,
+    val iconChoice: SubjectIconChoice,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean,
     val isCompositeOption: Boolean
-)
-
-data class BranchMetricUiState(
-    val label: String,
-    val value: String
 )
 
 data class NoteDraftUiState(
@@ -67,9 +67,16 @@ data class SubjectDetailUiState(
     val title: String,
     val subtitle: String?,
     val notes: List<NoteUiState>,
-    val metrics: List<BranchMetricUiState>,
     val isCompositeOption: Boolean = false,
     val subSubjects: List<CompositeSubSubjectDetailUiState> = emptyList(),
+    val officialAverageLabel: String = EMPTY_NOTES_MESSAGE,
+    val secondaryAverageTitle: String = "Raw average",
+    val secondaryAverageLabel: String = EMPTY_NOTES_MESSAGE,
+    val pointsLabel: String = EMPTY_NOTES_MESSAGE,
+    val statusLabel: String = EMPTY_NOTES_MESSAGE,
+    val statusTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+    val isAddGradeSheetVisible: Boolean = false,
+    val pendingDeleteNoteTitle: String? = null,
     val draft: NoteDraftUiState = NoteDraftUiState(),
     val selectedSubSubjectId: String? = null
 )
@@ -85,6 +92,8 @@ data class AddSubjectFormUiState(
     val isVisible: Boolean = false,
     val nameInput: String = "",
     val isInBasket: Boolean = false,
+    val selectedColor: SubjectColorChoice = SubjectColorChoice.BLUE,
+    val selectedIcon: SubjectIconChoice = SubjectIconChoice.BOOK,
     val errorMessage: String? = null
 )
 
@@ -94,10 +103,24 @@ data class SettingsUiState(
 
 data class DashboardSummaryUiState(
     val overallAverageLabel: String,
+    val overallAverageValue: Double?,
     val promotionStatusLabel: String,
     val promotionHeadline: String,
-    val isPromotionCalculable: Boolean
+    val isPromotionCalculable: Boolean,
+    val promotionPointsLabel: String,
+    val promotionPointsValue: Double?,
+    val basketLabel: String,
+    val basketValue: Double?,
+    val insufficienciesLabel: String,
+    val insufficiencyCount: Int,
+    val statusTone: DashboardStatusTone
 )
+
+enum class DashboardStatusTone {
+    POSITIVE,
+    NEGATIVE,
+    NEUTRAL
+}
 
 sealed interface ScreenUiState {
     data class Onboarding(
@@ -107,8 +130,11 @@ sealed interface ScreenUiState {
     data class Main(
         val summary: DashboardSummaryUiState,
         val optionSubject: SubjectListItemUiState,
-        val userSubjects: List<SubjectListItemUiState>,
-        val addSubjectForm: AddSubjectFormUiState
+        val userSubjects: List<SubjectListItemUiState>
+    ) : ScreenUiState
+
+    data class AddSubject(
+        val form: AddSubjectFormUiState
     ) : ScreenUiState
 
     data class BranchDetail(
@@ -127,8 +153,8 @@ data class GradeTrackerUiState(
 class GradeTrackerViewModel(
     private val repository: GradeTrackerRepository
 ) : ViewModel() {
-    private var state: GradeTrackerAppState = repository.load() ?: GradeTrackerAppState()
-    private var currentScreen: InternalScreen = if (state.isOnboardingCompleted) InternalScreen.Main() else InternalScreen.Onboarding
+    private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withRequiredOptionSubject()
+    private var currentScreen: InternalScreen = if (state.isOnboardingCompleted) InternalScreen.Main else InternalScreen.Onboarding
     private var onboardingSelection: InitialOptionChoice? = state.selectedOption
 
     private val _uiState = MutableStateFlow(createUiState())
@@ -149,7 +175,7 @@ class GradeTrackerViewModel(
             nextSubjectSequence = 2
         )
         onboardingSelection = choice
-        currentScreen = InternalScreen.Main()
+        currentScreen = InternalScreen.Main
         persistAndPublish()
     }
 
@@ -161,7 +187,7 @@ class GradeTrackerViewModel(
     }
 
     fun closeSettings() {
-        currentScreen = InternalScreen.Main()
+        currentScreen = InternalScreen.Main
         publish()
     }
 
@@ -172,47 +198,59 @@ class GradeTrackerViewModel(
         )
         state = state.copy(
             selectedOption = choice,
-            subjects = state.subjects.map { subject ->
-                if (subject.isOptionSubject) replacement else subject
-            }
+            subjects = listOf(replacement) + state.subjects.filterNot { it.isOptionSubject }
         )
-        currentScreen = InternalScreen.Main()
+        currentScreen = InternalScreen.Main
         persistAndPublish()
     }
 
     fun showAddSubjectForm() {
         if (currentScreen !is InternalScreen.Main) return
-        currentScreen = InternalScreen.Main(
-            addSubjectForm = currentAddSubjectForm().copy(isVisible = true)
-        )
+        currentScreen = InternalScreen.AddSubject()
         publish()
     }
 
     fun hideAddSubjectForm() {
-        if (currentScreen !is InternalScreen.Main) return
-        currentScreen = InternalScreen.Main()
+        if (currentScreen !is InternalScreen.AddSubject) return
+        currentScreen = InternalScreen.Main
         publish()
     }
 
     fun updateAddSubjectName(input: String) {
-        if (currentScreen !is InternalScreen.Main) return
-        currentScreen = InternalScreen.Main(
-            addSubjectForm = currentAddSubjectForm().copy(nameInput = input, errorMessage = null)
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.copy(
+            addSubjectForm = screen.addSubjectForm.copy(nameInput = input, errorMessage = null)
         )
         publish()
     }
 
     fun updateAddSubjectBasketFlag(isInBasket: Boolean) {
-        if (currentScreen !is InternalScreen.Main) return
-        currentScreen = InternalScreen.Main(
-            addSubjectForm = currentAddSubjectForm().copy(isInBasket = isInBasket)
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.copy(
+            addSubjectForm = screen.addSubjectForm.copy(isInBasket = isInBasket)
+        )
+        publish()
+    }
+
+    fun updateAddSubjectColor(colorChoice: SubjectColorChoice) {
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.copy(
+            addSubjectForm = screen.addSubjectForm.copy(selectedColor = colorChoice)
+        )
+        publish()
+    }
+
+    fun updateAddSubjectIcon(iconChoice: SubjectIconChoice) {
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.copy(
+            addSubjectForm = screen.addSubjectForm.copy(selectedIcon = iconChoice)
         )
         publish()
     }
 
     fun addSubject() {
-        if (currentScreen !is InternalScreen.Main) return
-        val form = currentAddSubjectForm()
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        val form = screen.addSubjectForm
         val normalizedName = form.nameInput.trim()
         val error = when {
             normalizedName.isEmpty() -> EMPTY_SUBJECT_NAME_MESSAGE
@@ -220,7 +258,7 @@ class GradeTrackerViewModel(
             else -> null
         }
         if (error != null) {
-            currentScreen = InternalScreen.Main(addSubjectForm = form.copy(errorMessage = error))
+            currentScreen = InternalScreen.AddSubject(addSubjectForm = form.copy(errorMessage = error))
             publish()
             return
         }
@@ -228,24 +266,25 @@ class GradeTrackerViewModel(
         val subject = StoredSubject(
             id = "subject-${state.nextSubjectSequence}",
             name = normalizedName,
-            isInBasket = form.isInBasket
+            isInBasket = form.isInBasket,
+            subjectColor = form.selectedColor,
+            subjectIcon = form.selectedIcon
         )
         state = state.copy(
             subjects = state.subjects + subject,
             nextSubjectSequence = state.nextSubjectSequence + 1
         )
-        currentScreen = InternalScreen.Main()
+        currentScreen = InternalScreen.Main
         persistAndPublish()
     }
 
     fun deleteSubject(subjectId: String) {
+        if (state.subjects.any { it.id == subjectId && it.isOptionSubject }) return
+
         state = state.copy(
-            subjects = state.subjects.filterNot { it.id == subjectId || it.isOptionSubject && it.id == subjectId }
-        )
-        if (state.subjects.none { it.isOptionSubject }) {
-            state = state.copy(subjects = listOf(createOptionSubject(requireNotNull(state.selectedOption))))
-        }
-        currentScreen = InternalScreen.Main()
+            subjects = state.subjects.filterNot { it.id == subjectId }
+        ).withRequiredOptionSubject()
+        currentScreen = InternalScreen.Main
         persistAndPublish()
     }
 
@@ -255,8 +294,64 @@ class GradeTrackerViewModel(
     }
 
     fun backFromDetail() {
-        currentScreen = InternalScreen.Main()
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        if (screen.isAddGradeSheetVisible) {
+            screen.isAddGradeSheetVisible = false
+            publish()
+        } else {
+            currentScreen = InternalScreen.Main
+            publish()
+        }
+    }
+
+    fun showAddGradeSheet() {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.isAddGradeSheetVisible = true
         publish()
+    }
+
+    fun hideAddGradeSheet() {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.isAddGradeSheetVisible = false
+        publish()
+    }
+
+    fun requestDeleteNote(noteId: String) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val noteTitle = findNoteTitle(screen.subjectId, noteId)
+        screen.pendingDeleteNoteId = noteId
+        screen.pendingDeleteNoteTitle = noteTitle
+        publish()
+    }
+
+    fun dismissDeleteNoteDialog() {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.pendingDeleteNoteId = null
+        screen.pendingDeleteNoteTitle = null
+        publish()
+    }
+
+    fun confirmDeleteNote() {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val noteId = screen.pendingDeleteNoteId ?: return
+        state = state.copy(
+            subjects = state.subjects.map { subject ->
+                if (subject.id != screen.subjectId) {
+                    subject
+                } else if (subject.subSubjects.isEmpty()) {
+                    subject.copy(notes = subject.notes.filterNot { it.id == noteId })
+                } else {
+                    subject.copy(
+                        subSubjects = subject.subSubjects.map { subSubject ->
+                            subSubject.copy(notes = subSubject.notes.filterNot { it.id == noteId })
+                        }
+                    )
+                }
+            }
+        )
+        screen.pendingDeleteNoteId = null
+        screen.pendingDeleteNoteTitle = null
+        persistAndPublish()
     }
 
     fun updateDraftValue(input: String) {
@@ -325,6 +420,7 @@ class GradeTrackerViewModel(
             nextNoteSequence = state.nextNoteSequence + 1
         )
         screen.draft = NoteDraftUiState()
+        screen.isAddGradeSheetVisible = false
         persistAndPublish()
     }
 
@@ -354,13 +450,22 @@ class GradeTrackerViewModel(
                 ScreenUiState.Main(
                     summary = summary,
                     optionSubject = optionSubject,
-                    userSubjects = userSubjects,
-                    addSubjectForm = target.addSubjectForm
+                    userSubjects = userSubjects
                 )
             }
 
+            is InternalScreen.AddSubject -> ScreenUiState.AddSubject(
+                form = target.addSubjectForm
+            )
+
             is InternalScreen.BranchDetail -> ScreenUiState.BranchDetail(
-                detail = createSubjectDetail(target.subjectId, target.draft, target.selectedSubSubjectId)
+                detail = createSubjectDetail(
+                    target.subjectId,
+                    target.draft,
+                    target.selectedSubSubjectId,
+                    target.isAddGradeSheetVisible,
+                    target.pendingDeleteNoteTitle
+                )
             )
 
             is InternalScreen.Settings -> ScreenUiState.Settings(
@@ -371,22 +476,41 @@ class GradeTrackerViewModel(
     }
 
     private fun createDashboardSummary(): DashboardSummaryUiState {
-        val calculableAverages = state.subjects.mapNotNull { subjectAverageValue(it) }
+        val calculableAverages = state.subjects.mapNotNull(::storedSubjectAverageValue)
         val overallAverage = calculableAverages.takeIf { it.isNotEmpty() }?.average()
         val promotion = buildPromotionPresentation()
+        val totalPromotionPoints = state.totalPromotionPoints()
+        val basketTotal = state.currentBasketTotal()
+        val insufficiencyCount = state.insufficiencyCount()
         return if (promotion != null) {
             DashboardSummaryUiState(
                 overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                overallAverageValue = overallAverage,
                 promotionStatusLabel = promotion.statusLabel,
                 promotionHeadline = promotion.headline,
-                isPromotionCalculable = !promotion.basketTotal.valueLabel.equals("Not available", ignoreCase = true)
+                isPromotionCalculable = !promotion.basketTotal.valueLabel.equals("Not available", ignoreCase = true),
+                promotionPointsLabel = totalPromotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                promotionPointsValue = totalPromotionPoints,
+                basketLabel = basketTotal?.let { "${formatOneOrTwoDecimals(it)} / 16" } ?: "Not enough grades",
+                basketValue = basketTotal,
+                insufficienciesLabel = "$insufficiencyCount / 4",
+                insufficiencyCount = insufficiencyCount,
+                statusTone = promotion.statusLabel.toDashboardStatusTone()
             )
         } else {
             DashboardSummaryUiState(
                 overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                overallAverageValue = overallAverage,
                 promotionStatusLabel = "Not calculable yet",
-                promotionHeadline = "Add German, French, Math, and Option grades to unlock promotion status.",
-                isPromotionCalculable = false
+                promotionHeadline = promotionUnavailableHeadline(),
+                isPromotionCalculable = false,
+                promotionPointsLabel = totalPromotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                promotionPointsValue = totalPromotionPoints,
+                basketLabel = basketTotal?.let { "${formatOneOrTwoDecimals(it)} / 16" } ?: "Not enough grades",
+                basketValue = basketTotal,
+                insufficienciesLabel = "$insufficiencyCount / 4",
+                insufficiencyCount = insufficiencyCount,
+                statusTone = DashboardStatusTone.NEUTRAL
             )
         }
     }
@@ -394,7 +518,9 @@ class GradeTrackerViewModel(
     private fun createSubjectDetail(
         subjectId: String,
         draft: NoteDraftUiState,
-        selectedSubSubjectId: String?
+        selectedSubSubjectId: String?,
+        isAddGradeSheetVisible: Boolean,
+        pendingDeleteNoteTitle: String?
     ): SubjectDetailUiState {
         val subject = requireNotNull(state.subjects.firstOrNull { it.id == subjectId })
         if (subject.subSubjects.isNotEmpty()) {
@@ -409,12 +535,22 @@ class GradeTrackerViewModel(
                 null
             }
             val roundedAverage = GradeCalculator.computeCompositeOptionAverage(compositeBranch)
+            val promotionPoints = roundedAverage?.let(GradeCalculator::computePromotionPoints)
+            val statusLabel = roundedAverage.toBranchStatusLabel()
 
             return SubjectDetailUiState(
                 subjectId = subject.id,
                 title = subject.name,
                 subtitle = subject.optionChoice?.label,
                 isCompositeOption = true,
+                officialAverageLabel = roundedAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                secondaryAverageTitle = "Composite average",
+                secondaryAverageLabel = finalAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                pointsLabel = promotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+                statusLabel = statusLabel,
+                statusTone = statusLabel.toDetailStatusTone(),
+                isAddGradeSheetVisible = isAddGradeSheetVisible,
+                pendingDeleteNoteTitle = pendingDeleteNoteTitle,
                 subSubjects = subject.subSubjects.map { subSubject ->
                     CompositeSubSubjectDetailUiState(
                         id = subSubject.id,
@@ -423,12 +559,6 @@ class GradeTrackerViewModel(
                         notes = subSubject.notes.map(::toNoteUiState)
                     )
                 },
-                metrics = listOf(
-                    BranchMetricUiState("First sub-subject average", firstAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE),
-                    BranchMetricUiState("Second sub-subject average", secondAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE),
-                    BranchMetricUiState("Composite final average", finalAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE),
-                    BranchMetricUiState("Official rounded option average", roundedAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE)
-                ),
                 notes = emptyList(),
                 draft = draft,
                 selectedSubSubjectId = selectedSubSubjectId ?: subject.subSubjects.first().id
@@ -439,34 +569,47 @@ class GradeTrackerViewModel(
         val rawAverage = GradeCalculator.weightedAverage(branch.grades)
         val officialAverage = GradeCalculator.computeBranchAverage(branch)
         val points = officialAverage?.let(GradeCalculator::computePromotionPoints)
+        val statusLabel = officialAverage.toBranchStatusLabel()
 
         return SubjectDetailUiState(
             subjectId = subject.id,
             title = subject.name,
             subtitle = subject.optionChoice?.label,
             notes = subject.notes.map(::toNoteUiState),
-            metrics = listOf(
-                BranchMetricUiState("Raw average", rawAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE),
-                BranchMetricUiState("Official rounded average", officialAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE),
-                BranchMetricUiState("Promotion points", points?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE)
-            ),
+            officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+            secondaryAverageTitle = "Raw average",
+            secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+            statusLabel = statusLabel,
+            statusTone = statusLabel.toDetailStatusTone(),
+            isAddGradeSheetVisible = isAddGradeSheetVisible,
+            pendingDeleteNoteTitle = pendingDeleteNoteTitle,
             draft = draft
         )
     }
 
     private fun buildPromotionPresentation(): PromotionPresentation? {
         val option = state.subjects.firstOrNull { it.isOptionSubject } ?: return null
-        val german = state.subjects.firstOrNull { it.name.equals("German", ignoreCase = true) } ?: return null
-        val french = state.subjects.firstOrNull { it.name.equals("French", ignoreCase = true) } ?: return null
-        val math = state.subjects.firstOrNull { it.name.equals("Math", ignoreCase = true) } ?: return null
+        val basketSubjects = state.nonOptionBasketSubjects()
+        if (basketSubjects.size != 3) return null
+
+        val firstBasketSubject = basketSubjects[0]
+        val secondBasketSubject = basketSubjects[1]
+        val thirdBasketSubject = basketSubjects[2]
+        val basketSubjectIds = setOf(
+            firstBasketSubject.id,
+            secondBasketSubject.id,
+            thirdBasketSubject.id,
+            option.id
+        )
 
         val assignments = buildList {
-            add(PromotionRoleAssignment.German(german.toSimpleBranch()))
-            add(PromotionRoleAssignment.French(french.toSimpleBranch()))
-            add(PromotionRoleAssignment.Math(math.toSimpleBranch()))
+            add(PromotionRoleAssignment.German(firstBasketSubject.toSimpleBranch()))
+            add(PromotionRoleAssignment.French(secondBasketSubject.toSimpleBranch()))
+            add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch()))
             add(PromotionRoleAssignment.Option(option.toBranch()))
             state.subjects
-                .filterNot { it.id in setOf(german.id, french.id, math.id, option.id) }
+                .filterNot { it.id in basketSubjectIds }
                 .forEach { subject ->
                     add(
                         PromotionRoleAssignment.Additional(
@@ -479,48 +622,36 @@ class GradeTrackerViewModel(
         return PromotionPresentationMapper.map(PromotionEvaluator.evaluate(PromotionEvaluationInput.create(assignments)))
     }
 
+    private fun promotionUnavailableHeadline(): String {
+        val basketSubjectCount = state.nonOptionBasketSubjects().size
+        return when {
+            basketSubjectCount < 3 -> ""
+            basketSubjectCount > 3 -> "Keep exactly three non-option subjects in the basket to unlock promotion status."
+            else -> "Add grades to every basket subject and the Option branch to unlock promotion status."
+        }
+    }
+
     private fun subjectToListItem(subject: StoredSubject): SubjectListItemUiState {
-        val average = subjectAverageValue(subject)
+        val average = storedSubjectAverageValue(subject)
         val points = average?.let(GradeCalculator::computePromotionPoints)
         return SubjectListItemUiState(
             id = subject.id,
             title = subject.name,
-            subtitle = subject.optionChoice?.label?.takeIf { subject.isOptionSubject },
+            subtitle = null,
             averageLabel = average?.let(::formatOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
-            pointsLabel = points?.let(::formatOneOrTwoDecimals) ?: "0.0",
+            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals) ?: EMPTY_NOTES_MESSAGE,
+            averageValue = average,
+            pointsValue = points,
+            colorChoice = subject.subjectColor,
+            iconChoice = subject.subjectIcon,
             isInBasket = subject.isInBasket,
             isOptionSubject = subject.isOptionSubject,
             isCompositeOption = subject.subSubjects.isNotEmpty()
         )
     }
 
-    private fun subjectAverageValue(subject: StoredSubject): Double? {
-        return when {
-            subject.subSubjects.isNotEmpty() -> GradeCalculator.computeCompositeOptionAverage(subject.toCompositeBranch())
-            else -> GradeCalculator.computeBranchAverage(subject.toSimpleBranch())
-        }
-    }
-
     private fun createOptionSubject(choice: InitialOptionChoice): StoredSubject {
-        return StoredSubject(
-            id = "subject-1",
-            name = "Option",
-            isInBasket = true,
-            isOptionSubject = true,
-            optionChoice = choice,
-            notes = emptyList(),
-            subSubjects = choice.compositeSubSubjectNames.mapIndexed { index, name ->
-                StoredSubSubject(
-                    id = "option-subject-${index + 1}",
-                    name = name,
-                    notes = emptyList()
-                )
-            }
-        )
-    }
-
-    private fun currentAddSubjectForm(): AddSubjectFormUiState {
-        return (currentScreen as? InternalScreen.Main)?.addSubjectForm ?: AddSubjectFormUiState(isVisible = true)
+        return createStoredOptionSubject(choice)
     }
 
     private fun validateDraftValue(input: String): String? {
@@ -542,20 +673,53 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    private fun findNoteTitle(subjectId: String, noteId: String): String {
+        val subject = state.subjects.firstOrNull { it.id == subjectId } ?: return "this grade"
+        val noteDescription = subject.notes.firstOrNull { it.id == noteId }?.description
+            ?: subject.subSubjects
+                .flatMap { it.notes }
+                .firstOrNull { it.id == noteId }
+                ?.description
+        return noteDescription?.takeIf { it.isNotBlank() } ?: "this grade"
+    }
+
     private fun publish() {
         _uiState.value = createUiState()
     }
 }
 
+private fun GradeTrackerAppState.withRequiredOptionSubject(): GradeTrackerAppState {
+    val selectedOption = selectedOption ?: return this
+    val existingOption = subjects.firstOrNull { it.isOptionSubject }
+    if (existingOption != null) {
+        val normalizedOption = existingOption.copy(
+            name = selectedOption.label,
+            optionChoice = selectedOption
+        )
+        return copy(
+            subjects = listOf(normalizedOption) + subjects.filterNot { it.isOptionSubject }
+        )
+    }
+
+    return copy(
+        subjects = listOf(createStoredOptionSubject(selectedOption)) + subjects,
+        nextSubjectSequence = nextSubjectSequence.coerceAtLeast(2)
+    )
+}
+
 private sealed interface InternalScreen {
     data object Onboarding : InternalScreen
-    data class Main(
-        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState()
+    data object Main : InternalScreen
+    data class AddSubject(
+        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(isVisible = true)
     ) : InternalScreen
     data class BranchDetail(
         val subjectId: String,
         var draft: NoteDraftUiState = NoteDraftUiState(),
-        var selectedSubSubjectId: String? = null
+        var selectedSubSubjectId: String? = null,
+        var isAddGradeSheetVisible: Boolean = false,
+        var pendingDeleteNoteId: String? = null,
+        var pendingDeleteNoteTitle: String? = null
     ) : InternalScreen
     data object Settings : InternalScreen
 }
@@ -582,8 +746,66 @@ private fun StoredSubject.toCompositeBranch(): Branch.Composite {
     )
 }
 
+private fun GradeTrackerAppState.nonOptionBasketSubjects(): List<StoredSubject> {
+    return subjects.filter { it.isInBasket && !it.isOptionSubject }
+}
+
+private fun GradeTrackerAppState.currentBasketTotal(): Double? {
+    val optionSubject = subjects.firstOrNull { it.isOptionSubject } ?: return null
+    val basketSubjects = nonOptionBasketSubjects()
+    if (basketSubjects.size != 3) return null
+
+    val averages = listOfNotNull(
+        basketSubjects.getOrNull(0)?.let(::storedSubjectAverageValue),
+        basketSubjects.getOrNull(1)?.let(::storedSubjectAverageValue),
+        basketSubjects.getOrNull(2)?.let(::storedSubjectAverageValue),
+        storedSubjectAverageValue(optionSubject)
+    )
+    if (averages.size != 4) return null
+
+    return averages.sum()
+}
+
+private fun GradeTrackerAppState.totalPromotionPoints(): Double? {
+    val pointValues = subjects.mapNotNull { subject ->
+        storedSubjectAverageValue(subject)?.let(GradeCalculator::computePromotionPoints)
+    }
+    return pointValues.takeIf { it.isNotEmpty() }?.sum()
+}
+
+private fun GradeTrackerAppState.insufficiencyCount(): Int {
+    return subjects.count { subject ->
+        storedSubjectAverageValue(subject)?.let { average -> average < 4.0 } == true
+    }
+}
+
+private fun createStoredOptionSubject(choice: InitialOptionChoice): StoredSubject {
+    return StoredSubject(
+        id = "subject-1",
+        name = choice.label,
+        isInBasket = true,
+        isOptionSubject = true,
+        optionChoice = choice,
+        notes = emptyList(),
+        subSubjects = choice.compositeSubSubjectNames.mapIndexed { index, name ->
+            StoredSubSubject(
+                id = "option-subject-${index + 1}",
+                name = name,
+                notes = emptyList()
+            )
+        }
+    )
+}
+
 private fun StoredNote.toGrade(): Grade {
     return Grade(value = value, weight = weight)
+}
+
+private fun storedSubjectAverageValue(subject: StoredSubject): Double? {
+    return when {
+        subject.subSubjects.isNotEmpty() -> GradeCalculator.computeCompositeOptionAverage(subject.toCompositeBranch())
+        else -> GradeCalculator.computeBranchAverage(subject.toSimpleBranch())
+    }
 }
 
 private fun StoredSubSubject.toInternalAverageLabel(): String {
@@ -594,6 +816,7 @@ private fun StoredSubSubject.toInternalAverageLabel(): String {
 private fun toNoteUiState(note: StoredNote): NoteUiState {
     return NoteUiState(
         id = note.id,
+        numericValue = note.value,
         displayValue = formatOneOrTwoDecimals(note.value),
         noteTypeLabel = when (note.weight) {
             AssessmentWeight.FULL -> NoteTypeUi.FULL.label
@@ -616,4 +839,33 @@ private fun formatOneOrTwoDecimals(value: Double): String {
 
 private fun formatTwoDecimals(value: Double): String {
     return "%.2f".format(Locale.US, value)
+}
+
+private fun formatSignedOneOrTwoDecimals(value: Double): String {
+    val prefix = if (value > 0.0) "+" else ""
+    return prefix + formatOneOrTwoDecimals(value)
+}
+
+private fun String.toDashboardStatusTone(): DashboardStatusTone {
+    return when (this) {
+        "Promoted" -> DashboardStatusTone.POSITIVE
+        "Blocked" -> DashboardStatusTone.NEGATIVE
+        else -> DashboardStatusTone.NEUTRAL
+    }
+}
+
+private fun Double?.toBranchStatusLabel(): String {
+    return when {
+        this == null -> "Not enough grades"
+        this >= 4.0 -> "Promoted"
+        else -> "Insufficient"
+    }
+}
+
+private fun String.toDetailStatusTone(): DashboardStatusTone {
+    return when (this) {
+        "Promoted" -> DashboardStatusTone.POSITIVE
+        "Insufficient" -> DashboardStatusTone.NEGATIVE
+        else -> DashboardStatusTone.NEUTRAL
+    }
 }

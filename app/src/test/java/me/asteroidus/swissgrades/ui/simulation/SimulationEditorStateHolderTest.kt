@@ -195,7 +195,7 @@ class SimulationEditorStateHolderTest {
         stateHolder.onGradeInputChanged(BasketBranchRole.FRENCH, stateHolder.entryId(BasketBranchRole.FRENCH), "4.5")
         stateHolder.onGradeInputChanged(BasketBranchRole.MATH, stateHolder.entryId(BasketBranchRole.MATH), "4.75")
         stateHolder.onGradeInputChanged(BasketBranchRole.OPTION, stateHolder.entryId(BasketBranchRole.OPTION), "4.0")
-        assertEquals("17.50", stateHolder.uiState.summary.basketTotal.valueLabel)
+        assertEquals("18.00", stateHolder.uiState.summary.basketTotal.valueLabel)
         assertTrue(stateHolder.uiState.branchInputs.flatMap { it.gradeEntries }.all { it.errorMessage == null })
         assertNull(stateHolder.uiState.inputNoticeMessage)
     }
