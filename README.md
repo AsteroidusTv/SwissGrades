@@ -145,11 +145,14 @@ The project supports a manual GitHub release flow through:
 
 It can:
 
+- create an automatic prerelease on every push to `main` / `master`
 - build a signed release APK
 - build a signed release AAB
 - create or reuse a Git tag
 - publish a GitHub Release
 - upload release artifacts
+
+Automatic pushes create prereleases so the repository can always expose the latest installable build without turning every push into a final stable release.
 
 ### Required GitHub Secrets
 
