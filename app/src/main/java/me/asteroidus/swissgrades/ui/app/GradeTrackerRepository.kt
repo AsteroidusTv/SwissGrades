@@ -9,6 +9,17 @@ import me.asteroidus.swissgrades.domain.model.OptionType
 private const val PREFS_NAME = "grade_tracker_app_prefs"
 private const val KEY_APP_STATE = "app_state"
 
+enum class AppLanguage {
+    ENGLISH,
+    FRENCH
+}
+
+enum class AppThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
 enum class InitialOptionChoice(
     val label: String,
     val categoryLabel: String,
@@ -129,7 +140,9 @@ data class GradeTrackerAppState(
     val selectedOption: InitialOptionChoice? = null,
     val subjects: List<StoredSubject> = emptyList(),
     val nextSubjectSequence: Int = 1,
-    val nextNoteSequence: Int = 1
+    val nextNoteSequence: Int = 1,
+    val language: AppLanguage = AppLanguage.ENGLISH,
+    val themeMode: AppThemeMode = AppThemeMode.SYSTEM
 ) {
     val isOnboardingCompleted: Boolean
         get() = selectedOption != null
@@ -195,6 +208,8 @@ class SharedPreferencesGradeTrackerRepository(
             .put("selectedOption", state.selectedOption?.name)
             .put("nextSubjectSequence", state.nextSubjectSequence)
             .put("nextNoteSequence", state.nextNoteSequence)
+            .put("language", state.language.name)
+            .put("themeMode", state.themeMode.name)
             .put("subjects", subjectsJson)
             .toString()
     }
@@ -240,14 +255,14 @@ class SharedPreferencesGradeTrackerRepository(
                         isOptionSubject = subjectJson.optBoolean("isOptionSubject", false),
                         optionChoice = subjectJson.optString("optionChoice")
                             .takeIf { it.isNotBlank() }
-                            ?.let(InitialOptionChoice::valueOf),
+                            ?.toEnumOrNull<InitialOptionChoice>(),
                         subjectColor = subjectJson.optString("subjectColor")
                             .takeIf { it.isNotBlank() }
-                            ?.let(SubjectColorChoice::valueOf)
+                            ?.toEnumOrNull<SubjectColorChoice>()
                             ?: SubjectColorChoice.BLUE,
                         subjectIcon = subjectJson.optString("subjectIcon")
                             .takeIf { it.isNotBlank() }
-                            ?.let(SubjectIconChoice::valueOf)
+                            ?.toEnumOrNull<SubjectIconChoice>()
                             ?: SubjectIconChoice.BOOK,
                         notes = notes,
                         subSubjects = subSubjects
@@ -259,13 +274,21 @@ class SharedPreferencesGradeTrackerRepository(
         return GradeTrackerAppState(
             selectedOption = root.optString("selectedOption")
                 .takeIf { it.isNotBlank() }
-                ?.let(InitialOptionChoice::valueOf),
+                ?.toEnumOrNull<InitialOptionChoice>(),
             subjects = subjects,
             nextSubjectSequence = root.optInt("nextSubjectSequence", subjects.size + 1),
             nextNoteSequence = root.optInt(
                 "nextNoteSequence",
                 subjects.sumOf { it.notes.size + it.subSubjects.sumOf { sub -> sub.notes.size } } + 1
-            )
+            ),
+            language = root.optString("language")
+                .takeIf { it.isNotBlank() }
+                ?.toEnumOrNull<AppLanguage>()
+                ?: AppLanguage.ENGLISH,
+            themeMode = root.optString("themeMode")
+                .takeIf { it.isNotBlank() }
+                ?.toEnumOrNull<AppThemeMode>()
+                ?: AppThemeMode.SYSTEM
         )
     }
 }
@@ -293,8 +316,12 @@ private fun JSONObject.toStoredNote(): StoredNote {
     return StoredNote(
         id = getString("id"),
         value = getDouble("value"),
-        weight = AssessmentWeight.valueOf(getString("weight")),
+        weight = getString("weight").toEnumOrNull<AssessmentWeight>() ?: AssessmentWeight.FULL,
         description = optString("description"),
         createdAtEpochMillis = optLong("createdAtEpochMillis", 0L)
     )
+}
+
+private inline fun <reified T : Enum<T>> String.toEnumOrNull(): T? {
+    return enumValues<T>().firstOrNull { it.name == this }
 }

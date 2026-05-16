@@ -9,6 +9,7 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
 - onboarding flow to choose your option
 - local persistence of your setup and grades
 - editable required Option subject
+- app settings for language, theme mode, and option
 - custom subjects with name, icon, color, and basket flag
 - simple and composite options
 - multi-grade subject support
@@ -77,8 +78,8 @@ Gradle daemon usage is also disabled locally on this machine to avoid an observe
 ## Useful commands
 
 ```bash
-./gradlew testDebugUnitTest --no-parallel
-./gradlew assembleDebug --no-parallel
+./scripts/gradlew21.sh testDebugUnitTest --no-parallel
+./scripts/gradlew21.sh assembleDebug --no-parallel
 ```
 
 ## Test commands
@@ -88,22 +89,32 @@ There are 3 validation levels in this project:
 1. JVM unit tests
 
 ```bash
-./gradlew testDebugUnitTest --no-parallel
+./scripts/gradlew21.sh testDebugUnitTest --no-parallel
 ```
 
 2. Compile Android instrumented tests
 
 ```bash
-./gradlew assembleAndroidTest --no-parallel
+./scripts/gradlew21.sh assembleAndroidTest --no-parallel
 ```
 
 3. Execute Android instrumented tests on a real managed emulator
 
 ```bash
-./gradlew pixel2Api36DebugAndroidTest --no-parallel
+./scripts/run-managed-device-tests.sh
 ```
 
 This third command is the supported end-to-end Android validation path.
+
+## Local JDK helper
+
+On Fedora 44, the system Java may be 25 while this project needs JDK 21.
+
+The helper script:
+
+- reuses `JAVA_HOME` if it already points to JDK 21
+- otherwise looks for a local JDK 21 under `~/.local/jdks`
+- then runs Gradle with the correct runtime automatically
 
 ## Instrumented target
 
@@ -124,13 +135,13 @@ GitHub Actions runs validation in 3 separate layers:
 
 Workflow:
 
-- [/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-validation.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-validation.yml)
+- [`.github/workflows/android-validation.yml`](.github/workflows/android-validation.yml)
 
 ## Release workflow
 
 The project supports a manual GitHub release flow through:
 
-- [/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml](/home/achille/AndroidStudioProjects/SwissGrades/.github/workflows/android-release.yml)
+- [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml)
 
 It can:
 

@@ -42,9 +42,9 @@ class GradeTrackerViewModelTest {
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertTrue(detail.isCompositeOption)
         assertEquals(listOf("Biology", "Chemistry"), detail.subSubjects.map { it.name })
-        assertEquals(EMPTY_NOTES_MESSAGE, detail.officialAverageLabel)
-        assertEquals(EMPTY_NOTES_MESSAGE, detail.secondaryAverageLabel)
-        assertEquals(EMPTY_NOTES_MESSAGE, detail.pointsLabel)
+        assertEquals(AppStrings.English.emptyNotes, detail.officialAverageLabel)
+        assertEquals(AppStrings.English.emptyNotes, detail.secondaryAverageLabel)
+        assertEquals(AppStrings.English.emptyNotes, detail.pointsLabel)
     }
 
     @Test
@@ -63,7 +63,7 @@ class GradeTrackerViewModelTest {
         viewModel.addSubject()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.AddSubject
-        assertEquals(DUPLICATE_SUBJECT_NAME_MESSAGE, screen.form.errorMessage)
+        assertEquals(AppStrings.English.duplicateSubjectName, screen.form.errorMessage)
     }
 
     @Test
@@ -148,7 +148,7 @@ class GradeTrackerViewModelTest {
         assertEquals("4.0", updatedDetail.officialAverageLabel)
         assertEquals("4.00", updatedDetail.secondaryAverageLabel)
         assertEquals("Updated essay", updatedNote.description)
-        assertEquals(NoteTypeUi.HALF.label, updatedNote.noteTypeLabel)
+        assertEquals(AppStrings.English.noteTypeHalf, updatedNote.noteTypeLabel)
     }
 
     @Test
@@ -249,6 +249,59 @@ class GradeTrackerViewModelTest {
         assertEquals("BICH", screen.optionSubject.title)
         assertEquals(null, screen.optionSubject.subtitle)
         assertTrue(screen.optionSubject.isCompositeOption)
+    }
+
+    @Test
+    fun changingLanguage_updatesSettingsAndPersistsChoice() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.changeLanguage(AppLanguage.FRENCH)
+
+        val repositoryState = repository.load()
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Settings
+        assertEquals(AppLanguage.FRENCH, repositoryState?.language)
+        assertEquals(AppLanguage.FRENCH, screen.settings.selectedLanguage)
+    }
+
+    @Test
+    fun changingThemeMode_updatesSettingsAndPersistsChoice() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.changeThemeMode(AppThemeMode.DARK)
+
+        val repositoryState = repository.load()
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Settings
+        assertEquals(AppThemeMode.DARK, repositoryState?.themeMode)
+        assertEquals(AppThemeMode.DARK, screen.settings.selectedThemeMode)
+    }
+
+    @Test
+    fun changingLanguage_updatesVisibleCopyAcrossScreens() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.changeLanguage(AppLanguage.FRENCH)
+        viewModel.closeSettings()
+
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals(AppStrings.French.notCalculableYet, main.summary.promotionStatusLabel)
+        assertEquals(AppStrings.French.notEnoughGrades, main.summary.basketLabel)
+
+        viewModel.openSubject(main.optionSubject.id)
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(AppStrings.French.emptyNotes, detail.officialAverageLabel)
+        assertEquals(AppStrings.French.compositeAverage.takeIf { detail.isCompositeOption } ?: AppStrings.French.rawAverage, detail.secondaryAverageTitle)
     }
 
     private fun GradeTrackerViewModel.addSubjectWithBasketFlag(name: String, isInBasket: Boolean): String {

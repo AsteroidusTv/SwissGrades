@@ -3,7 +3,6 @@ package me.asteroidus.swissgrades.ui.app
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -24,11 +23,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,10 +44,12 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -115,6 +122,10 @@ import me.asteroidus.swissgrades.ui.theme.AppWarningDark
 import me.asteroidus.swissgrades.ui.theme.AppWarningLight
 import me.asteroidus.swissgrades.ui.theme.SwissBlue
 import me.asteroidus.swissgrades.ui.theme.SwissBlueDark
+import android.app.Activity
+import android.content.ContextWrapper
+import androidx.core.view.WindowCompat
+import me.asteroidus.swissgrades.ui.theme.SwissGradesTheme
 
 private val DashboardCardShape = RoundedCornerShape(24.dp)
 private val AddSubjectAvailableColors = listOf(
@@ -146,6 +157,9 @@ private val AddSubjectAvailableIcons = listOf(
 private fun appAccentBlue(): Color = MaterialTheme.colorScheme.primary
 
 @Composable
+private fun isDarkPalette(): Boolean = MaterialTheme.colorScheme.background == AppBackgroundDark
+
+@Composable
 private fun appCardSurface(): Color = MaterialTheme.colorScheme.surface
 
 @Composable
@@ -158,11 +172,11 @@ private fun appCardBorder(): BorderStroke = BorderStroke(1.dp, appCardBorderColo
 private fun appSoftAccentContainer(): Color = MaterialTheme.colorScheme.secondaryContainer
 
 @Composable
-private fun appProgressTrack(): Color = if (isSystemInDarkTheme()) Color(0xFF304053) else Color(0xFFDCE4F2)
+private fun appProgressTrack(): Color = if (isDarkPalette()) Color(0xFF304053) else Color(0xFFDCE4F2)
 
 @Composable
 private fun appSelectedOptionContainer(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF16263B) else Color(0xFFF7FAFF)
+    if (isDarkPalette()) Color(0xFF16263B) else Color(0xFFF7FAFF)
 
 @Composable
 private fun appSelectedOptionBorder(): Color = MaterialTheme.colorScheme.primary
@@ -172,36 +186,36 @@ private fun appIdleOptionBorder(): Color = appCardBorderColor()
 
 @Composable
 private fun appIdleBadgeBackground(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF22344B) else Color(0xFFE1ECFF)
+    if (isDarkPalette()) Color(0xFF22344B) else Color(0xFFE1ECFF)
 
 @Composable
 private fun appSelectedBadgeBackground(): Color = MaterialTheme.colorScheme.primary
 
 @Composable
 private fun appIdleBadgeTint(): Color =
-    if (isSystemInDarkTheme()) SwissBlueDark else Color(0xFF1459B2)
+    if (isDarkPalette()) SwissBlueDark else Color(0xFF1459B2)
 
 @Composable
-private fun appPositiveColor(): Color = if (isSystemInDarkTheme()) AppPositiveDark else AppPositiveLight
+private fun appPositiveColor(): Color = if (isDarkPalette()) AppPositiveDark else AppPositiveLight
 
 @Composable
 private fun appPositiveBackground(): Color =
-    if (isSystemInDarkTheme()) AppPositiveContainerDark else AppPositiveContainerLight
+    if (isDarkPalette()) AppPositiveContainerDark else AppPositiveContainerLight
 
 @Composable
-private fun appWarningColor(): Color = if (isSystemInDarkTheme()) AppWarningDark else AppWarningLight
+private fun appWarningColor(): Color = if (isDarkPalette()) AppWarningDark else AppWarningLight
 
 @Composable
 private fun appWarningBackground(): Color =
-    if (isSystemInDarkTheme()) AppWarningContainerDark else AppWarningContainerLight
+    if (isDarkPalette()) AppWarningContainerDark else AppWarningContainerLight
 
 @Composable
 private fun appNeutralBackground(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF223046) else Color(0xFFF1F5FB)
+    if (isDarkPalette()) Color(0xFF223046) else Color(0xFFF1F5FB)
 
 @Composable
 private fun appSwipeDeleteBackground(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF8A3F55) else Color(0xFFE85A7A)
+    if (isDarkPalette()) Color(0xFF8A3F55) else Color(0xFFE85A7A)
 
 @Composable
 fun GradeTrackerApp(
@@ -216,6 +230,11 @@ fun GradeTrackerApp(
         factory = GradeTrackerViewModel.factory(resolvedRepository)
     )
     val uiState by viewModel.uiState.collectAsState()
+    val useDarkTheme = when (uiState.themeMode) {
+        AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK -> true
+    }
 
     BackHandler(enabled = screenSupportsInAppBack(uiState.screen)) {
         when (uiState.screen) {
@@ -226,69 +245,115 @@ fun GradeTrackerApp(
         }
     }
 
-    AnimatedContent(
-        targetState = uiState.screen,
-        modifier = modifier.fillMaxSize(),
-        contentKey = { screenAnimationKey(it) },
-        transitionSpec = {
-            screenTransition(initialState, targetState)
-        },
-        label = "grade-tracker-screen-transition"
-    ) { screen ->
-        when (screen) {
-            is ScreenUiState.Onboarding -> OnboardingScreen(
-                selectedOption = screen.selectedOption,
-                onOptionSelected = viewModel::selectInitialOption,
-                onContinue = viewModel::completeOnboarding,
-                modifier = Modifier
-            )
+    SwissGradesTheme(darkTheme = useDarkTheme) {
+        ApplySystemBars(darkTheme = useDarkTheme)
+        ProvideAppStrings(uiState.language) {
+            Surface(
+                modifier = modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.Bottom
+                            )
+                        )
+                ) {
+                    AnimatedContent(
+                        targetState = uiState.screen,
+                        modifier = Modifier.fillMaxSize(),
+                        contentKey = { screenAnimationKey(it) },
+                        transitionSpec = {
+                            screenTransition(initialState, targetState)
+                        },
+                        label = "grade-tracker-screen-transition"
+                    ) { screen ->
+                        when (screen) {
+                            is ScreenUiState.Onboarding -> OnboardingScreen(
+                                selectedOption = screen.selectedOption,
+                                onOptionSelected = viewModel::selectInitialOption,
+                                onContinue = viewModel::completeOnboarding,
+                                modifier = Modifier
+                            )
 
-            is ScreenUiState.Main -> MainScreen(
-                state = screen,
-                onOpenSubject = viewModel::openSubject,
-                onShowAddSubjectForm = viewModel::showAddSubjectForm,
-                onDeleteSubject = viewModel::deleteSubject,
-                onOpenSettings = viewModel::openSettings,
-                modifier = Modifier
-            )
+                            is ScreenUiState.Main -> MainScreen(
+                                state = screen,
+                                onOpenSubject = viewModel::openSubject,
+                                onShowAddSubjectForm = viewModel::showAddSubjectForm,
+                                onDeleteSubject = viewModel::deleteSubject,
+                                onOpenSettings = viewModel::openSettings,
+                                modifier = Modifier
+                            )
 
-            is ScreenUiState.AddSubject -> AddSubjectScreen(
-                state = screen.form,
-                onBack = viewModel::hideAddSubjectForm,
-                onNameChanged = viewModel::updateAddSubjectName,
-                onBasketChanged = viewModel::updateAddSubjectBasketFlag,
-                onColorSelected = viewModel::updateAddSubjectColor,
-                onIconSelected = viewModel::updateAddSubjectIcon,
-                onCreate = viewModel::addSubject,
-                modifier = Modifier
-            )
+                            is ScreenUiState.AddSubject -> AddSubjectScreen(
+                                state = screen.form,
+                                onBack = viewModel::hideAddSubjectForm,
+                                onNameChanged = viewModel::updateAddSubjectName,
+                                onBasketChanged = viewModel::updateAddSubjectBasketFlag,
+                                onColorSelected = viewModel::updateAddSubjectColor,
+                                onIconSelected = viewModel::updateAddSubjectIcon,
+                                onCreate = viewModel::addSubject,
+                                modifier = Modifier
+                            )
 
-            is ScreenUiState.BranchDetail -> BranchDetailScreen(
-                detail = screen.detail,
-                onBack = viewModel::backFromDetail,
-                onEditSubject = viewModel::showEditSubjectForm,
-                onShowAddNoteSheet = viewModel::showAddGradeSheet,
-                onDismissAddNoteSheet = viewModel::hideAddGradeSheet,
-                onRequestEditNote = viewModel::requestEditNote,
-                onRequestDeleteNote = viewModel::requestDeleteNote,
-                onDismissDeleteNoteDialog = viewModel::dismissDeleteNoteDialog,
-                onConfirmDeleteNote = viewModel::confirmDeleteNote,
-                onDraftValueChanged = viewModel::updateDraftValue,
-                onDraftTypeChanged = viewModel::updateDraftType,
-                onDraftDescriptionChanged = viewModel::updateDraftDescription,
-                onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
-                onAddNote = viewModel::addNote,
-                modifier = Modifier
-            )
+                            is ScreenUiState.BranchDetail -> BranchDetailScreen(
+                                detail = screen.detail,
+                                onBack = viewModel::backFromDetail,
+                                onEditSubject = viewModel::showEditSubjectForm,
+                                onShowAddNoteSheet = viewModel::showAddGradeSheet,
+                                onDismissAddNoteSheet = viewModel::hideAddGradeSheet,
+                                onRequestEditNote = viewModel::requestEditNote,
+                                onRequestDeleteNote = viewModel::requestDeleteNote,
+                                onDismissDeleteNoteDialog = viewModel::dismissDeleteNoteDialog,
+                                onConfirmDeleteNote = viewModel::confirmDeleteNote,
+                                onDraftValueChanged = viewModel::updateDraftValue,
+                                onDraftTypeChanged = viewModel::updateDraftType,
+                                onDraftDescriptionChanged = viewModel::updateDraftDescription,
+                                onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
+                                onAddNote = viewModel::addNote,
+                                modifier = Modifier
+                            )
 
-            is ScreenUiState.Settings -> SettingsScreen(
-                settings = screen.settings,
-                onSelectOption = viewModel::changeOption,
-                onBack = viewModel::closeSettings,
-                modifier = Modifier
-            )
+                            is ScreenUiState.Settings -> SettingsScreen(
+                                settings = screen.settings,
+                                onSelectLanguage = viewModel::changeLanguage,
+                                onSelectThemeMode = viewModel::changeThemeMode,
+                                onSelectOption = viewModel::changeOption,
+                                onBack = viewModel::closeSettings,
+                                modifier = Modifier
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun ApplySystemBars(darkTheme: Boolean) {
+    val context = LocalContext.current
+    val activity = context.findActivity() ?: return
+    val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
+
+    SideEffect {
+        activity.window.statusBarColor = backgroundColor
+        activity.window.navigationBarColor = backgroundColor
+        val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+        insetsController.isAppearanceLightStatusBars = !darkTheme
+        insetsController.isAppearanceLightNavigationBars = !darkTheme
+    }
+}
+
+private fun android.content.Context.findActivity(): Activity? {
+    var current = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }
 
 private fun screenAnimationKey(screen: ScreenUiState): String {
@@ -347,6 +412,7 @@ private fun OnboardingScreen(
     modifier: Modifier = Modifier
 ) {
     val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
 
     Column(
         modifier = modifier
@@ -363,20 +429,20 @@ private fun OnboardingScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Text(
-                text = "SwissGrades",
+                text = strings.appName,
                 style = MaterialTheme.typography.displaySmall,
                 color = accentBlue,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Choose your option",
+                text = strings.chooseOption,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Set up your Option subject now. You can add grades and more subjects progressively later.",
+                text = strings.onboardingBody,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -416,7 +482,7 @@ private fun OnboardingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Continue",
+                    text = strings.continueLabel,
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center
                 )
@@ -439,6 +505,8 @@ private fun OnboardingOptionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
     val selectedContainer = appSelectedOptionContainer()
     val selectedBorder = appSelectedOptionBorder()
     val idleBorder = appIdleOptionBorder()
@@ -503,7 +571,7 @@ private fun OnboardingOptionCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = choice.categoryLabel.uppercase(),
+                    text = language.optionCategoryLabel(choice).uppercase(),
                     style = MaterialTheme.typography.titleSmall,
                     color = if (isSelected) {
                         selectedSecondaryText
@@ -543,6 +611,7 @@ private fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
     var pendingDeleteSubjectId by remember { mutableStateOf<String?>(null) }
     val pendingDeleteSubject = pendingDeleteSubjectId?.let { pendingId ->
         state.userSubjects.firstOrNull { it.id == pendingId }
@@ -559,7 +628,7 @@ private fun MainScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SwissGrades",
+                    text = strings.appName,
                     style = MaterialTheme.typography.headlineMedium,
                     color = accentBlue,
                     fontWeight = FontWeight.Bold
@@ -570,7 +639,7 @@ private fun MainScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
-                        contentDescription = "Open settings",
+                        contentDescription = strings.openSettingsLabel,
                         tint = accentBlue
                     )
                 }
@@ -585,7 +654,7 @@ private fun MainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("My subjects", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(strings.mySubjects, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Button(
                     onClick = onShowAddSubjectForm,
                     modifier = Modifier.testTag("show-add-subject-header"),
@@ -601,7 +670,7 @@ private fun MainScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Add",
+                        text = strings.addLabel,
                         modifier = Modifier.padding(start = 6.dp)
                     )
                 }
@@ -621,8 +690,8 @@ private fun MainScreen(
 
     pendingDeleteSubject?.let { subject ->
         DeleteConfirmationDialog(
-            title = "Delete subject?",
-            message = "Remove ${subject.title} and all its grades? This action cannot be undone.",
+            title = strings.deleteSubjectTitle,
+            message = strings.deleteSubjectMessage(subject.title),
             onDismiss = { pendingDeleteSubjectId = null },
             onConfirm = {
                 pendingDeleteSubjectId = null
@@ -639,6 +708,7 @@ private fun SwipeableSubjectCard(
     onOpenSubject: (String) -> Unit,
     onRequestDeleteSubject: () -> Unit
 ) {
+    val strings = currentAppStrings()
     var shouldResetSwipe by remember(subject.id) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { totalDistance -> totalDistance * 0.6f },
@@ -679,7 +749,7 @@ private fun SwipeableSubjectCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete ${subject.title}",
+                        contentDescription = strings.deleteSubjectActionTemplate.replace("{subject}", subject.title),
                         tint = Color.White
                     )
                 }
@@ -702,6 +772,7 @@ private fun AddSubjectScreen(
     modifier: Modifier = Modifier
 ) {
     val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
     val activeColor = state.selectedColor
         .takeIf { it in AddSubjectAvailableColors }
         ?: SubjectColorChoice.BLUE
@@ -723,7 +794,7 @@ private fun AddSubjectScreen(
                 modifier = Modifier.testTag("back-from-add-subject")
             )
             Text(
-                text = if (isEditing) "Edit subject" else "Add a subject",
+                text = if (isEditing) strings.editSubjectTitle else strings.addSubjectTitle,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -738,7 +809,7 @@ private fun AddSubjectScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "SUBJECT NAME",
+                    text = strings.subjectNameLabel,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
@@ -750,7 +821,7 @@ private fun AddSubjectScreen(
                         .fillMaxWidth()
                         .height(76.dp)
                         .testTag("add-subject-name"),
-                    placeholder = { Text("Ex: History") },
+                    placeholder = { Text(strings.subjectNamePlaceholder) },
                     singleLine = true,
                     isError = state.errorMessage != null,
                     shape = RoundedCornerShape(20.dp),
@@ -787,9 +858,9 @@ private fun AddSubjectScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("Add to basket", style = MaterialTheme.typography.titleLarge)
+                        Text(strings.addToBasketTitle, style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "Basket subjects count toward the 16-point rule.",
+                            strings.addToBasketDescription,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -804,7 +875,7 @@ private fun AddSubjectScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    text = "PERSONALIZATION",
+                    text = strings.personalizationTitle,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
@@ -838,7 +909,7 @@ private fun AddSubjectScreen(
                             row.forEach { iconChoice ->
                                 IconChoiceChip(
                                     iconChoice = iconChoice,
-                                    accentColor = activeColor.toColor(isSystemInDarkTheme()),
+                                    accentColor = activeColor.toColor(isDarkPalette()),
                                     isSelected = state.selectedIcon == iconChoice,
                                     onClick = { onIconSelected(iconChoice) },
                                     modifier = Modifier.weight(1f)
@@ -872,7 +943,7 @@ private fun AddSubjectScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text(if (isEditing) "Save changes" else "Create subject", style = MaterialTheme.typography.titleMedium)
+                Text(if (isEditing) strings.saveChanges else strings.createSubject, style = MaterialTheme.typography.titleMedium)
                 Icon(
                     imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Add,
                     contentDescription = null,
@@ -886,6 +957,7 @@ private fun AddSubjectScreen(
 @Composable
 private fun SummaryCard(summary: DashboardSummaryUiState) {
     val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
     val positiveGreen = appPositiveColor()
     val positiveBackground = appPositiveBackground()
     val warningRed = appWarningColor()
@@ -922,7 +994,7 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
                 )
             } else {
                 Text(
-                    text = EMPTY_NOTES_MESSAGE,
+                    text = strings.emptyNotes,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.testTag("overall-average")
@@ -956,12 +1028,12 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
         }
 
         HighlightMetricCard(
-            title = "Promotion points",
+            title = strings.promotionPointsTitle,
             value = summary.promotionPointsLabel,
             supportingText = if (summary.promotionPointsValue != null) {
-                "advance points"
+                strings.promotionPointsUnit
             } else {
-                EMPTY_NOTES_MESSAGE
+                strings.emptyNotes
             },
             icon = Icons.Filled.BarChart,
             accentColor = accentBlue,
@@ -969,7 +1041,7 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
         )
 
         CompactMetricCard(
-            title = "Basket",
+            title = strings.basketTitle,
             value = summary.basketLabel,
             icon = Icons.Filled.ShoppingBasket,
             accentColor = accentBlue,
@@ -977,7 +1049,7 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
         )
 
         CompactMetricCard(
-            title = "Insufficiencies",
+            title = strings.insufficienciesTitle,
             value = summary.insufficienciesLabel,
             icon = Icons.Filled.WarningAmber,
             accentColor = if (summary.insufficiencyCount > 0) warningRed else accentBlue,
@@ -995,7 +1067,8 @@ private fun HighlightMetricCard(
     accentColor: Color,
     progress: Float?
 ) {
-    val hasNumericValue = progress != null && !value.equals(EMPTY_NOTES_MESSAGE, ignoreCase = true)
+    val strings = currentAppStrings()
+    val hasNumericValue = progress != null && !value.equals(strings.emptyNotes, ignoreCase = true)
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = DashboardCardShape,
@@ -1053,7 +1126,7 @@ private fun HighlightMetricCard(
                 }
             } else {
                 Text(
-                    text = EMPTY_NOTES_MESSAGE,
+                    text = strings.emptyNotes,
                     style = MaterialTheme.typography.headlineMedium,
                     color = accentColor,
                     fontWeight = FontWeight.SemiBold,
@@ -1131,7 +1204,8 @@ private fun SubjectCard(
     subject: SubjectListItemUiState,
     onOpenSubject: (String) -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val strings = currentAppStrings()
+    val isDarkTheme = isDarkPalette()
     val warningRed = appWarningColor()
     val valueColor = when {
         subject.averageValue == null -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -1140,17 +1214,17 @@ private fun SubjectCard(
     }
     val secondaryText = when {
         subject.averageValue == null && subject.subtitle != null -> subject.subtitle
-        subject.averageValue == null -> EMPTY_NOTES_MESSAGE
+        subject.averageValue == null -> strings.emptyNotes
         subject.isOptionSubject && subject.subtitle != null -> subject.subtitle
-        subject.averageValue < 4.0 -> "${subject.pointsLabel} point • Insufficient"
-        subject.isInBasket -> "In basket"
-        else -> "${subject.pointsLabel} points"
+        subject.averageValue < 4.0 -> "${subject.pointsLabel} ${strings.pointLabel.lowercase()} • ${strings.insufficientLabel}"
+        subject.isInBasket -> strings.inBasketLabel
+        else -> "${subject.pointsLabel} ${strings.pointsLabel}"
     }
 
     OutlinedCard(
+        onClick = { onOpenSubject(subject.id) },
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpenSubject(subject.id) }
             .testTag("subject-card-${subject.id}"),
         shape = DashboardCardShape,
         border = if (subject.averageValue != null && subject.averageValue < 4.0) {
@@ -1288,7 +1362,8 @@ private fun ColorChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val chipColor = colorChoice.toColor(isSystemInDarkTheme())
+    val strings = currentAppStrings()
+    val chipColor = colorChoice.toColor(isDarkPalette())
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -1327,7 +1402,7 @@ private fun ColorChoiceChip(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = "Selected color",
+                        contentDescription = strings.selectedColorDescription,
                         tint = chipColor,
                         modifier = Modifier.size(16.dp)
                     )
@@ -1386,6 +1461,7 @@ private fun BranchDetailScreen(
     onAddNote: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     val positiveGreen = appPositiveColor()
     val warningRed = appWarningColor()
@@ -1394,9 +1470,8 @@ private fun BranchDetailScreen(
     val activeSubSubject = detail.subSubjects.firstOrNull { it.id == detail.selectedSubSubjectId }
         ?: detail.subSubjects.firstOrNull()
     val visibleNotes = if (detail.isCompositeOption) activeSubSubject?.notes.orEmpty() else detail.notes
-    val hasVisibleNotes = visibleNotes.isNotEmpty()
     val evolutionNotes = visibleNotes.takeLast(5)
-    val hasAverage = detail.officialAverageLabel != EMPTY_NOTES_MESSAGE
+    val hasAverage = detail.officialAverageLabel != strings.emptyNotes
     val statusColor = when (detail.statusTone) {
         DashboardStatusTone.POSITIVE -> positiveGreen
         DashboardStatusTone.NEGATIVE -> warningRed
@@ -1408,362 +1483,85 @@ private fun BranchDetailScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 84.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-detail")
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = detail.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            item {
+                BranchDetailHeader(
+                    detail = detail,
+                    onBack = onBack,
+                    onEditSubject = onEditSubject
                 )
-                detail.subtitle?.takeIf { it != detail.title }?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+
+            item {
+                BranchDetailSummaryCard(
+                    detail = detail,
+                    hasAverage = hasAverage,
+                    accentBlue = accentBlue,
+                    onBlueSupport = onBlueSupport,
+                    statusLabelColor = statusLabelColor
+                )
+            }
+
+            if (detail.isCompositeOption) {
+                item {
+                    CompositeSubSubjectSelectorCard(
+                        detail = detail,
+                        activeSubSubject = activeSubSubject,
+                        accentBlue = accentBlue,
+                        onSelectedSubSubjectChanged = onSelectedSubSubjectChanged
                     )
                 }
             }
-            if (!detail.isOptionSubject) {
-                HeaderActionButton(
-                    onClick = { onEditSubject(detail.subjectId) },
-                    modifier = Modifier.testTag("edit-subject")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = "Edit subject"
+
+            if (visibleNotes.isNotEmpty()) {
+                item {
+                    EvolutionCard(
+                        evolutionNotes = evolutionNotes,
+                        accentBlue = accentBlue
                     )
                 }
             }
-        }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = accentBlue)
-            ) {
-                if (hasAverage) {
-                    Column(
-                        modifier = Modifier.padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "OFFICIAL AVERAGE",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = onBlueSupport,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.Bottom,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = detail.officialAverageLabel,
-                                        style = MaterialTheme.typography.displayMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                    Text(
-                                        text = "/ 6.0",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = onBlueSupport,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                }
-                            }
-                            Card(
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = detail.pointsLabel,
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Point",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = onBlueSupport
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = detail.secondaryAverageTitle,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = onBlueSupport
-                                )
-                                Text(
-                                    text = detail.secondaryAverageLabel,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Status",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = onBlueSupport
-                                )
-                                Text(
-                                    text = detail.statusLabel.uppercase(),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = statusLabelColor,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        Text(
-                            text = "OFFICIAL AVERAGE",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = onBlueSupport,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = EMPTY_NOTES_MESSAGE,
-                            style = MaterialTheme.typography.displaySmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2
-                        )
-                    }
-                }
+            item {
+                GradeHistoryHeader(
+                    detail = detail,
+                    activeSubSubject = activeSubSubject,
+                    visibleNotes = visibleNotes
+                )
             }
 
-        if (detail.isCompositeOption) {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = DashboardCardShape,
-                border = appCardBorder(),
-                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Sub-subjects",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    detail.subSubjects.forEach { subSubject ->
-                        val isSelected = subSubject.id == activeSubSubject?.id
-                        OutlinedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelectedSubSubjectChanged(subSubject.id) }
-                                .testTag("select-sub-subject-${subSubject.id}"),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(
-                                if (isSelected) 2.dp else 1.dp,
-                                if (isSelected) accentBlue else appCardBorderColor()
-                            ),
-                            colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = subSubject.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.testTag("sub-subject-name-${subSubject.id}")
-                                    )
-                                    val subtitle = if (subSubject.internalAverageLabel == EMPTY_NOTES_MESSAGE) {
-                                        EMPTY_NOTES_MESSAGE
-                                    } else {
-                                        "Average ${subSubject.internalAverageLabel}"
-                                    }
-                                    Text(
-                                        text = subtitle,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.testTag("sub-subject-average-${subSubject.id}")
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isSelected) accentBlue else appCardBorderColor())
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (hasVisibleNotes) {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = DashboardCardShape,
-                border = appCardBorder(),
-                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
+            if (visibleNotes.isEmpty()) {
+                item {
+                    OutlinedCard(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = DashboardCardShape,
+                        border = appCardBorder(),
+                        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
                     ) {
                         Text(
-                            text = "Evolution",
+                            text = strings.emptyNotes,
+                            modifier = Modifier
+                                .padding(20.dp)
+                                .testTag("empty-notes"),
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Medium
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = accentBlue
-                        )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(92.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        val maxValue = 6.0
-                        evolutionNotes.forEachIndexed { index, note ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                contentAlignment = Alignment.BottomCenter
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height((76.dp * (note.numericValue / maxValue).toFloat()).coerceAtLeast(18.dp))
-                                        .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-                                        .background(
-                                            if (index == evolutionNotes.lastIndex) accentBlue else appProgressTrack()
-                                        )
-                                )
-                            }
-                        }
                     }
                 }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Grade history",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (detail.isCompositeOption) {
-                    Text(
-                        text = activeSubSubject?.name ?: detail.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            } else {
+                items(visibleNotes, key = { note -> note.id }) { note ->
+                    SwipeableNoteHistoryCard(
+                        note = note,
+                        onRequestEdit = { onRequestEditNote(note.id) },
+                        onRequestDelete = { onRequestDeleteNote(note.id) }
                     )
                 }
             }
-            Text(
-                text = "${visibleNotes.size} evaluations",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
-            )
-        }
-
-        if (visibleNotes.isEmpty()) {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = DashboardCardShape,
-                border = appCardBorder(),
-                colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
-            ) {
-                Text(
-                    text = EMPTY_NOTES_MESSAGE,
-                    modifier = Modifier
-                        .padding(20.dp)
-                        .testTag("empty-notes"),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            visibleNotes.forEach { note ->
-                SwipeableNoteHistoryCard(
-                    note = note,
-                    onRequestEdit = { onRequestEditNote(note.id) },
-                    onRequestDelete = { onRequestDeleteNote(note.id) }
-                )
-            }
-        }
         }
 
         Button(
@@ -1771,17 +1569,17 @@ private fun BranchDetailScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 20.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .testTag("show-add-note-sheet"),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
         ) {
             Row(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text("Add a grade", style = MaterialTheme.typography.titleMedium)
+                Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
                 Icon(
                     imageVector = Icons.Filled.Add,
                     contentDescription = null,
@@ -1810,12 +1608,374 @@ private fun BranchDetailScreen(
 
         detail.pendingDeleteNoteTitle?.let { noteTitle ->
             DeleteConfirmationDialog(
-                title = "Delete grade?",
-                message = "Remove $noteTitle from this subject? This action cannot be undone.",
+                title = strings.deleteGradeTitle,
+                message = strings.deleteGradeMessage(noteTitle),
                 onDismiss = onDismissDeleteNoteDialog,
                 onConfirm = onConfirmDeleteNote
             )
         }
+    }
+}
+
+@Composable
+private fun BranchDetailHeader(
+    detail: SubjectDetailUiState,
+    onBack: () -> Unit,
+    onEditSubject: (String) -> Unit
+) {
+    val strings = currentAppStrings()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        HeaderBackButton(
+            onClick = onBack,
+            modifier = Modifier.testTag("back-from-detail")
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = detail.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            detail.subtitle?.takeIf { it != detail.title }?.let { subtitle ->
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (!detail.isOptionSubject) {
+            HeaderActionButton(
+                onClick = { onEditSubject(detail.subjectId) },
+                modifier = Modifier.testTag("edit-subject")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = strings.editSubjectAction
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BranchDetailSummaryCard(
+    detail: SubjectDetailUiState,
+    hasAverage: Boolean,
+    accentBlue: Color,
+    onBlueSupport: Color,
+    statusLabelColor: Color
+) {
+    val strings = currentAppStrings()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = accentBlue)
+    ) {
+        if (hasAverage) {
+            Column(
+                modifier = Modifier.padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = strings.officialAverageLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = onBlueSupport,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = detail.officialAverageLabel,
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Text(
+                                text = "/ 6.0",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = onBlueSupport,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                    }
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = detail.pointsLabel,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = strings.pointLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = onBlueSupport
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = detail.secondaryAverageTitle,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = onBlueSupport
+                        )
+                        Text(
+                            text = detail.secondaryAverageLabel,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = strings.statusLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = onBlueSupport
+                        )
+                        Text(
+                            text = detail.statusLabel.uppercase(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = statusLabelColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Text(
+                    text = strings.officialAverageLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = onBlueSupport,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = strings.emptyNotes,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompositeSubSubjectSelectorCard(
+    detail: SubjectDetailUiState,
+    activeSubSubject: CompositeSubSubjectDetailUiState?,
+    accentBlue: Color,
+    onSelectedSubSubjectChanged: (String) -> Unit
+) {
+    val strings = currentAppStrings()
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = strings.subSubjectsTitle,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            detail.subSubjects.forEach { subSubject ->
+                val isSelected = subSubject.id == activeSubSubject?.id
+                OutlinedCard(
+                    onClick = { onSelectedSubSubjectChanged(subSubject.id) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("select-sub-subject-${subSubject.id}"),
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(
+                        if (isSelected) 2.dp else 1.dp,
+                        if (isSelected) accentBlue else appCardBorderColor()
+                    ),
+                    colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = subSubject.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("sub-subject-name-${subSubject.id}")
+                            )
+                            val subtitle = if (subSubject.internalAverageLabel == strings.emptyNotes) {
+                                strings.emptyNotes
+                            } else {
+                                "${strings.averagePrefix} ${subSubject.internalAverageLabel}"
+                            }
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("sub-subject-average-${subSubject.id}")
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) accentBlue else appCardBorderColor())
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EvolutionCard(
+    evolutionNotes: List<NoteUiState>,
+    accentBlue: Color
+) {
+    val strings = currentAppStrings()
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.evolutionTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = accentBlue
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(92.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                val maxValue = 6.0
+                evolutionNotes.forEachIndexed { index, note ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height((76.dp * (note.numericValue / maxValue).toFloat()).coerceAtLeast(18.dp))
+                                .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                                .background(
+                                    if (index == evolutionNotes.lastIndex) accentBlue else appProgressTrack()
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradeHistoryHeader(
+    detail: SubjectDetailUiState,
+    activeSubSubject: CompositeSubSubjectDetailUiState?,
+    visibleNotes: List<NoteUiState>
+) {
+    val strings = currentAppStrings()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = strings.gradeHistoryTitle,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (detail.isCompositeOption) {
+                Text(
+                    text = activeSubSubject?.name ?: detail.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Text(
+            text = strings.evaluationCount(visibleNotes.size),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
+        )
     }
 }
 
@@ -1825,6 +1985,7 @@ private fun DetailMiniMetric(
     value: String,
     modifier: Modifier = Modifier
 ) {
+    val strings = currentAppStrings()
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1856,6 +2017,7 @@ private fun AddGradeSheetContent(
     onDraftDescriptionChanged: (String) -> Unit,
     onAddNote: () -> Unit
 ) {
+    val strings = currentAppStrings()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1866,10 +2028,10 @@ private fun AddGradeSheetContent(
         Text(
             text = when {
                 detail.draft.editingNoteId != null && detail.isCompositeOption ->
-                    "Edit grade in ${activeSubSubjectName ?: detail.title}"
-                detail.draft.editingNoteId != null -> "Edit grade"
-                detail.isCompositeOption -> "Add a grade to ${activeSubSubjectName ?: detail.title}"
-                else -> "Add a grade"
+                    strings.editGradeIn(activeSubSubjectName ?: detail.title)
+                detail.draft.editingNoteId != null -> strings.editGrade
+                detail.isCompositeOption -> strings.addGradeTo(activeSubSubjectName ?: detail.title)
+                else -> strings.addGrade
             },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
@@ -1880,8 +2042,8 @@ private fun AddGradeSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("note-value-input"),
-            label = { Text("Grade value") },
-            placeholder = { Text("Ex: 5.5") },
+            label = { Text(strings.gradeValueLabel) },
+            placeholder = { Text(strings.gradeValuePlaceholder) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             isError = detail.draft.errorMessage != null,
@@ -1900,9 +2062,9 @@ private fun AddGradeSheetContent(
             NoteTypeUi.entries.forEach { type ->
                 val isSelected = detail.draft.selectedType == type
                 OutlinedCard(
+                    onClick = { onDraftTypeChanged(type) },
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onDraftTypeChanged(type) }
                         .testTag("note-type-${type.name}"),
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(
@@ -1920,7 +2082,7 @@ private fun AddGradeSheetContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = type.label,
+                            text = strings.noteTypeLabel(type.weight),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
@@ -1937,7 +2099,7 @@ private fun AddGradeSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("note-description-input"),
-            label = { Text("Description (optional)") },
+            label = { Text(strings.descriptionOptional) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = appCardBorderColor(),
                 unfocusedBorderColor = appCardBorderColor(),
@@ -1967,7 +2129,7 @@ private fun AddGradeSheetContent(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    if (detail.draft.editingNoteId != null) "Save changes" else "Add a grade",
+                    if (detail.draft.editingNoteId != null) strings.saveChanges else strings.addGrade,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Icon(
@@ -1986,6 +2148,7 @@ private fun SwipeableNoteHistoryCard(
     onRequestEdit: () -> Unit,
     onRequestDelete: () -> Unit
 ) {
+    val strings = currentAppStrings()
     var shouldResetSwipe by remember(note.id) { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         positionalThreshold = { totalDistance -> totalDistance * 0.6f },
@@ -2026,7 +2189,7 @@ private fun SwipeableNoteHistoryCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete grade",
+                        contentDescription = strings.deleteGradeLabel,
                         tint = Color.White
                     )
                 }
@@ -2045,12 +2208,13 @@ private fun NoteHistoryCard(
     note: NoteUiState,
     onClick: () -> Unit
 ) {
+    val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     val warningRed = appWarningColor()
     OutlinedCard(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .testTag("note-card-${note.id}"),
         shape = RoundedCornerShape(22.dp),
         border = appCardBorder(),
@@ -2088,7 +2252,7 @@ private fun NoteHistoryCard(
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
-                        text = note.description.ifBlank { "Evaluation" },
+                        text = note.description.ifBlank { strings.evaluationDefaultTitle },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f),
@@ -2130,10 +2294,11 @@ private fun DeleteConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val strings = currentAppStrings()
     ConfirmationDialog(
         title = title,
         message = message,
-        confirmLabel = "Delete",
+        confirmLabel = strings.deleteLabel,
         onDismiss = onDismiss,
         onConfirm = onConfirm
     )
@@ -2147,6 +2312,7 @@ private fun ConfirmationDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2177,7 +2343,7 @@ private fun ConfirmationDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = accentBlue)
+                Text(strings.cancelLabel, color = accentBlue)
             }
         }
     )
@@ -2186,10 +2352,13 @@ private fun ConfirmationDialog(
 @Composable
 private fun SettingsScreen(
     settings: SettingsUiState,
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onSelectThemeMode: (AppThemeMode) -> Unit,
     onSelectOption: (InitialOptionChoice) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = currentAppStrings()
     var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     Column(
         modifier = modifier
@@ -2208,11 +2377,37 @@ private fun SettingsScreen(
                 modifier = Modifier.testTag("back-from-settings")
             )
             Text(
-                text = "Option settings",
+                text = strings.optionSettingsTitle,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
+        }
+
+        SettingsChoiceSection(
+            title = strings.languageSectionTitle,
+            description = strings.languageSectionDescription
+        ) {
+            AppLanguage.entries.forEach { language ->
+                SettingsChoiceCard(
+                    title = strings.languageLabel(language),
+                    selected = settings.selectedLanguage == language,
+                    onClick = { onSelectLanguage(language) }
+                )
+            }
+        }
+
+        SettingsChoiceSection(
+            title = strings.themeSectionTitle,
+            description = strings.themeSectionDescription
+        ) {
+            AppThemeMode.entries.forEach { themeMode ->
+                SettingsChoiceCard(
+                    title = strings.themeModeLabel(themeMode),
+                    selected = settings.selectedThemeMode == themeMode,
+                    onClick = { onSelectThemeMode(themeMode) }
+                )
+            }
         }
 
         Column(
@@ -2222,12 +2417,12 @@ private fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Choose your option",
+                text = strings.optionSectionTitle,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Current option: ${settings.selectedOption.label}. Changing it updates your Option subject directly.",
+                text = strings.optionDescription(settings.selectedOption.label),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -2251,9 +2446,9 @@ private fun SettingsScreen(
 
     pendingOptionChange?.let { choice ->
         ConfirmationDialog(
-            title = "Change option?",
-            message = "Changing your option will delete the grades currently saved in the Option subject. This action cannot be undone.",
-            confirmLabel = "Change option",
+            title = strings.changeOptionTitle,
+            message = strings.changeOptionMessage,
+            confirmLabel = strings.changeOptionConfirm,
             onDismiss = { pendingOptionChange = null },
             onConfirm = {
                 pendingOptionChange = null
@@ -2264,10 +2459,77 @@ private fun SettingsScreen(
 }
 
 @Composable
+private fun SettingsChoiceSection(
+    title: String,
+    description: String,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsChoiceCard(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    OutlinedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) appSelectedOptionBorder() else appCardBorderColor()
+        ),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (selected) appSelectedOptionContainer() else appCardSurface()
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) appSelectedOptionBorder() else appCardBorderColor())
+            )
+        }
+    }
+}
+
+@Composable
 private fun HeaderBackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = currentAppStrings()
     Box(
         modifier = modifier
             .size(36.dp)
@@ -2280,7 +2542,7 @@ private fun HeaderBackButton(
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back"
+            contentDescription = strings.backLabel
         )
     }
 }
