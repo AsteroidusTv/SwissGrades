@@ -135,6 +135,8 @@ import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerDark
 import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerLight
 import me.asteroidus.swissgrades.ui.theme.AppPositiveDark
 import me.asteroidus.swissgrades.ui.theme.AppPositiveLight
+import me.asteroidus.swissgrades.ui.theme.AppPositiveOnBlueDark
+import me.asteroidus.swissgrades.ui.theme.AppPositiveOnBlueLight
 import me.asteroidus.swissgrades.ui.theme.AppSurfaceDark
 import me.asteroidus.swissgrades.ui.theme.AppSurfaceLight
 import me.asteroidus.swissgrades.ui.theme.AppSurfaceVariantDark
@@ -221,6 +223,9 @@ private fun appIdleBadgeTint(): Color =
 
 @Composable
 private fun appPositiveColor(): Color = if (isDarkPalette()) AppPositiveDark else AppPositiveLight
+
+@Composable
+private fun appPositiveOnBlue(): Color = if (isDarkPalette()) AppPositiveOnBlueDark else AppPositiveOnBlueLight
 
 @Composable
 private fun appPositiveBackground(): Color =
@@ -1523,7 +1528,7 @@ private fun BranchDetailScreen(
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
     }
     val accentBlue = appAccentBlue()
-    val positiveGreen = appPositiveColor()
+    val positiveGreen = appPositiveOnBlue()
     val warningRed = appWarningColor()
     val onBlueSupport = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1622,7 +1627,10 @@ private fun BranchDetailScreen(
             if (visibleNotes.isEmpty()) {
                 item {
                     OutlinedCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onShowAddNoteSheet,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("empty-notes-card"),
                         shape = DashboardCardShape,
                         border = appCardBorder(),
                         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
@@ -1791,6 +1799,11 @@ private fun BranchDetailSummaryCard(
     statusLabelColor: Color
 ) {
     val strings = currentAppStrings()
+    val compactStatusLabel = if (detail.statusLabel == strings.branchInsufficient) {
+        strings.branchInsufficientShort
+    } else {
+        detail.statusLabel
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -1884,10 +1897,12 @@ private fun BranchDetailSummaryCard(
                             color = onBlueSupport
                         )
                         Text(
-                            text = detail.statusLabel.uppercase(),
-                            style = MaterialTheme.typography.titleLarge,
+                            text = compactStatusLabel.uppercase(),
+                            style = MaterialTheme.typography.headlineSmall,
                             color = statusLabelColor,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -2066,7 +2081,7 @@ private fun GradeHistoryHeader(
     val strings = currentAppStrings()
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         Column(
@@ -2076,7 +2091,9 @@ private fun GradeHistoryHeader(
             Text(
                 text = strings.gradeHistoryTitle,
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (detail.isCompositeOption) {
                 Text(
@@ -2093,7 +2110,8 @@ private fun GradeHistoryHeader(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 12.dp, bottom = 2.dp)
+            maxLines = 1,
+            modifier = Modifier.padding(bottom = 2.dp)
         )
     }
 }
@@ -2140,12 +2158,14 @@ private fun AddGradeSheetContent(
     onAddNote: () -> Unit
 ) {
     val strings = currentAppStrings()
+    val sectionSpacing = 16.dp
+    val inlineSpacing = 10.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
             .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(sectionSpacing)
     ) {
         Text(
             text = when {
@@ -2179,7 +2199,7 @@ private fun AddGradeSheetContent(
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
         ) {
             NoteTypeUi.entries.forEach { type ->
                 val isSelected = detail.draft.selectedType == type
@@ -2230,20 +2250,23 @@ private fun AddGradeSheetContent(
             ),
             shape = RoundedCornerShape(20.dp)
         )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Column(verticalArrangement = Arrangement.spacedBy(sectionSpacing)) {
+            Button(
+                onClick = onShowAttachmentSourceDialog,
+                enabled = detail.draft.attachments.size < MaxGradeAttachments,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("show-add-photo-sheet"),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSoftAccentContainer(),
+                    contentColor = appAccentBlue()
+                ),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)
             ) {
-                Text(
-                    text = strings.attachmentsTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                TextButton(
-                    onClick = onShowAttachmentSourceDialog,
-                    enabled = detail.draft.attachments.size < MaxGradeAttachments
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         imageVector = if (detail.draft.attachments.isEmpty()) {
@@ -2252,15 +2275,14 @@ private fun AddGradeSheetContent(
                             Icons.Filled.Add
                         },
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Text(
-                        text = if (detail.draft.attachments.isEmpty()) {
-                            strings.addPhotoLabel
-                        } else {
-                            strings.addMorePhotosLabel
-                        },
-                        modifier = Modifier.padding(start = 6.dp)
+                        text = strings.addPhotoLabel,
+                        modifier = Modifier.padding(start = 10.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
                     )
                 }
             }
@@ -2270,7 +2292,8 @@ private fun AddGradeSheetContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("draft-attachment-strip"),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(inlineSpacing),
+                    contentPadding = PaddingValues(top = 4.dp, end = 4.dp)
                 ) {
                     items(detail.draft.attachments, key = { it.id }) { attachment ->
                         DraftAttachmentChip(
@@ -2343,7 +2366,7 @@ private fun DraftAttachmentChip(
         Card(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 10.dp, end = 10.dp),
+                .padding(end = 10.dp),
             shape = RoundedCornerShape(20.dp),
             border = appCardBorder(),
             colors = CardDefaults.cardColors(containerColor = appCardSurface())
@@ -2361,6 +2384,7 @@ private fun DraftAttachmentChip(
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .offset(x = 2.dp)
                 .size(34.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
@@ -2619,45 +2643,45 @@ private fun NoteHistoryCard(
         border = appCardBorder(),
         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.Top
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer()),
-                border = BorderStroke(1.dp, appCardBorderColor())
+            Text(
+                text = note.description.ifBlank { strings.evaluationDefaultTitle },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Box(
-                    modifier = Modifier.size(width = 68.dp, height = 76.dp),
-                    contentAlignment = Alignment.Center
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer()),
+                    border = BorderStroke(1.dp, appCardBorderColor())
                 ) {
-                    Text(
-                        text = note.displayValue,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (note.numericValue < 4.0) warningRed else accentBlue
-                    )
+                    Box(
+                        modifier = Modifier.size(width = 74.dp, height = 82.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = note.displayValue,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (note.numericValue < 4.0) warningRed else accentBlue
+                        )
+                    }
                 }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = note.description.ifBlank { strings.evaluationDefaultTitle },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
                     Card(
                         shape = RoundedCornerShape(999.dp),
                         colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
@@ -2665,46 +2689,49 @@ private fun NoteHistoryCard(
                         Text(
                             text = note.noteTypeLabel.uppercase(),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelLarge,
                             color = accentBlue,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
                     }
-                }
-                note.dateLabel.takeIf { it.isNotBlank() }?.let { dateLabel ->
-                    Text(
-                        text = dateLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (note.attachments.isNotEmpty()) {
-                    Card(
-                        shape = RoundedCornerShape(999.dp),
-                        colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+
+                    if (note.attachments.isNotEmpty()) {
+                        Card(
+                            shape = RoundedCornerShape(999.dp),
+                            colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.PhotoLibrary,
-                                contentDescription = null,
-                                tint = accentBlue,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = strings.photoAttachmentCount(note.attachments.size),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = accentBlue,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.testTag("note-attachment-count-${note.id}")
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PhotoLibrary,
+                                    contentDescription = null,
+                                    tint = accentBlue,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = strings.photoAttachmentCount(note.attachments.size),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = accentBlue,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.testTag("note-attachment-count-${note.id}"),
+                                    maxLines = 1
+                                )
+                            }
                         }
+                    }
+
+                    note.dateLabel.takeIf { it.isNotBlank() }?.let { dateLabel ->
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
