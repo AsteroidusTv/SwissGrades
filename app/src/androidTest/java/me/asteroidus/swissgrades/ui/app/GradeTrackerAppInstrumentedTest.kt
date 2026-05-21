@@ -84,7 +84,7 @@ class GradeTrackerAppInstrumentedTest {
 
         launchApp()
 
-        assertTagText("promotion-status", "PROMOTED")
+        assertTagText("promotion-status", "PROMU")
     }
 
     @Test
@@ -123,8 +123,8 @@ class GradeTrackerAppInstrumentedTest {
         assertTextDisplayed("BICH")
         assertTagText("subject-average-subject-1", "4.5")
         openSubject("subject-1")
-        assertTagText("sub-subject-average-option-subject-1", "Average 5.00")
-        assertTagText("sub-subject-average-option-subject-2", "Average 4.00")
+        assertTagText("sub-subject-average-option-subject-1", "Moyenne 5.00")
+        assertTagText("sub-subject-average-option-subject-2", "Moyenne 4.00")
     }
 
     private fun launchApp() {
