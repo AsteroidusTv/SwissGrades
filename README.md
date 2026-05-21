@@ -58,6 +58,18 @@ SwissGrades is currently focused on being a strong personal-use app:
 
 It is not yet a full school-management app, and it does not try to be one.
 
+## Privacy
+
+SwissGrades is currently built around local-first storage on your device.
+
+- grades and subjects are stored locally
+- optional exam photos are stored locally when you attach them
+- no account or cloud sync is required
+
+See the full privacy policy here:
+
+- [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
+
 ## Tech stack
 
 - Kotlin
