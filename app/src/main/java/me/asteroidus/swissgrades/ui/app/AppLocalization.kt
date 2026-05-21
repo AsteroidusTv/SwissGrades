@@ -63,8 +63,19 @@ data class AppStrings(
     val gradeValueLabel: String,
     val gradeValuePlaceholder: String,
     val descriptionOptional: String,
+    val attachmentsTitle: String,
+    val addPhotoLabel: String,
+    val addMorePhotosLabel: String,
+    val takePhotoLabel: String,
+    val chooseFromGalleryLabel: String,
+    val removePhotoLabel: String,
+    val attachedPhotosTitle: String,
+    val importAttachmentFailed: String,
+    val maxAttachmentsReachedTemplate: String,
+    val photoAttachmentCountTemplate: String,
     val deleteLabel: String,
     val cancelLabel: String,
+    val closeLabel: String,
     val backLabel: String,
     val openSettingsLabel: String,
     val editSubjectAction: String,
@@ -130,6 +141,14 @@ data class AppStrings(
             AssessmentWeight.HALF -> noteTypeHalf
             AssessmentWeight.QUARTER -> noteTypeQuarter
         }
+    }
+
+    fun maxAttachmentsReached(limit: Int): String {
+        return maxAttachmentsReachedTemplate.replace("{count}", limit.toString())
+    }
+
+    fun photoAttachmentCount(count: Int): String {
+        return photoAttachmentCountTemplate.replace("{count}", count.toString())
     }
 
     fun themeModeLabel(mode: AppThemeMode): String {
@@ -203,8 +222,19 @@ data class AppStrings(
             gradeValueLabel = "Grade value",
             gradeValuePlaceholder = "Ex: 5.5",
             descriptionOptional = "Description (optional)",
+            attachmentsTitle = "Exam photos",
+            addPhotoLabel = "Add photo",
+            addMorePhotosLabel = "Add more",
+            takePhotoLabel = "Take photo",
+            chooseFromGalleryLabel = "Choose from gallery",
+            removePhotoLabel = "Remove photo",
+            attachedPhotosTitle = "Attached photos",
+            importAttachmentFailed = "Could not import this image.",
+            maxAttachmentsReachedTemplate = "You can attach up to {count} images to one grade.",
+            photoAttachmentCountTemplate = "{count} photos",
             deleteLabel = "Delete",
             cancelLabel = "Cancel",
+            closeLabel = "Close",
             backLabel = "Back",
             openSettingsLabel = "Open settings",
             editSubjectAction = "Edit subject",
@@ -295,8 +325,19 @@ data class AppStrings(
             gradeValueLabel = "Valeur de la note",
             gradeValuePlaceholder = "Ex : 5.5",
             descriptionOptional = "Description (optionnelle)",
+            attachmentsTitle = "Photos de l'examen",
+            addPhotoLabel = "Ajouter une photo",
+            addMorePhotosLabel = "Ajouter",
+            takePhotoLabel = "Prendre une photo",
+            chooseFromGalleryLabel = "Choisir depuis la galerie",
+            removePhotoLabel = "Retirer la photo",
+            attachedPhotosTitle = "Photos jointes",
+            importAttachmentFailed = "Impossible d'importer cette image.",
+            maxAttachmentsReachedTemplate = "Tu peux joindre jusqu'à {count} images à une note.",
+            photoAttachmentCountTemplate = "{count} photos",
             deleteLabel = "Supprimer",
             cancelLabel = "Annuler",
+            closeLabel = "Fermer",
             backLabel = "Retour",
             openSettingsLabel = "Ouvrir les paramètres",
             editSubjectAction = "Modifier la branche",
@@ -346,7 +387,7 @@ val AppLanguage.strings: AppStrings
         AppLanguage.FRENCH -> AppStrings.French
     }
 
-val LocalAppLanguage = compositionLocalOf { AppLanguage.ENGLISH }
+val LocalAppLanguage = compositionLocalOf { AppLanguage.FRENCH }
 val LocalAppStrings = compositionLocalOf { AppStrings.English }
 
 @Composable

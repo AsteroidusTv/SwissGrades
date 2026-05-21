@@ -152,6 +152,82 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun addingGradeWithAttachments_persistsOnlyAfterSave() {
+        val repository = InMemoryGradeTrackerRepository
+        val attachmentStorage = FakeGradeAttachmentStorage()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.showAddGradeSheet()
+        viewModel.importDraftAttachments(listOf("content://image-1", "content://image-2"))
+
+        val detailBeforeSave = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(2, detailBeforeSave.draft.attachments.size)
+        assertTrue(repository.load()?.subjects?.first { it.id == historyId }?.notes?.isEmpty() == true)
+
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+
+        val savedNote = repository.load()
+            ?.subjects
+            ?.first { it.id == historyId }
+            ?.notes
+            ?.single()
+        assertEquals(2, savedNote?.attachments?.size)
+    }
+
+    @Test
+    fun cancelingGradeEdit_preservesExistingAttachments() {
+        val repository = InMemoryGradeTrackerRepository
+        val attachmentStorage = FakeGradeAttachmentStorage()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.showAddGradeSheet()
+        viewModel.importDraftAttachments(listOf("content://image-1"))
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+
+        val noteId = ((viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail.notes.single().id)
+        viewModel.requestEditNote(noteId)
+        val storedAttachmentId = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail.draft.attachments.single().id
+        viewModel.removeDraftAttachment(storedAttachmentId)
+        viewModel.hideAddGradeSheet()
+
+        val reloadedDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(1, reloadedDetail.notes.single().attachments.size)
+        assertTrue(attachmentStorage.deletedStoredAttachments.isEmpty())
+    }
+
+    @Test
+    fun deletingGrade_removesStoredAttachmentFiles() {
+        val repository = InMemoryGradeTrackerRepository
+        val attachmentStorage = FakeGradeAttachmentStorage()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.showAddGradeSheet()
+        viewModel.importDraftAttachments(listOf("content://image-1"))
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+
+        val noteId = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail.notes.single().id
+        viewModel.requestDeleteNote(noteId)
+        viewModel.confirmDeleteNote()
+
+        assertEquals(1, attachmentStorage.deletedStoredAttachments.size)
+    }
+
+    @Test
     fun changingOption_canReplaceSimpleWithComposite() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -319,5 +395,44 @@ class GradeTrackerViewModelTest {
         updateDraftValue(value)
         addNote()
         backFromDetail()
+    }
+
+    private class FakeGradeAttachmentStorage : GradeAttachmentStorage {
+        private var nextSequence = 1
+        val deletedStoredAttachments = mutableListOf<StoredAttachment>()
+
+        override fun stageImportedAttachment(sourceUriString: String): DraftAttachment {
+            val id = "draft-${nextSequence++}"
+            return DraftAttachment(id = id, filePath = "/tmp/$id.jpg", isPersisted = false)
+        }
+
+        override fun createCameraCaptureRequest(): PendingCameraCaptureRequest {
+            return PendingCameraCaptureRequest(
+                attachmentId = "camera-${nextSequence++}",
+                outputUriString = "content://camera",
+                filePath = "/tmp/camera.jpg"
+            )
+        }
+
+        override fun finalizeCameraCapture(
+            request: PendingCameraCaptureRequest,
+            success: Boolean
+        ): DraftAttachment? {
+            return if (success) {
+                DraftAttachment(request.attachmentId, request.filePath, isPersisted = false)
+            } else {
+                null
+            }
+        }
+
+        override fun commitAttachments(noteId: String, attachments: List<DraftAttachment>): List<StoredAttachment> {
+            return attachments.map { StoredAttachment(id = it.id, filePath = "/notes/$noteId/${it.id}.jpg") }
+        }
+
+        override fun discardNewAttachments(attachments: List<DraftAttachment>) = Unit
+
+        override fun deleteStoredAttachments(attachments: List<StoredAttachment>) {
+            deletedStoredAttachments += attachments
+        }
     }
 }

@@ -36,7 +36,19 @@ data class NoteUiState(
     val displayValue: String,
     val noteTypeLabel: String,
     val description: String,
-    val dateLabel: String
+    val dateLabel: String,
+    val attachments: List<AttachmentUiState> = emptyList()
+)
+
+data class AttachmentUiState(
+    val id: String,
+    val filePath: String
+)
+
+data class DraftAttachmentUiState(
+    val id: String,
+    val filePath: String,
+    val isPersisted: Boolean
 )
 
 data class SubjectListItemUiState(
@@ -59,7 +71,9 @@ data class NoteDraftUiState(
     val selectedType: NoteTypeUi = NoteTypeUi.FULL,
     val descriptionInput: String = "",
     val errorMessage: String? = null,
-    val editingNoteId: String? = null
+    val editingNoteId: String? = null,
+    val attachments: List<DraftAttachmentUiState> = emptyList(),
+    val attachmentErrorMessage: String? = null
 )
 
 data class SubjectDetailUiState(
@@ -161,9 +175,12 @@ private data class SubjectComputedMetrics(
     val points: Double?
 )
 
+private const val MAX_ATTACHMENTS_PER_GRADE = 5
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class GradeTrackerViewModel(
-    private val repository: GradeTrackerRepository
+    private val repository: GradeTrackerRepository,
+    private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withRequiredOptionSubject()
@@ -350,7 +367,14 @@ class GradeTrackerViewModel(
             valueInput = formatOneOrTwoDecimals(target.note.value),
             selectedType = target.note.weight.toNoteTypeUi(),
             descriptionInput = target.note.description,
-            editingNoteId = target.note.id
+            editingNoteId = target.note.id,
+            attachments = target.note.attachments.map {
+                DraftAttachmentUiState(
+                    id = it.id,
+                    filePath = it.filePath,
+                    isPersisted = true
+                )
+            }
         )
         screen.isAddGradeSheetVisible = true
         publish()
@@ -374,6 +398,7 @@ class GradeTrackerViewModel(
     fun backFromDetail() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         if (screen.isAddGradeSheetVisible) {
+            attachmentStorage.discardNewAttachments(screen.draft.attachments.map { it.toDraftAttachment() })
             screen.isAddGradeSheetVisible = false
             screen.draft = NoteDraftUiState()
             publish()
@@ -392,6 +417,7 @@ class GradeTrackerViewModel(
 
     fun hideAddGradeSheet() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        attachmentStorage.discardNewAttachments(screen.draft.attachments.map { it.toDraftAttachment() })
         screen.draft = NoteDraftUiState()
         screen.isAddGradeSheetVisible = false
         publish()
@@ -420,10 +446,14 @@ class GradeTrackerViewModel(
                 if (subject.id != screen.subjectId) {
                     subject
                 } else if (subject.subSubjects.isEmpty()) {
+                    val noteToDelete = subject.notes.firstOrNull { it.id == noteId }
+                    noteToDelete?.let { attachmentStorage.deleteStoredAttachments(it.attachments) }
                     subject.copy(notes = subject.notes.filterNot { it.id == noteId })
                 } else {
                     subject.copy(
                         subSubjects = subject.subSubjects.map { subSubject ->
+                            val noteToDelete = subSubject.notes.firstOrNull { it.id == noteId }
+                            noteToDelete?.let { attachmentStorage.deleteStoredAttachments(it.attachments) }
                             subSubject.copy(notes = subSubject.notes.filterNot { it.id == noteId })
                         }
                     )
@@ -453,6 +483,76 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    fun importDraftAttachments(sourceUriStrings: List<String>) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val remainingSlots = MAX_ATTACHMENTS_PER_GRADE - screen.draft.attachments.size
+        if (remainingSlots <= 0) {
+            screen.draft = screen.draft.copy(attachmentErrorMessage = strings.maxAttachmentsReached(MAX_ATTACHMENTS_PER_GRADE))
+            publish()
+            return
+        }
+
+        val importedAttachments = sourceUriStrings
+            .take(remainingSlots)
+            .mapNotNull { uriString ->
+                attachmentStorage.stageImportedAttachment(uriString)?.toDraftAttachmentUiState()
+            }
+
+        val errorMessage = when {
+            importedAttachments.isEmpty() -> strings.importAttachmentFailed
+            sourceUriStrings.size > remainingSlots -> strings.maxAttachmentsReached(MAX_ATTACHMENTS_PER_GRADE)
+            else -> null
+        }
+
+        screen.draft = screen.draft.copy(
+            attachments = screen.draft.attachments + importedAttachments,
+            attachmentErrorMessage = errorMessage
+        )
+        publish()
+    }
+
+    fun prepareCameraCapture(): PendingCameraCaptureRequest? {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return null
+        if (screen.draft.attachments.size >= MAX_ATTACHMENTS_PER_GRADE) {
+            screen.draft = screen.draft.copy(
+                attachmentErrorMessage = strings.maxAttachmentsReached(MAX_ATTACHMENTS_PER_GRADE)
+            )
+            publish()
+            return null
+        }
+        return attachmentStorage.createCameraCaptureRequest()
+    }
+
+    fun completeCameraCapture(request: PendingCameraCaptureRequest, success: Boolean) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val draftAttachment = attachmentStorage.finalizeCameraCapture(request, success)
+        if (draftAttachment == null) {
+            if (success) {
+                screen.draft = screen.draft.copy(attachmentErrorMessage = strings.importAttachmentFailed)
+                publish()
+            }
+            return
+        }
+        screen.draft = screen.draft.copy(
+            attachments = screen.draft.attachments + draftAttachment.toDraftAttachmentUiState(),
+            attachmentErrorMessage = null
+        )
+        publish()
+    }
+
+    fun removeDraftAttachment(attachmentId: String) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        val target = screen.draft.attachments.firstOrNull { it.id == attachmentId } ?: return
+        if (!target.isPersisted) {
+            attachmentStorage.discardNewAttachments(listOf(target.toDraftAttachment()))
+        }
+        screen.draft = screen.draft.copy(
+            attachments = screen.draft.attachments.filterNot { it.id == attachmentId },
+            attachmentErrorMessage = null
+        )
+        publish()
+    }
+
     fun selectCompositeSubSubject(subSubjectId: String) {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         screen.selectedSubSubjectId = subSubjectId
@@ -474,12 +574,17 @@ class GradeTrackerViewModel(
         )
         val editingNoteId = draft.editingNoteId
         if (editingNoteId == null) {
+            val noteId = "note-${state.nextNoteSequence}"
             val note = StoredNote(
-                id = "note-${state.nextNoteSequence}",
+                id = noteId,
                 value = grade.value,
                 weight = grade.weight,
                 description = draft.descriptionInput.trim(),
-                createdAtEpochMillis = System.currentTimeMillis()
+                createdAtEpochMillis = System.currentTimeMillis(),
+                attachments = attachmentStorage.commitAttachments(
+                    noteId = noteId,
+                    attachments = draft.attachments.map { it.toDraftAttachment() }
+                )
             )
             state = state.copy(
                 subjects = state.subjects.map { subject ->
@@ -504,10 +609,17 @@ class GradeTrackerViewModel(
             )
         } else {
             val target = findStoredNoteTarget(screen.subjectId, editingNoteId) ?: return
+            val removedStoredAttachments = target.note.attachments.filter { storedAttachment ->
+                draft.attachments.none { it.id == storedAttachment.id }
+            }
             val updatedNote = target.note.copy(
                 value = grade.value,
                 weight = grade.weight,
-                description = draft.descriptionInput.trim()
+                description = draft.descriptionInput.trim(),
+                attachments = attachmentStorage.commitAttachments(
+                    noteId = editingNoteId,
+                    attachments = draft.attachments.map { it.toDraftAttachment() }
+                )
             )
             state = state.copy(
                 subjects = state.subjects.map { subject ->
@@ -536,6 +648,7 @@ class GradeTrackerViewModel(
                     }
                 }
             )
+            attachmentStorage.deleteStoredAttachments(removedStoredAttachments)
         }
         screen.draft = NoteDraftUiState()
         screen.isAddGradeSheetVisible = false
@@ -543,11 +656,14 @@ class GradeTrackerViewModel(
     }
 
     companion object {
-        fun factory(repository: GradeTrackerRepository): ViewModelProvider.Factory {
+        fun factory(
+            repository: GradeTrackerRepository,
+            attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage
+        ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return GradeTrackerViewModel(repository) as T
+                    return GradeTrackerViewModel(repository, attachmentStorage) as T
                 }
             }
         }
@@ -853,7 +969,8 @@ class GradeTrackerViewModel(
             displayValue = formatOneOrTwoDecimals(note.value),
             noteTypeLabel = strings.noteTypeLabel(note.weight),
             description = note.description,
-            dateLabel = note.createdAtEpochMillis.toDateLabel()
+            dateLabel = note.createdAtEpochMillis.toDateLabel(),
+            attachments = note.attachments.map { AttachmentUiState(id = it.id, filePath = it.filePath) }
         )
     }
 
@@ -903,6 +1020,22 @@ private data class StoredNoteTarget(
     val note: StoredNote,
     val subSubjectId: String?
 )
+
+private fun DraftAttachmentUiState.toDraftAttachment(): DraftAttachment {
+    return DraftAttachment(
+        id = id,
+        filePath = filePath,
+        isPersisted = isPersisted
+    )
+}
+
+private fun DraftAttachment.toDraftAttachmentUiState(): DraftAttachmentUiState {
+    return DraftAttachmentUiState(
+        id = id,
+        filePath = filePath,
+        isPersisted = isPersisted
+    )
+}
 
 private fun StoredSubject.toBranch(): Branch {
     return if (subSubjects.isEmpty()) toSimpleBranch() else toCompositeBranch()

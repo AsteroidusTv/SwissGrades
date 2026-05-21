@@ -1,6 +1,11 @@
 package me.asteroidus.swissgrades.ui.app
 
+import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
@@ -10,7 +15,10 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
@@ -23,8 +31,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -56,10 +68,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -78,9 +93,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Biotech
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HistoryEdu
@@ -89,6 +106,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.SportsBasketball
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
@@ -105,6 +123,11 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import java.io.File
 import me.asteroidus.swissgrades.ui.theme.AppBackgroundDark
 import me.asteroidus.swissgrades.ui.theme.AppOutlineDark
 import me.asteroidus.swissgrades.ui.theme.AppOutlineLight
@@ -128,6 +151,7 @@ import androidx.core.view.WindowCompat
 import me.asteroidus.swissgrades.ui.theme.SwissGradesTheme
 
 private val DashboardCardShape = RoundedCornerShape(24.dp)
+private const val MaxGradeAttachments = 5
 private val AddSubjectAvailableColors = listOf(
     SubjectColorChoice.BLUE,
     SubjectColorChoice.TEAL,
@@ -226,8 +250,11 @@ fun GradeTrackerApp(
     val resolvedRepository = remember(context, repository) {
         repository ?: SharedPreferencesGradeTrackerRepository(context.applicationContext)
     }
+    val attachmentStorage = remember(context) {
+        LocalGradeAttachmentStorage(context.applicationContext)
+    }
     val viewModel: GradeTrackerViewModel = viewModel(
-        factory = GradeTrackerViewModel.factory(resolvedRepository)
+        factory = GradeTrackerViewModel.factory(resolvedRepository, attachmentStorage)
     )
     val uiState by viewModel.uiState.collectAsState()
     val useDarkTheme = when (uiState.themeMode) {
@@ -311,6 +338,10 @@ fun GradeTrackerApp(
                                 onDraftValueChanged = viewModel::updateDraftValue,
                                 onDraftTypeChanged = viewModel::updateDraftType,
                                 onDraftDescriptionChanged = viewModel::updateDraftDescription,
+                                onImportDraftAttachments = viewModel::importDraftAttachments,
+                                onPrepareCameraCapture = viewModel::prepareCameraCapture,
+                                onCompleteCameraCapture = viewModel::completeCameraCapture,
+                                onRemoveDraftAttachment = viewModel::removeDraftAttachment,
                                 onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
                                 onAddNote = viewModel::addNote,
                                 modifier = Modifier
@@ -1457,16 +1488,48 @@ private fun BranchDetailScreen(
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
+    onImportDraftAttachments: (List<String>) -> Unit,
+    onPrepareCameraCapture: () -> PendingCameraCaptureRequest?,
+    onCompleteCameraCapture: (PendingCameraCaptureRequest, Boolean) -> Unit,
+    onRemoveDraftAttachment: (String) -> Unit,
     onSelectedSubSubjectChanged: (String) -> Unit,
     onAddNote: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
+    val context = LocalContext.current
+    val cameraAvailable = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+    }
     val accentBlue = appAccentBlue()
     val positiveGreen = appPositiveColor()
     val warningRed = appWarningColor()
     val onBlueSupport = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var pendingCameraRequest by remember(detail.subjectId, detail.draft.editingNoteId) {
+        mutableStateOf<PendingCameraCaptureRequest?>(null)
+    }
+    var showAttachmentSourceDialog by remember(detail.subjectId, detail.draft.editingNoteId) {
+        mutableStateOf(false)
+    }
+    var attachmentViewer by remember(detail.subjectId, detail.draft.editingNoteId) {
+        mutableStateOf<AttachmentViewerState?>(null)
+    }
+    val pickImagesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(MaxGradeAttachments)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            onImportDraftAttachments(uris.map(Uri::toString))
+        }
+    }
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        pendingCameraRequest?.let { request ->
+            onCompleteCameraCapture(request, success)
+        }
+        pendingCameraRequest = null
+    }
     val activeSubSubject = detail.subSubjects.firstOrNull { it.id == detail.selectedSubSubjectId }
         ?: detail.subSubjects.firstOrNull()
     val visibleNotes = if (detail.isCompositeOption) activeSubSubject?.notes.orEmpty() else detail.notes
@@ -1601,9 +1664,44 @@ private fun BranchDetailScreen(
                     onDraftValueChanged = onDraftValueChanged,
                     onDraftTypeChanged = onDraftTypeChanged,
                     onDraftDescriptionChanged = onDraftDescriptionChanged,
+                    onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
+                    onRemoveDraftAttachment = onRemoveDraftAttachment,
+                    onPreviewAttachment = { attachments, index ->
+                        attachmentViewer = AttachmentViewerState(attachments = attachments, selectedIndex = index)
+                    },
                     onAddNote = onAddNote
                 )
             }
+        }
+
+        if (showAttachmentSourceDialog) {
+            AttachmentSourceDialog(
+                cameraAvailable = cameraAvailable,
+                onDismiss = { showAttachmentSourceDialog = false },
+                onChooseFromGallery = {
+                    showAttachmentSourceDialog = false
+                    pickImagesLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onTakePhoto = {
+                    val request = onPrepareCameraCapture() ?: run {
+                        showAttachmentSourceDialog = false
+                        return@AttachmentSourceDialog
+                    }
+                    pendingCameraRequest = request
+                    showAttachmentSourceDialog = false
+                    takePictureLauncher.launch(Uri.parse(request.outputUriString))
+                }
+            )
+        }
+
+        attachmentViewer?.let { viewerState ->
+            AttachmentViewerDialog(
+                attachments = viewerState.attachments,
+                initialIndex = viewerState.selectedIndex,
+                onDismiss = { attachmentViewer = null }
+            )
         }
 
         detail.pendingDeleteNoteTitle?.let { noteTitle ->
@@ -2015,6 +2113,9 @@ private fun AddGradeSheetContent(
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
+    onShowAttachmentSourceDialog: () -> Unit,
+    onRemoveDraftAttachment: (String) -> Unit,
+    onPreviewAttachment: (List<AttachmentUiState>, Int) -> Unit,
     onAddNote: () -> Unit
 ) {
     val strings = currentAppStrings()
@@ -2108,11 +2209,75 @@ private fun AddGradeSheetContent(
             ),
             shape = RoundedCornerShape(20.dp)
         )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.attachmentsTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TextButton(
+                    onClick = onShowAttachmentSourceDialog,
+                    enabled = detail.draft.attachments.size < MaxGradeAttachments
+                ) {
+                    Icon(
+                        imageVector = if (detail.draft.attachments.isEmpty()) {
+                            Icons.Filled.PhotoLibrary
+                        } else {
+                            Icons.Filled.Add
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = if (detail.draft.attachments.isEmpty()) {
+                            strings.addPhotoLabel
+                        } else {
+                            strings.addMorePhotosLabel
+                        },
+                        modifier = Modifier.padding(start = 6.dp)
+                    )
+                }
+            }
+
+            if (detail.draft.attachments.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("draft-attachment-strip"),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(detail.draft.attachments, key = { it.id }) { attachment ->
+                        DraftAttachmentChip(
+                            attachment = attachment,
+                            onRemove = { onRemoveDraftAttachment(attachment.id) },
+                            onPreview = {
+                                onPreviewAttachment(
+                                    detail.draft.attachments.map { AttachmentUiState(id = it.id, filePath = it.filePath) },
+                                    detail.draft.attachments.indexOfFirst { it.id == attachment.id }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
         detail.draft.errorMessage?.let {
             Text(
                 text = it,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.testTag("note-draft-error")
+            )
+        }
+        detail.draft.attachmentErrorMessage?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag("note-attachment-error")
             )
         }
         Button(
@@ -2138,6 +2303,219 @@ private fun AddGradeSheetContent(
                     modifier = Modifier.padding(start = 10.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DraftAttachmentChip(
+    attachment: DraftAttachmentUiState,
+    onRemove: () -> Unit,
+    onPreview: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(128.dp)
+            .height(128.dp)
+            .testTag("draft-attachment-${attachment.id}")
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 10.dp, end = 10.dp),
+            shape = RoundedCornerShape(20.dp),
+            border = appCardBorder(),
+            colors = CardDefaults.cardColors(containerColor = appCardSurface())
+        ) {
+            AsyncImage(
+                model = File(attachment.filePath),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(onClick = onPreview),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                .clickable(onClick = onRemove, role = Role.Button)
+                .testTag("remove-draft-attachment-${attachment.id}"),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = currentAppStrings().removePhotoLabel,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentSourceDialog(
+    cameraAvailable: Boolean,
+    onDismiss: () -> Unit,
+    onChooseFromGallery: () -> Unit,
+    onTakePhoto: () -> Unit
+) {
+    val strings = currentAppStrings()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = appCardSurface(),
+        title = {
+            Text(
+                text = strings.addPhotoLabel,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TextButton(onClick = onChooseFromGallery) {
+                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
+                    Text(strings.chooseFromGalleryLabel, modifier = Modifier.padding(start = 8.dp))
+                }
+                if (cameraAvailable) {
+                    TextButton(onClick = onTakePhoto) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = null)
+                        Text(strings.takePhotoLabel, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.cancelLabel, color = appAccentBlue())
+            }
+        }
+    )
+}
+
+private data class AttachmentViewerState(
+    val attachments: List<AttachmentUiState>,
+    val selectedIndex: Int
+)
+
+@Composable
+private fun AttachmentViewerDialog(
+    attachments: List<AttachmentUiState>,
+    initialIndex: Int,
+    onDismiss: () -> Unit
+) {
+    val strings = currentAppStrings()
+    val safeInitialIndex = initialIndex.coerceIn(0, (attachments.size - 1).coerceAtLeast(0))
+    val pagerState = rememberPagerState(
+        initialPage = safeInitialIndex,
+        pageCount = { attachments.size }
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.76f))
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("attachment-viewer-pager")
+            ) { page ->
+                val imageFile = File(attachments[page].filePath)
+                val painter = rememberAsyncImagePainter(model = imageFile)
+                val intrinsicSize = painter.intrinsicSize
+                val aspectRatio = if (
+                    intrinsicSize != Size.Unspecified &&
+                    intrinsicSize.width > 0f &&
+                    intrinsicSize.height > 0f
+                ) {
+                    intrinsicSize.width / intrinsicSize.height
+                } else {
+                    3f / 4f
+                }
+                val maxImageWidth = maxWidth * 0.96f
+                val maxImageHeight = maxHeight * 0.86f
+                val widthFromHeight = maxImageHeight * aspectRatio
+                val finalWidth = minOf(maxImageWidth, widthFromHeight)
+                val finalHeight = finalWidth / aspectRatio
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(finalWidth)
+                            .height(finalHeight)
+                            .shadow(
+                                elevation = 26.dp,
+                                shape = RoundedCornerShape(28.dp),
+                                clip = false,
+                                ambientColor = Color.Black.copy(alpha = 0.36f),
+                                spotColor = Color.Black.copy(alpha = 0.52f)
+                            )
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Color(0xFF0D1016))
+                            .border(
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                                shape = RoundedCornerShape(28.dp)
+                            )
+                    ) {
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag("attachment-viewer-image-$page"),
+                            contentScale = ContentScale.Fit
+                        )
+
+                        if (attachments.size > 1) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${attachments.size}",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 18.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color.Black.copy(alpha = 0.42f))
+                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            HeaderActionButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+                    .testTag("attachment-viewer-close")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = strings.closeLabel,
+                    tint = Color.White
+                )
+            }
+
         }
     }
 }
@@ -2281,6 +2659,32 @@ private fun NoteHistoryCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+                if (note.attachments.isNotEmpty()) {
+                    Card(
+                        shape = RoundedCornerShape(999.dp),
+                        colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PhotoLibrary,
+                                contentDescription = null,
+                                tint = accentBlue,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = strings.photoAttachmentCount(note.attachments.size),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = accentBlue,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.testTag("note-attachment-count-${note.id}")
+                            )
+                        }
+                    }
                 }
             }
         }

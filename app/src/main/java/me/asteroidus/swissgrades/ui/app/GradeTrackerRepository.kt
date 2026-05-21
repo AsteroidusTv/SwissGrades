@@ -88,7 +88,8 @@ data class StoredNote(
     val value: Double,
     val weight: AssessmentWeight,
     val description: String,
-    val createdAtEpochMillis: Long
+    val createdAtEpochMillis: Long,
+    val attachments: List<StoredAttachment> = emptyList()
 )
 
 data class StoredSubSubject(
@@ -141,7 +142,7 @@ data class GradeTrackerAppState(
     val subjects: List<StoredSubject> = emptyList(),
     val nextSubjectSequence: Int = 1,
     val nextNoteSequence: Int = 1,
-    val language: AppLanguage = AppLanguage.ENGLISH,
+    val language: AppLanguage = AppLanguage.FRENCH,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM
 ) {
     val isOnboardingCompleted: Boolean
@@ -161,135 +162,13 @@ class SharedPreferencesGradeTrackerRepository(
 
     override fun load(): GradeTrackerAppState? {
         val serializedState = sharedPreferences.getString(KEY_APP_STATE, null) ?: return null
-        return runCatching { decode(serializedState) }.getOrNull()
+        return runCatching { decodeGradeTrackerAppState(serializedState) }.getOrNull()
     }
 
     override fun save(state: GradeTrackerAppState) {
         sharedPreferences.edit()
-            .putString(KEY_APP_STATE, encode(state))
+            .putString(KEY_APP_STATE, state.encodeToJsonString())
             .apply()
-    }
-
-    private fun encode(state: GradeTrackerAppState): String {
-        val subjectsJson = JSONArray()
-        state.subjects.forEach { subject ->
-            val subjectJson = JSONObject()
-                .put("id", subject.id)
-                .put("name", subject.name)
-                .put("isInBasket", subject.isInBasket)
-                .put("isOptionSubject", subject.isOptionSubject)
-                .put("optionChoice", subject.optionChoice?.name)
-                .put("subjectColor", subject.subjectColor.name)
-                .put("subjectIcon", subject.subjectIcon.name)
-
-            val notesJson = JSONArray()
-            subject.notes.forEach { note ->
-                notesJson.put(note.toJson())
-            }
-            subjectJson.put("notes", notesJson)
-
-            val subSubjectsJson = JSONArray()
-            subject.subSubjects.forEach { subSubject ->
-                val subSubjectJson = JSONObject()
-                    .put("id", subSubject.id)
-                    .put("name", subSubject.name)
-                val subSubjectNotesJson = JSONArray()
-                subSubject.notes.forEach { note ->
-                    subSubjectNotesJson.put(note.toJson())
-                }
-                subSubjectJson.put("notes", subSubjectNotesJson)
-                subSubjectsJson.put(subSubjectJson)
-            }
-            subjectJson.put("subSubjects", subSubjectsJson)
-            subjectsJson.put(subjectJson)
-        }
-
-        return JSONObject()
-            .put("selectedOption", state.selectedOption?.name)
-            .put("nextSubjectSequence", state.nextSubjectSequence)
-            .put("nextNoteSequence", state.nextNoteSequence)
-            .put("language", state.language.name)
-            .put("themeMode", state.themeMode.name)
-            .put("subjects", subjectsJson)
-            .toString()
-    }
-
-    private fun decode(serializedState: String): GradeTrackerAppState {
-        val root = JSONObject(serializedState)
-        val subjectsJson = root.optJSONArray("subjects") ?: JSONArray()
-        val subjects = buildList {
-            for (index in 0 until subjectsJson.length()) {
-                val subjectJson = subjectsJson.getJSONObject(index)
-                val notesJson = subjectJson.optJSONArray("notes") ?: JSONArray()
-                val notes = buildList {
-                    for (noteIndex in 0 until notesJson.length()) {
-                        add(notesJson.getJSONObject(noteIndex).toStoredNote())
-                    }
-                }
-
-                val subSubjectsJson = subjectJson.optJSONArray("subSubjects") ?: JSONArray()
-                val subSubjects = buildList {
-                    for (subIndex in 0 until subSubjectsJson.length()) {
-                        val subSubjectJson = subSubjectsJson.getJSONObject(subIndex)
-                        val subSubjectNotesJson = subSubjectJson.optJSONArray("notes") ?: JSONArray()
-                        val subSubjectNotes = buildList {
-                            for (noteIndex in 0 until subSubjectNotesJson.length()) {
-                                add(subSubjectNotesJson.getJSONObject(noteIndex).toStoredNote())
-                            }
-                        }
-                        add(
-                            StoredSubSubject(
-                                id = subSubjectJson.getString("id"),
-                                name = subSubjectJson.getString("name"),
-                                notes = subSubjectNotes
-                            )
-                        )
-                    }
-                }
-
-                add(
-                    StoredSubject(
-                        id = subjectJson.getString("id"),
-                        name = subjectJson.getString("name"),
-                        isInBasket = subjectJson.optBoolean("isInBasket", false),
-                        isOptionSubject = subjectJson.optBoolean("isOptionSubject", false),
-                        optionChoice = subjectJson.optString("optionChoice")
-                            .takeIf { it.isNotBlank() }
-                            ?.toEnumOrNull<InitialOptionChoice>(),
-                        subjectColor = subjectJson.optString("subjectColor")
-                            .takeIf { it.isNotBlank() }
-                            ?.toEnumOrNull<SubjectColorChoice>()
-                            ?: SubjectColorChoice.BLUE,
-                        subjectIcon = subjectJson.optString("subjectIcon")
-                            .takeIf { it.isNotBlank() }
-                            ?.toEnumOrNull<SubjectIconChoice>()
-                            ?: SubjectIconChoice.BOOK,
-                        notes = notes,
-                        subSubjects = subSubjects
-                    )
-                )
-            }
-        }
-
-        return GradeTrackerAppState(
-            selectedOption = root.optString("selectedOption")
-                .takeIf { it.isNotBlank() }
-                ?.toEnumOrNull<InitialOptionChoice>(),
-            subjects = subjects,
-            nextSubjectSequence = root.optInt("nextSubjectSequence", subjects.size + 1),
-            nextNoteSequence = root.optInt(
-                "nextNoteSequence",
-                subjects.sumOf { it.notes.size + it.subSubjects.sumOf { sub -> sub.notes.size } } + 1
-            ),
-            language = root.optString("language")
-                .takeIf { it.isNotBlank() }
-                ?.toEnumOrNull<AppLanguage>()
-                ?: AppLanguage.ENGLISH,
-            themeMode = root.optString("themeMode")
-                .takeIf { it.isNotBlank() }
-                ?.toEnumOrNull<AppThemeMode>()
-                ?: AppThemeMode.SYSTEM
-        )
     }
 }
 
@@ -303,6 +182,128 @@ object InMemoryGradeTrackerRepository : GradeTrackerRepository {
     }
 }
 
+internal fun GradeTrackerAppState.encodeToJsonString(): String {
+    val subjectsJson = JSONArray()
+    subjects.forEach { subject ->
+        val subjectJson = JSONObject()
+            .put("id", subject.id)
+            .put("name", subject.name)
+            .put("isInBasket", subject.isInBasket)
+            .put("isOptionSubject", subject.isOptionSubject)
+            .put("optionChoice", subject.optionChoice?.name)
+            .put("subjectColor", subject.subjectColor.name)
+            .put("subjectIcon", subject.subjectIcon.name)
+
+        val notesJson = JSONArray()
+        subject.notes.forEach { note ->
+            notesJson.put(note.toJson())
+        }
+        subjectJson.put("notes", notesJson)
+
+        val subSubjectsJson = JSONArray()
+        subject.subSubjects.forEach { subSubject ->
+            val subSubjectJson = JSONObject()
+                .put("id", subSubject.id)
+                .put("name", subSubject.name)
+            val subSubjectNotesJson = JSONArray()
+            subSubject.notes.forEach { note ->
+                subSubjectNotesJson.put(note.toJson())
+            }
+            subSubjectJson.put("notes", subSubjectNotesJson)
+            subSubjectsJson.put(subSubjectJson)
+        }
+        subjectJson.put("subSubjects", subSubjectsJson)
+        subjectsJson.put(subjectJson)
+    }
+
+    return JSONObject()
+        .put("selectedOption", selectedOption?.name)
+        .put("nextSubjectSequence", nextSubjectSequence)
+        .put("nextNoteSequence", nextNoteSequence)
+        .put("language", language.name)
+        .put("themeMode", themeMode.name)
+        .put("subjects", subjectsJson)
+        .toString()
+}
+
+internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAppState {
+    val root = JSONObject(serializedState)
+    val subjectsJson = root.optJSONArray("subjects") ?: JSONArray()
+    val subjects = buildList {
+        for (index in 0 until subjectsJson.length()) {
+            val subjectJson = subjectsJson.getJSONObject(index)
+            val notesJson = subjectJson.optJSONArray("notes") ?: JSONArray()
+            val notes = buildList {
+                for (noteIndex in 0 until notesJson.length()) {
+                    add(notesJson.getJSONObject(noteIndex).toStoredNote())
+                }
+            }
+
+            val subSubjectsJson = subjectJson.optJSONArray("subSubjects") ?: JSONArray()
+            val subSubjects = buildList {
+                for (subIndex in 0 until subSubjectsJson.length()) {
+                    val subSubjectJson = subSubjectsJson.getJSONObject(subIndex)
+                    val subSubjectNotesJson = subSubjectJson.optJSONArray("notes") ?: JSONArray()
+                    val subSubjectNotes = buildList {
+                        for (noteIndex in 0 until subSubjectNotesJson.length()) {
+                            add(subSubjectNotesJson.getJSONObject(noteIndex).toStoredNote())
+                        }
+                    }
+                    add(
+                        StoredSubSubject(
+                            id = subSubjectJson.getString("id"),
+                            name = subSubjectJson.getString("name"),
+                            notes = subSubjectNotes
+                        )
+                    )
+                }
+            }
+
+            add(
+                StoredSubject(
+                    id = subjectJson.getString("id"),
+                    name = subjectJson.getString("name"),
+                    isInBasket = subjectJson.optBoolean("isInBasket", false),
+                    isOptionSubject = subjectJson.optBoolean("isOptionSubject", false),
+                    optionChoice = subjectJson.optString("optionChoice")
+                        .takeIf { it.isNotBlank() }
+                        ?.toEnumOrNull<InitialOptionChoice>(),
+                    subjectColor = subjectJson.optString("subjectColor")
+                        .takeIf { it.isNotBlank() }
+                        ?.toEnumOrNull<SubjectColorChoice>()
+                        ?: SubjectColorChoice.BLUE,
+                    subjectIcon = subjectJson.optString("subjectIcon")
+                        .takeIf { it.isNotBlank() }
+                        ?.toEnumOrNull<SubjectIconChoice>()
+                        ?: SubjectIconChoice.BOOK,
+                    notes = notes,
+                    subSubjects = subSubjects
+                )
+            )
+        }                                                                                                                                                                                                                                                                                                                                                                                                                               
+    }
+
+    return GradeTrackerAppState(
+        selectedOption = root.optString("selectedOption")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<InitialOptionChoice>(),
+        subjects = subjects,
+        nextSubjectSequence = root.optInt("nextSubjectSequence", subjects.size + 1),
+        nextNoteSequence = root.optInt(
+            "nextNoteSequence",
+            subjects.sumOf { it.notes.size + it.subSubjects.sumOf { sub -> sub.notes.size } } + 1
+        ),
+        language = root.optString("language")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<AppLanguage>()
+            ?: AppLanguage.FRENCH,
+        themeMode = root.optString("themeMode")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<AppThemeMode>()
+            ?: AppThemeMode.SYSTEM
+    )
+}
+
 private fun StoredNote.toJson(): JSONObject {
     return JSONObject()
         .put("id", id)
@@ -310,6 +311,18 @@ private fun StoredNote.toJson(): JSONObject {
         .put("weight", weight.name)
         .put("description", description)
         .put("createdAtEpochMillis", createdAtEpochMillis)
+        .put(
+            "attachments",
+            JSONArray().apply {
+                attachments.forEach { attachment ->
+                    put(
+                        JSONObject()
+                            .put("id", attachment.id)
+                            .put("filePath", attachment.filePath)
+                    )
+                }
+            }
+        )
 }
 
 private fun JSONObject.toStoredNote(): StoredNote {
@@ -318,7 +331,18 @@ private fun JSONObject.toStoredNote(): StoredNote {
         value = getDouble("value"),
         weight = getString("weight").toEnumOrNull<AssessmentWeight>() ?: AssessmentWeight.FULL,
         description = optString("description"),
-        createdAtEpochMillis = optLong("createdAtEpochMillis", 0L)
+        createdAtEpochMillis = optLong("createdAtEpochMillis", 0L),
+        attachments = buildList {
+            val attachmentsJson = optJSONArray("attachments") ?: JSONArray()
+            for (index in 0 until attachmentsJson.length()) {
+                val attachmentJson = attachmentsJson.getJSONObject(index)
+                val id = attachmentJson.optString("id")
+                val filePath = attachmentJson.optString("filePath")
+                if (id.isNotBlank() && filePath.isNotBlank()) {
+                    add(StoredAttachment(id = id, filePath = filePath))
+                }
+            }
+        }
     )
 }
 
