@@ -116,7 +116,12 @@ data class AddSubjectFormUiState(
 data class SettingsUiState(
     val selectedOption: InitialOptionChoice,
     val selectedLanguage: AppLanguage,
-    val selectedThemeMode: AppThemeMode
+    val selectedThemeMode: AppThemeMode,
+    val backupFileNameSuggestion: String,
+    val pendingImportDisplayName: String? = null,
+    val backupMessage: String? = null,
+    val backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+    val isBackupInProgress: Boolean = false
 )
 
 data class DashboardSummaryUiState(
@@ -180,7 +185,8 @@ private const val MAX_ATTACHMENTS_PER_GRADE = 5
 @OptIn(ExperimentalCoroutinesApi::class)
 class GradeTrackerViewModel(
     private val repository: GradeTrackerRepository,
-    private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage
+    private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
+    private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withRequiredOptionSubject()
@@ -214,12 +220,13 @@ class GradeTrackerViewModel(
 
     fun openSettings() {
         state.selectedOption?.let {
-            currentScreen = InternalScreen.Settings
+            currentScreen = InternalScreen.Settings()
             publish()
         }
     }
 
     fun closeSettings() {
+        clearPendingSettingsImport()
         currentScreen = InternalScreen.Main
         publish()
     }
@@ -238,6 +245,7 @@ class GradeTrackerViewModel(
 
     fun changeOption(choice: InitialOptionChoice) {
         val existingOption = state.subjects.firstOrNull { it.isOptionSubject }
+        existingOption?.allAttachments()?.takeIf { it.isNotEmpty() }?.let(attachmentStorage::deleteStoredAttachments)
         val replacement = createOptionSubject(choice).copy(
             id = existingOption?.id ?: "subject-1"
         )
@@ -381,13 +389,115 @@ class GradeTrackerViewModel(
     }
 
     fun deleteSubject(subjectId: String) {
-        if (state.subjects.any { it.id == subjectId && it.isOptionSubject }) return
+        val subjectToDelete = state.subjects.firstOrNull { it.id == subjectId } ?: return
+        if (subjectToDelete.isOptionSubject) return
+        subjectToDelete.allAttachments().takeIf { it.isNotEmpty() }?.let(attachmentStorage::deleteStoredAttachments)
 
         state = state.copy(
             subjects = state.subjects.filterNot { it.id == subjectId }
         ).withRequiredOptionSubject()
         currentScreen = InternalScreen.Main
         persistAndPublish()
+    }
+
+    fun exportBackup(destinationUriString: String) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        val stateSnapshot = state
+        screen.isBackupInProgress = true
+        screen.backupMessage = null
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                backupCoordinator.exportBackup(stateSnapshot, destinationUriString)
+            }.onSuccess {
+                if (currentScreen === screen) {
+                    screen.backupMessage = strings.backupExportSuccess
+                    screen.backupMessageTone = DashboardStatusTone.POSITIVE
+                }
+            }.onFailure {
+                if (currentScreen === screen) {
+                    screen.backupMessage = strings.backupExportFailure
+                    screen.backupMessageTone = DashboardStatusTone.NEGATIVE
+                }
+            }
+            if (currentScreen === screen) {
+                screen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun prepareBackupImport(sourceUriString: String) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        clearPendingSettingsImport()
+        screen.isBackupInProgress = true
+        screen.backupMessage = null
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                backupCoordinator.prepareImport(sourceUriString)
+            }.onSuccess { preparedImport ->
+                if (currentScreen === screen) {
+                    screen.pendingPreparedImport = preparedImport
+                } else {
+                    backupCoordinator.discardPreparedImport(preparedImport)
+                }
+            }.onFailure {
+                if (currentScreen === screen) {
+                    screen.backupMessage = strings.backupImportInvalid
+                    screen.backupMessageTone = DashboardStatusTone.NEGATIVE
+                }
+            }
+            if (currentScreen === screen) {
+                screen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun dismissPendingBackupImport() {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        screen.pendingPreparedImport?.let(backupCoordinator::discardPreparedImport)
+        screen.pendingPreparedImport = null
+        publish()
+    }
+
+    fun confirmBackupImport() {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        val preparedImport = screen.pendingPreparedImport ?: return
+        screen.isBackupInProgress = true
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                val importedState = backupCoordinator.applyPreparedImport(preparedImport).withRequiredOptionSubject()
+                state = importedState
+                repository.save(importedState)
+                importedState
+            }.onSuccess { importedState ->
+                val nextSettingsScreen = if (importedState.isOnboardingCompleted) {
+                    InternalScreen.Settings(
+                        backupMessage = importedState.language.strings.backupImportSuccess,
+                        backupMessageTone = DashboardStatusTone.POSITIVE
+                    )
+                } else {
+                    InternalScreen.Onboarding
+                }
+                currentScreen = nextSettingsScreen
+            }.onFailure {
+                screen.backupMessage = strings.backupImportFailure
+                screen.backupMessageTone = DashboardStatusTone.NEGATIVE
+            }
+
+            if (currentScreen is InternalScreen.Settings) {
+                val settingsScreen = currentScreen as InternalScreen.Settings
+                settingsScreen.pendingPreparedImport = null
+                settingsScreen.isBackupInProgress = false
+            }
+            publish()
+        }
     }
 
     fun openSubject(subjectId: String) {
@@ -658,12 +768,13 @@ class GradeTrackerViewModel(
     companion object {
         fun factory(
             repository: GradeTrackerRepository,
-            attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage
+            attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
+            backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return GradeTrackerViewModel(repository, attachmentStorage) as T
+                    return GradeTrackerViewModel(repository, attachmentStorage, backupCoordinator) as T
                 }
             }
         }
@@ -715,7 +826,12 @@ class GradeTrackerViewModel(
                 settings = SettingsUiState(
                     selectedOption = requireNotNull(state.selectedOption),
                     selectedLanguage = state.language,
-                    selectedThemeMode = state.themeMode
+                    selectedThemeMode = state.themeMode,
+                    backupFileNameSuggestion = backupCoordinator.suggestedBackupFileName(),
+                    pendingImportDisplayName = target.pendingPreparedImport?.displayName,
+                    backupMessage = target.backupMessage,
+                    backupMessageTone = target.backupMessageTone,
+                    isBackupInProgress = target.isBackupInProgress
                 )
             )
         }
@@ -977,6 +1093,12 @@ class GradeTrackerViewModel(
     private fun publish() {
         _uiState.value = createUiState()
     }
+
+    private fun clearPendingSettingsImport() {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        screen.pendingPreparedImport?.let(backupCoordinator::discardPreparedImport)
+        screen.pendingPreparedImport = null
+    }
 }
 
 private fun GradeTrackerAppState.withRequiredOptionSubject(): GradeTrackerAppState {
@@ -1013,7 +1135,12 @@ private sealed interface InternalScreen {
         var pendingDeleteNoteId: String? = null,
         var pendingDeleteNoteTitle: String? = null
     ) : InternalScreen
-    data object Settings : InternalScreen
+    data class Settings(
+        var pendingPreparedImport: PreparedBackupImport? = null,
+        var backupMessage: String? = null,
+        var backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+        var isBackupInProgress: Boolean = false
+    ) : InternalScreen
 }
 
 private data class StoredNoteTarget(
@@ -1112,6 +1239,12 @@ private fun createStoredOptionSubject(choice: InitialOptionChoice): StoredSubjec
             )
         }
     )
+}
+
+private fun StoredSubject.allAttachments(): List<StoredAttachment> {
+    return notes.flatMap { it.attachments } + subSubjects.flatMap { subSubject ->
+        subSubject.notes.flatMap { it.attachments }
+    }
 }
 
 private fun StoredNote.toGrade(): Grade {

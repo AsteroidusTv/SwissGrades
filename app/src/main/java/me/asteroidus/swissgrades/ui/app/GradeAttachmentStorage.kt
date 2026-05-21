@@ -8,6 +8,16 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
+internal object GradeAttachmentPaths {
+    fun attachmentsRoot(filesDir: File): File = File(filesDir, "attachments")
+
+    fun stagedDirectory(filesDir: File): File = File(attachmentsRoot(filesDir), "staged")
+
+    fun notesDirectory(filesDir: File): File = File(attachmentsRoot(filesDir), "notes")
+
+    fun noteDirectory(filesDir: File, noteId: String): File = File(notesDirectory(filesDir), noteId)
+}
+
 data class StoredAttachment(
     val id: String,
     val filePath: String
@@ -42,8 +52,8 @@ interface GradeAttachmentStorage {
 class LocalGradeAttachmentStorage(
     private val context: Context
 ) : GradeAttachmentStorage {
-    private val stagedDirectory = File(context.filesDir, "attachments/staged")
-    private val notesDirectory = File(context.filesDir, "attachments/notes")
+    private val stagedDirectory = GradeAttachmentPaths.stagedDirectory(context.filesDir)
+    private val notesDirectory = GradeAttachmentPaths.notesDirectory(context.filesDir)
 
     override fun stageImportedAttachment(sourceUriString: String): DraftAttachment? {
         val sourceUri = Uri.parse(sourceUriString)

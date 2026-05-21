@@ -253,10 +253,23 @@ fun GradeTrackerApp(
     val attachmentStorage = remember(context) {
         LocalGradeAttachmentStorage(context.applicationContext)
     }
+    val backupCoordinator = remember(context) {
+        LocalAppBackupCoordinator(context.applicationContext)
+    }
     val viewModel: GradeTrackerViewModel = viewModel(
-        factory = GradeTrackerViewModel.factory(resolvedRepository, attachmentStorage)
+        factory = GradeTrackerViewModel.factory(resolvedRepository, attachmentStorage, backupCoordinator)
     )
     val uiState by viewModel.uiState.collectAsState()
+    val backupExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { destinationUri ->
+        destinationUri?.let { viewModel.exportBackup(it.toString()) }
+    }
+    val backupImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { sourceUri ->
+        sourceUri?.let { viewModel.prepareBackupImport(it.toString()) }
+    }
     val useDarkTheme = when (uiState.themeMode) {
         AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
         AppThemeMode.LIGHT -> false
@@ -352,6 +365,14 @@ fun GradeTrackerApp(
                                 onSelectLanguage = viewModel::changeLanguage,
                                 onSelectThemeMode = viewModel::changeThemeMode,
                                 onSelectOption = viewModel::changeOption,
+                                onExportBackup = {
+                                    backupExportLauncher.launch(screen.settings.backupFileNameSuggestion)
+                                },
+                                onImportBackup = {
+                                    backupImportLauncher.launch(arrayOf("*/*", "application/octet-stream"))
+                                },
+                                onDismissPendingImport = viewModel::dismissPendingBackupImport,
+                                onConfirmPendingImport = viewModel::confirmBackupImport,
                                 onBack = viewModel::closeSettings,
                                 modifier = Modifier
                             )
@@ -2759,6 +2780,10 @@ private fun SettingsScreen(
     onSelectLanguage: (AppLanguage) -> Unit,
     onSelectThemeMode: (AppThemeMode) -> Unit,
     onSelectOption: (InitialOptionChoice) -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    onDismissPendingImport: () -> Unit,
+    onConfirmPendingImport: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -2814,6 +2839,61 @@ private fun SettingsScreen(
             }
         }
 
+        SettingsChoiceSection(
+            title = strings.backupSectionTitle,
+            description = strings.backupSectionDescription
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onExportBackup,
+                    enabled = !settings.isBackupInProgress,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = appSoftAccentContainer(),
+                        contentColor = appAccentBlue()
+                    )
+                ) {
+                    Text(strings.exportBackupLabel, textAlign = TextAlign.Center)
+                }
+                Button(
+                    onClick = onImportBackup,
+                    enabled = !settings.isBackupInProgress,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
+                ) {
+                    Text(strings.importBackupLabel, textAlign = TextAlign.Center)
+                }
+            }
+
+            settings.backupMessage?.let { message ->
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = when (settings.backupMessageTone) {
+                        DashboardStatusTone.POSITIVE -> appPositiveBackground()
+                        DashboardStatusTone.NEGATIVE -> appWarningBackground()
+                        DashboardStatusTone.NEUTRAL -> appNeutralBackground()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = message,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = when (settings.backupMessageTone) {
+                            DashboardStatusTone.POSITIVE -> appPositiveColor()
+                            DashboardStatusTone.NEGATIVE -> appWarningColor()
+                            DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2858,6 +2938,16 @@ private fun SettingsScreen(
                 pendingOptionChange = null
                 onSelectOption(choice)
             }
+        )
+    }
+
+    settings.pendingImportDisplayName?.let { displayName ->
+        ConfirmationDialog(
+            title = strings.backupImportTitle,
+            message = strings.backupImportMessage(displayName),
+            confirmLabel = strings.backupImportConfirm,
+            onDismiss = onDismissPendingImport,
+            onConfirm = onConfirmPendingImport
         )
     }
 }

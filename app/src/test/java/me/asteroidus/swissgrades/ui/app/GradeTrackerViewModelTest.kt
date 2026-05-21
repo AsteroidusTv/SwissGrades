@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Date
 
 class GradeTrackerViewModelTest {
 
@@ -360,6 +361,74 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun preparingBackupImport_showsConfirmationWithValidatedBackup() {
+        val repository = InMemoryGradeTrackerRepository
+        val backupCoordinator = FakeBackupCoordinator()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.prepareBackupImport("content://backup")
+        waitUntil { (viewModel.uiState.value.screen as ScreenUiState.Settings).settings.pendingImportDisplayName != null }
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Settings
+        assertEquals("swissgrades-backup-validated.sgb", screen.settings.pendingImportDisplayName)
+    }
+
+    @Test
+    fun dismissingPreparedBackupImport_discardsPendingBackup() {
+        val repository = InMemoryGradeTrackerRepository
+        val backupCoordinator = FakeBackupCoordinator()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.prepareBackupImport("content://backup")
+        waitUntil { (viewModel.uiState.value.screen as ScreenUiState.Settings).settings.pendingImportDisplayName != null }
+        viewModel.dismissPendingBackupImport()
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Settings
+        assertEquals(null, screen.settings.pendingImportDisplayName)
+        assertEquals(1, backupCoordinator.discardedImports.size)
+    }
+
+    @Test
+    fun confirmingPreparedBackupImport_replacesPersistedAppState() {
+        val repository = InMemoryGradeTrackerRepository
+        val backupCoordinator = FakeBackupCoordinator(
+            importedState = GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.BIOLOGY_CHEMISTRY,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.BIOLOGY_CHEMISTRY)),
+                nextSubjectSequence = 2,
+                nextNoteSequence = 1,
+                language = AppLanguage.ENGLISH,
+                themeMode = AppThemeMode.DARK
+            )
+        )
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.openSettings()
+        viewModel.prepareBackupImport("content://backup")
+        waitUntil { (viewModel.uiState.value.screen as ScreenUiState.Settings).settings.pendingImportDisplayName != null }
+        viewModel.confirmBackupImport()
+        waitUntil {
+            val screen = viewModel.uiState.value.screen
+            screen is ScreenUiState.Settings && screen.settings.backupMessage == AppStrings.English.backupImportSuccess
+        }
+
+        val repositoryState = repository.load()
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Settings
+        assertEquals(InitialOptionChoice.BIOLOGY_CHEMISTRY, repositoryState?.selectedOption)
+        assertEquals(AppThemeMode.DARK, repositoryState?.themeMode)
+        assertEquals(AppLanguage.ENGLISH, screen.settings.selectedLanguage)
+        assertEquals(AppStrings.English.backupImportSuccess, screen.settings.backupMessage)
+    }
+
+    @Test
     fun changingLanguage_updatesVisibleCopyAcrossScreens() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -435,4 +504,63 @@ class GradeTrackerViewModelTest {
             deletedStoredAttachments += attachments
         }
     }
+
+    private class FakeBackupCoordinator(
+        private val importedState: GradeTrackerAppState = GradeTrackerAppState(
+            selectedOption = InitialOptionChoice.SPANISH,
+            subjects = listOf(testStoredOptionSubject(InitialOptionChoice.SPANISH)),
+            nextSubjectSequence = 2,
+            nextNoteSequence = 1
+        )
+    ) : AppBackupCoordinator {
+        val discardedImports = mutableListOf<PreparedBackupImport>()
+
+        override fun suggestedBackupFileName(now: Date): String = "swissgrades-backup-2026-05-21.sgb"
+
+        override fun exportBackup(state: GradeTrackerAppState, destinationUriString: String) = Unit
+
+        override fun prepareImport(sourceUriString: String): PreparedBackupImport {
+            return PreparedBackupImport(
+                displayName = "swissgrades-backup-validated.sgb",
+                workingDirectoryPath = "/tmp/prepared-import",
+                importedState = importedState
+            )
+        }
+
+        override fun applyPreparedImport(preparedBackupImport: PreparedBackupImport): GradeTrackerAppState {
+            return importedState
+        }
+
+        override fun discardPreparedImport(preparedBackupImport: PreparedBackupImport) {
+            discardedImports += preparedBackupImport
+        }
+    }
+
+    private fun waitUntil(timeoutMillis: Long = 2_000, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) return
+            Thread.sleep(10)
+        }
+        check(condition())
+    }
+
+}
+
+private fun testStoredOptionSubject(choice: InitialOptionChoice): StoredSubject {
+    return StoredSubject(
+        id = "subject-1",
+        name = choice.label,
+        isInBasket = true,
+        isOptionSubject = true,
+        optionChoice = choice,
+        notes = emptyList(),
+        subSubjects = choice.compositeSubSubjectNames.mapIndexed { index, name ->
+            StoredSubSubject(
+                id = "option-subject-${index + 1}",
+                name = name,
+                notes = emptyList()
+            )
+        }
+    )
 }

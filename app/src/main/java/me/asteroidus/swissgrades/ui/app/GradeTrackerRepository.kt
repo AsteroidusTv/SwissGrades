@@ -168,7 +168,7 @@ class SharedPreferencesGradeTrackerRepository(
     override fun save(state: GradeTrackerAppState) {
         sharedPreferences.edit()
             .putString(KEY_APP_STATE, state.encodeToJsonString())
-            .apply()
+            .commit()
     }
 }
 

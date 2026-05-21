@@ -20,6 +20,18 @@ data class AppStrings(
     val languageSectionDescription: String,
     val themeSectionTitle: String,
     val themeSectionDescription: String,
+    val backupSectionTitle: String,
+    val backupSectionDescription: String,
+    val exportBackupLabel: String,
+    val importBackupLabel: String,
+    val backupExportSuccess: String,
+    val backupExportFailure: String,
+    val backupImportTitle: String,
+    val backupImportMessageTemplate: String,
+    val backupImportConfirm: String,
+    val backupImportInvalid: String,
+    val backupImportFailure: String,
+    val backupImportSuccess: String,
     val optionSectionTitle: String,
     val optionSectionDescriptionPrefix: String,
     val optionSectionDescriptionSuffix: String,
@@ -114,6 +126,10 @@ data class AppStrings(
         return "$optionSectionDescriptionPrefix$optionLabel$optionSectionDescriptionSuffix"
     }
 
+    fun backupImportMessage(fileName: String): String {
+        return backupImportMessageTemplate.replace("{file}", fileName)
+    }
+
     fun deleteSubjectMessage(subjectTitle: String): String {
         return deleteSubjectMessageTemplate.replace("{subject}", subjectTitle)
     }
@@ -179,6 +195,18 @@ data class AppStrings(
             languageSectionDescription = "Choose the display language used in the app.",
             themeSectionTitle = "Appearance",
             themeSectionDescription = "Choose whether the app follows the system, stays light, or stays dark.",
+            backupSectionTitle = "Backup",
+            backupSectionDescription = "Export your full SwissGrades data to one backup file, or import a backup that replaces the current app data.",
+            exportBackupLabel = "Export backup",
+            importBackupLabel = "Import backup",
+            backupExportSuccess = "Backup exported successfully.",
+            backupExportFailure = "Could not export this backup.",
+            backupImportTitle = "Import backup?",
+            backupImportMessageTemplate = "Import {file} and replace all current app data? This action cannot be undone.",
+            backupImportConfirm = "Import backup",
+            backupImportInvalid = "This backup file is invalid or incomplete.",
+            backupImportFailure = "Could not import this backup.",
+            backupImportSuccess = "Backup imported successfully.",
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Current option: ",
             optionSectionDescriptionSuffix = ". Changing it updates your Option subject directly.",
@@ -282,6 +310,18 @@ data class AppStrings(
             languageSectionDescription = "Choisis la langue d'affichage de l'application.",
             themeSectionTitle = "Apparence",
             themeSectionDescription = "Choisis si l'application suit le système, reste claire ou reste sombre.",
+            backupSectionTitle = "Sauvegarde",
+            backupSectionDescription = "Exporte toutes tes données SwissGrades dans un fichier de sauvegarde, ou importe une sauvegarde qui remplace toutes les données actuelles.",
+            exportBackupLabel = "Exporter la sauvegarde",
+            importBackupLabel = "Importer une sauvegarde",
+            backupExportSuccess = "Sauvegarde exportée avec succès.",
+            backupExportFailure = "Impossible d'exporter cette sauvegarde.",
+            backupImportTitle = "Importer la sauvegarde ?",
+            backupImportMessageTemplate = "Importer {file} et remplacer toutes les données actuelles ? Cette action est irréversible.",
+            backupImportConfirm = "Importer la sauvegarde",
+            backupImportInvalid = "Ce fichier de sauvegarde est invalide ou incomplet.",
+            backupImportFailure = "Impossible d'importer cette sauvegarde.",
+            backupImportSuccess = "Sauvegarde importée avec succès.",
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Option actuelle : ",
             optionSectionDescriptionSuffix = ". La changer met à jour directement ta branche Option.",
