@@ -42,9 +42,9 @@ class GradeTrackerViewModelTest {
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertTrue(detail.isCompositeOption)
         assertEquals(listOf("Biology", "Chemistry"), detail.subSubjects.map { it.name })
-        assertEquals(AppStrings.English.emptyNotes, detail.officialAverageLabel)
-        assertEquals(AppStrings.English.emptyNotes, detail.secondaryAverageLabel)
-        assertEquals(AppStrings.English.emptyNotes, detail.pointsLabel)
+        assertEquals(AppStrings.French.emptyNotes, detail.officialAverageLabel)
+        assertEquals(AppStrings.French.emptyNotes, detail.secondaryAverageLabel)
+        assertEquals(AppStrings.French.emptyNotes, detail.pointsLabel)
     }
 
     @Test
@@ -63,7 +63,7 @@ class GradeTrackerViewModelTest {
         viewModel.addSubject()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.AddSubject
-        assertEquals(AppStrings.English.duplicateSubjectName, screen.form.errorMessage)
+        assertEquals(AppStrings.French.duplicateSubjectName, screen.form.errorMessage)
     }
 
     @Test
@@ -148,7 +148,7 @@ class GradeTrackerViewModelTest {
         assertEquals("4.0", updatedDetail.officialAverageLabel)
         assertEquals("4.00", updatedDetail.secondaryAverageLabel)
         assertEquals("Updated essay", updatedNote.description)
-        assertEquals(AppStrings.English.noteTypeHalf, updatedNote.noteTypeLabel)
+        assertEquals(AppStrings.French.noteTypeHalf, updatedNote.noteTypeLabel)
     }
 
     @Test
@@ -262,7 +262,7 @@ class GradeTrackerViewModelTest {
         viewModel.addGradeToSubject(optionId, "4.0")
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("Promoted", screen.summary.promotionStatusLabel)
+        assertEquals(AppStrings.French.promotionStatusPromoted, screen.summary.promotionStatusLabel)
         assertEquals("16.0 / 16", screen.summary.basketLabel)
         assertEquals("0 / 4", screen.summary.insufficienciesLabel)
     }
@@ -285,9 +285,9 @@ class GradeTrackerViewModelTest {
         viewModel.addGradeToSubject(optionId, "5.0")
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("Not calculable yet", screen.summary.promotionStatusLabel)
+        assertEquals(AppStrings.French.notCalculableYet, screen.summary.promotionStatusLabel)
         assertEquals("", screen.summary.promotionHeadline)
-        assertEquals("Not enough grades", screen.summary.basketLabel)
+        assertEquals(AppStrings.French.notEnoughGrades, screen.summary.basketLabel)
     }
 
     @Test
@@ -302,9 +302,9 @@ class GradeTrackerViewModelTest {
         }
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("Not calculable yet", screen.summary.promotionStatusLabel)
+        assertEquals(AppStrings.French.notCalculableYet, screen.summary.promotionStatusLabel)
         assertEquals(
-            "Keep exactly three non-option subjects in the basket to unlock promotion status.",
+            AppStrings.French.unlockPromotionTooMany,
             screen.summary.promotionHeadline
         )
     }
