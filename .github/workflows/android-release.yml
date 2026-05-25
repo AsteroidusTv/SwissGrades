@@ -60,6 +60,12 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           short_sha="${SHA::7}"
+          default_version_name="$(grep '^appVersionName=' gradle.properties | cut -d'=' -f2-)"
+          if [ -z "$default_version_name" ]; then
+            echo "appVersionName is missing from gradle.properties."
+            exit 1
+          fi
+
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             release_tag="$INPUT_RELEASE_TAG"
             release_name="$INPUT_RELEASE_NAME"
@@ -67,7 +73,7 @@ jobs:
             version_code="$INPUT_VERSION_CODE"
             prerelease="$INPUT_PRERELEASE"
           else
-            version_name="1.0"
+            version_name="$default_version_name"
             version_code="$RUN_NUMBER"
             release_tag="auto-v${version_name}-build.${RUN_NUMBER}"
             release_name="SwissGrades ${version_name} build ${RUN_NUMBER} (${short_sha})"

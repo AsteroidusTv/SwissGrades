@@ -7,10 +7,15 @@ plugins {
 val releaseVersionCode = providers.gradleProperty("RELEASE_VERSION_CODE")
     .orElse(providers.environmentVariable("RELEASE_VERSION_CODE"))
     .map(String::toInt)
-    .orElse(1)
+    .orElse(
+        providers.gradleProperty("appVersionCode")
+            .map(String::toInt)
+            .orElse(1)
+    )
 
 val releaseVersionName = providers.gradleProperty("RELEASE_VERSION_NAME")
     .orElse(providers.environmentVariable("RELEASE_VERSION_NAME"))
+    .orElse(providers.gradleProperty("appVersionName"))
     .orElse("1.0")
 
 val releaseKeystorePath = providers.gradleProperty("ANDROID_KEYSTORE_PATH")
