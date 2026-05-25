@@ -339,7 +339,7 @@ private fun JSONObject.toStoredNote(): StoredNote {
             val attachmentsJson = optJSONArray("attachments") ?: JSONArray()
             for (index in 0 until attachmentsJson.length()) {
                 val attachmentJson = attachmentsJson.getJSONObject(index)
-                val id = attachmentJson.optString("id")
+                val id = attachmentJson.optString("id"  )
                 val filePath = attachmentJson.optString("filePath")
                 if (id.isNotBlank() && filePath.isNotBlank()) {
                     add(StoredAttachment(id = id, filePath = filePath))

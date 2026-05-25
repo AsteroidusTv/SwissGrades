@@ -113,6 +113,14 @@ jobs:
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release-keystore.jks"
 
+      - name: Configure authenticated remote for release pushes
+        env:
+          RELEASE_PUSH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -n "$RELEASE_PUSH_TOKEN" ]; then
+            git remote set-url origin "https://x-access-token:${RELEASE_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+
       - name: Build signed release artifacts
         env:
           RELEASE_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
@@ -147,6 +155,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
           tag_name: ${{ steps.release_meta.outputs.release_tag }}
           name: ${{ steps.release_meta.outputs.release_name }}
           generate_release_notes: true
