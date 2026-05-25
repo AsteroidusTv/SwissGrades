@@ -261,8 +261,16 @@ fun GradeTrackerApp(
     val backupCoordinator = remember(context) {
         LocalAppBackupCoordinator(context.applicationContext)
     }
+    val plusPointsImportCoordinator = remember(context) {
+        LocalPlusPointsImportCoordinator(context.applicationContext)
+    }
     val viewModel: GradeTrackerViewModel = viewModel(
-        factory = GradeTrackerViewModel.factory(resolvedRepository, attachmentStorage, backupCoordinator)
+        factory = GradeTrackerViewModel.factory(
+            resolvedRepository,
+            attachmentStorage,
+            backupCoordinator,
+            plusPointsImportCoordinator
+        )
     )
     val uiState by viewModel.uiState.collectAsState()
     val backupExportLauncher = rememberLauncherForActivityResult(
@@ -274,6 +282,11 @@ fun GradeTrackerApp(
         contract = ActivityResultContracts.OpenDocument()
     ) { sourceUri ->
         sourceUri?.let { viewModel.prepareBackupImport(it.toString()) }
+    }
+    val plusPointsImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { sourceUri ->
+        sourceUri?.let { viewModel.preparePlusPointsImport(it.toString()) }
     }
     val useDarkTheme = when (uiState.themeMode) {
         AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
@@ -336,6 +349,7 @@ fun GradeTrackerApp(
                                 state = screen.form,
                                 onBack = viewModel::hideAddSubjectForm,
                                 onNameChanged = viewModel::updateAddSubjectName,
+                                onCountedChanged = viewModel::updateAddSubjectCountedFlag,
                                 onBasketChanged = viewModel::updateAddSubjectBasketFlag,
                                 onColorSelected = viewModel::updateAddSubjectColor,
                                 onIconSelected = viewModel::updateAddSubjectIcon,
@@ -376,8 +390,13 @@ fun GradeTrackerApp(
                                 onImportBackup = {
                                     backupImportLauncher.launch(arrayOf("*/*", "application/octet-stream"))
                                 },
+                                onImportPlusPoints = {
+                                    plusPointsImportLauncher.launch(arrayOf("*/*", "text/xml", "application/xml"))
+                                },
                                 onDismissPendingImport = viewModel::dismissPendingBackupImport,
                                 onConfirmPendingImport = viewModel::confirmBackupImport,
+                                onDismissPendingPlusPointsImport = viewModel::dismissPendingPlusPointsImport,
+                                onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
                                 onBack = viewModel::closeSettings,
                                 modifier = Modifier
                             )
@@ -822,6 +841,7 @@ private fun AddSubjectScreen(
     state: AddSubjectFormUiState,
     onBack: () -> Unit,
     onNameChanged: (String) -> Unit,
+    onCountedChanged: (Boolean) -> Unit,
     onBasketChanged: (Boolean) -> Unit,
     onColorSelected: (SubjectColorChoice) -> Unit,
     onIconSelected: (SubjectIconChoice) -> Unit,
@@ -925,7 +945,40 @@ private fun AddSubjectScreen(
                     Switch(
                         checked = state.isInBasket,
                         onCheckedChange = onBasketChanged,
+                        enabled = state.isCounted,
                         modifier = Modifier.testTag("add-subject-basket")
+                    )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = DashboardCardShape,
+                colors = CardDefaults.cardColors(containerColor = appSelectedOptionContainer()),
+                border = appCardBorder()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(strings.countInResultsTitle, style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            strings.countInResultsDescription,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.isCounted,
+                        onCheckedChange = onCountedChanged,
+                        modifier = Modifier.testTag("add-subject-counted")
                     )
                 }
             }
@@ -1183,21 +1236,23 @@ private fun HighlightMetricCard(
                 }
             } else {
                 Text(
-                    text = strings.emptyNotes,
+                    text = strings.notEnoughGrades,
                     style = MaterialTheme.typography.headlineMedium,
                     color = accentColor,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2
                 )
             }
-            LinearProgressIndicator(
-                progress = { progress ?: 0f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
-                color = accentColor,
-                trackColor = appProgressTrack()
-            )
+            if (hasNumericValue) {
+                LinearProgressIndicator(
+                    progress = { progress ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = accentColor,
+                    trackColor = appProgressTrack()
+                )
+            }
         }
     }
 }
@@ -1264,16 +1319,18 @@ private fun SubjectCard(
     val strings = currentAppStrings()
     val isDarkTheme = isDarkPalette()
     val warningRed = appWarningColor()
+    val countsInResults = subject.isCounted || subject.isOptionSubject
     val valueColor = when {
         subject.averageValue == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        subject.averageValue < 4.0 -> warningRed
+        countsInResults && subject.averageValue < 4.0 -> warningRed
         else -> subject.colorChoice.toColor(isDarkTheme)
     }
     val secondaryText = when {
+        !subject.isCounted && !subject.isOptionSubject -> strings.notCountedLabel
         subject.averageValue == null && subject.subtitle != null -> subject.subtitle
         subject.averageValue == null -> strings.emptyNotes
         subject.isOptionSubject && subject.subtitle != null -> subject.subtitle
-        subject.averageValue < 4.0 -> "${subject.pointsLabel} ${strings.pointLabel.lowercase()} • ${strings.insufficientLabel}"
+        countsInResults && subject.averageValue < 4.0 -> "${subject.pointsLabel} ${strings.pointLabel.lowercase()} • ${strings.insufficientLabel}"
         subject.isInBasket -> strings.inBasketLabel
         else -> "${subject.pointsLabel} ${strings.pointsLabel}"
     }
@@ -1284,7 +1341,7 @@ private fun SubjectCard(
             .fillMaxWidth()
             .testTag("subject-card-${subject.id}"),
         shape = DashboardCardShape,
-        border = if (subject.averageValue != null && subject.averageValue < 4.0) {
+        border = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
             BorderStroke(1.5.dp, warningRed.copy(alpha = 0.45f))
         } else {
             appCardBorder()
@@ -1314,7 +1371,7 @@ private fun SubjectCard(
                         Icon(
                             imageVector = subject.iconChoice.toImageVector(),
                             contentDescription = null,
-                            tint = if (subject.averageValue != null && subject.averageValue < 4.0) {
+                            tint = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
                                 warningRed
                             } else {
                                 subject.colorChoice.toColor(isDarkTheme)
@@ -1336,7 +1393,7 @@ private fun SubjectCard(
                     Text(
                         text = secondaryText,
                         style = MaterialTheme.typography.titleSmall,
-                        color = if (subject.averageValue != null && subject.averageValue < 4.0) {
+                        color = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
                             warningRed
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -1799,6 +1856,7 @@ private fun BranchDetailSummaryCard(
     statusLabelColor: Color
 ) {
     val strings = currentAppStrings()
+    val countsInResults = detail.isCounted || detail.isOptionSubject
     val compactStatusLabel = if (detail.statusLabel == strings.branchInsufficient) {
         strings.branchInsufficientShort
     } else {
@@ -1847,37 +1905,85 @@ private fun BranchDetailSummaryCard(
                             )
                         }
                     }
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                    if (countsInResults) {
+                        Card(
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = detail.pointsLabel,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = strings.pointLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = onBlueSupport
+                                )
+                            }
+                        }
+                    } else {
+                        Card(
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f)
+                            )
                         ) {
                             Text(
-                                text = detail.pointsLabel,
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = strings.notCountedLabel,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = strings.pointLabel,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = onBlueSupport
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                if (countsInResults) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = detail.secondaryAverageTitle,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = onBlueSupport
+                            )
+                            Text(
+                                text = detail.secondaryAverageLabel,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.statusLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = onBlueSupport
+                            )
+                            Text(
+                                text = compactStatusLabel.uppercase(),
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = statusLabelColor,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                } else {
+                    Column {
                         Text(
                             text = detail.secondaryAverageTitle,
                             style = MaterialTheme.typography.labelMedium,
@@ -1888,21 +1994,6 @@ private fun BranchDetailSummaryCard(
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = strings.statusLabel,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = onBlueSupport
-                        )
-                        Text(
-                            text = compactStatusLabel.uppercase(),
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = statusLabelColor,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -2809,8 +2900,11 @@ private fun SettingsScreen(
     onSelectOption: (InitialOptionChoice) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    onImportPlusPoints: () -> Unit,
     onDismissPendingImport: () -> Unit,
     onConfirmPendingImport: () -> Unit,
+    onDismissPendingPlusPointsImport: () -> Unit,
+    onConfirmPendingPlusPointsImport: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -2921,6 +3015,24 @@ private fun SettingsScreen(
             }
         }
 
+        SettingsChoiceSection(
+            title = strings.plusPointsSectionTitle,
+            description = strings.plusPointsSectionDescription
+        ) {
+            Button(
+                onClick = onImportPlusPoints,
+                enabled = !settings.isBackupInProgress,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSelectedOptionContainer(),
+                    contentColor = appAccentBlue()
+                )
+            ) {
+                Text(strings.importPlusPointsLabel, textAlign = TextAlign.Center)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2975,6 +3087,16 @@ private fun SettingsScreen(
             confirmLabel = strings.backupImportConfirm,
             onDismiss = onDismissPendingImport,
             onConfirm = onConfirmPendingImport
+        )
+    }
+
+    settings.pendingPlusPointsImportDisplayName?.let { displayName ->
+        ConfirmationDialog(
+            title = strings.plusPointsImportTitle,
+            message = strings.plusPointsImportMessage(displayName),
+            confirmLabel = strings.plusPointsImportConfirm,
+            onDismiss = onDismissPendingPlusPointsImport,
+            onConfirm = onConfirmPendingPlusPointsImport
         )
     }
 }

@@ -123,6 +123,62 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun uncountedSubject_isExcludedFromResultsAndCannotStayInBasket() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.showAddSubjectForm()
+        viewModel.updateAddSubjectName("Projet libre")
+        viewModel.updateAddSubjectBasketFlag(true)
+        viewModel.updateAddSubjectCountedFlag(false)
+        viewModel.addSubject()
+
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+        val subject = main.userSubjects.single { it.title == "Projet libre" }
+        assertFalse(subject.isCounted)
+        assertFalse(subject.isInBasket)
+
+        viewModel.addGradeToSubject(subject.id, "6.0")
+
+        val updatedMain = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals(AppStrings.French.notEnoughGrades, updatedMain.summary.basketLabel)
+        assertEquals(AppStrings.French.notCalculableYet, updatedMain.summary.promotionStatusLabel)
+        val persistedSubject = repository.load()?.subjects?.single { it.id == subject.id }
+        assertFalse(persistedSubject?.isCounted ?: true)
+        assertFalse(persistedSubject?.isInBasket ?: true)
+    }
+
+    @Test
+    fun uncountedSubject_detailStaysNeutralEvenWithGrades() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+
+        viewModel.showAddSubjectForm()
+        viewModel.updateAddSubjectName("Projet libre")
+        viewModel.updateAddSubjectCountedFlag(false)
+        viewModel.addSubject()
+
+        val subjectId = (viewModel.uiState.value.screen as ScreenUiState.Main)
+            .userSubjects
+            .single { it.title == "Projet libre" }
+            .id
+
+        viewModel.addGradeToSubject(subjectId, "3.5")
+        viewModel.openSubject(subjectId)
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertFalse(detail.isCounted)
+        assertEquals(AppStrings.French.notCountedLabel, detail.statusLabel)
+        assertEquals("", detail.pointsLabel)
+        assertEquals("3.5", detail.officialAverageLabel)
+        assertEquals("3.50", detail.secondaryAverageLabel)
+    }
+
+    @Test
     fun editingGrade_updatesExistingNoteAndAverage() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())

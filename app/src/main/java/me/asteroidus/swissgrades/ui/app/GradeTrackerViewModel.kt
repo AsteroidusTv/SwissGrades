@@ -61,6 +61,7 @@ data class SubjectListItemUiState(
     val pointsValue: Double?,
     val colorChoice: SubjectColorChoice,
     val iconChoice: SubjectIconChoice,
+    val isCounted: Boolean,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean,
     val isCompositeOption: Boolean
@@ -80,6 +81,7 @@ data class SubjectDetailUiState(
     val subjectId: String,
     val title: String,
     val subtitle: String?,
+    val isCounted: Boolean = true,
     val isOptionSubject: Boolean = false,
     val notes: List<NoteUiState>,
     val isCompositeOption: Boolean = false,
@@ -107,6 +109,7 @@ data class AddSubjectFormUiState(
     val isVisible: Boolean = false,
     val editingSubjectId: String? = null,
     val nameInput: String = "",
+    val isCounted: Boolean = true,
     val isInBasket: Boolean = false,
     val selectedColor: SubjectColorChoice = SubjectColorChoice.BLUE,
     val selectedIcon: SubjectIconChoice = SubjectIconChoice.BOOK,
@@ -119,6 +122,7 @@ data class SettingsUiState(
     val selectedThemeMode: AppThemeMode,
     val backupFileNameSuggestion: String,
     val pendingImportDisplayName: String? = null,
+    val pendingPlusPointsImportDisplayName: String? = null,
     val backupMessage: String? = null,
     val backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
     val isBackupInProgress: Boolean = false
@@ -186,7 +190,8 @@ private const val MAX_ATTACHMENTS_PER_GRADE = 5
 class GradeTrackerViewModel(
     private val repository: GradeTrackerRepository,
     private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
-    private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator
+    private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
+    private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withRequiredOptionSubject()
@@ -270,6 +275,7 @@ class GradeTrackerViewModel(
                 isVisible = true,
                 editingSubjectId = subject.id,
                 nameInput = subject.name,
+                isCounted = subject.isCounted,
                 isInBasket = subject.isInBasket,
                 selectedColor = subject.subjectColor,
                 selectedIcon = subject.subjectIcon
@@ -293,10 +299,21 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    fun updateAddSubjectCountedFlag(isCounted: Boolean) {
+        val screen = currentScreen as? InternalScreen.AddSubject ?: return
+        currentScreen = screen.copy(
+            addSubjectForm = screen.addSubjectForm.copy(
+                isCounted = isCounted,
+                isInBasket = if (isCounted) screen.addSubjectForm.isInBasket else false
+            )
+        )
+        publish()
+    }
+
     fun updateAddSubjectBasketFlag(isInBasket: Boolean) {
         val screen = currentScreen as? InternalScreen.AddSubject ?: return
         currentScreen = screen.copy(
-            addSubjectForm = screen.addSubjectForm.copy(isInBasket = isInBasket)
+            addSubjectForm = screen.addSubjectForm.copy(isInBasket = isInBasket && screen.addSubjectForm.isCounted)
         )
         publish()
     }
@@ -339,6 +356,7 @@ class GradeTrackerViewModel(
             val subject = StoredSubject(
                 id = "subject-${state.nextSubjectSequence}",
                 name = normalizedName,
+                isCounted = form.isCounted,
                 isInBasket = form.isInBasket,
                 subjectColor = form.selectedColor,
                 subjectIcon = form.selectedIcon
@@ -353,6 +371,7 @@ class GradeTrackerViewModel(
                     if (subject.id == editingSubjectId) {
                         subject.copy(
                             name = normalizedName,
+                            isCounted = form.isCounted,
                             isInBasket = form.isInBasket,
                             subjectColor = form.selectedColor,
                             subjectIcon = form.selectedIcon
@@ -418,6 +437,35 @@ class GradeTrackerViewModel(
             }.onFailure {
                 if (currentScreen === screen) {
                     screen.backupMessage = strings.backupExportFailure
+                    screen.backupMessageTone = DashboardStatusTone.NEGATIVE
+                }
+            }
+            if (currentScreen === screen) {
+                screen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun preparePlusPointsImport(sourceUriString: String) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        clearPendingSettingsImport()
+        screen.isBackupInProgress = true
+        screen.backupMessage = null
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                plusPointsImportCoordinator.prepareImport(sourceUriString)
+            }.onSuccess { preparedImport ->
+                if (currentScreen === screen) {
+                    screen.pendingPreparedPlusPointsImport = preparedImport
+                } else {
+                    plusPointsImportCoordinator.discardPreparedImport(preparedImport)
+                }
+            }.onFailure {
+                if (currentScreen === screen) {
+                    screen.backupMessage = strings.plusPointsImportFailure
                     screen.backupMessageTone = DashboardStatusTone.NEGATIVE
                 }
             }
@@ -494,6 +542,53 @@ class GradeTrackerViewModel(
             if (currentScreen is InternalScreen.Settings) {
                 val settingsScreen = currentScreen as InternalScreen.Settings
                 settingsScreen.pendingPreparedImport = null
+                settingsScreen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun dismissPendingPlusPointsImport() {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        screen.pendingPreparedPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
+        screen.pendingPreparedPlusPointsImport = null
+        publish()
+    }
+
+    fun confirmPlusPointsImport() {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        val preparedImport = screen.pendingPreparedPlusPointsImport ?: return
+        screen.isBackupInProgress = true
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                val imported = preparedImport.importedState
+                val mergedState = imported.copy(
+                    language = state.language,
+                    themeMode = state.themeMode
+                ).withRequiredOptionSubject()
+                state.subjects.flatMap { it.allAttachments() }
+                    .takeIf { it.isNotEmpty() }
+                    ?.let(attachmentStorage::deleteStoredAttachments)
+                state = mergedState
+                repository.save(mergedState)
+                mergedState
+            }.onSuccess {
+                currentScreen = InternalScreen.Settings(
+                    backupMessage = strings.plusPointsImportSuccess,
+                    backupMessageTone = DashboardStatusTone.POSITIVE
+                )
+            }.onFailure {
+                screen.backupMessage = strings.plusPointsImportFailure
+                screen.backupMessageTone = DashboardStatusTone.NEGATIVE
+            }.also {
+                plusPointsImportCoordinator.discardPreparedImport(preparedImport)
+            }
+
+            if (currentScreen is InternalScreen.Settings) {
+                val settingsScreen = currentScreen as InternalScreen.Settings
+                settingsScreen.pendingPreparedPlusPointsImport = null
                 settingsScreen.isBackupInProgress = false
             }
             publish()
@@ -769,12 +864,18 @@ class GradeTrackerViewModel(
         fun factory(
             repository: GradeTrackerRepository,
             attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
-            backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator
+            backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
+            plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return GradeTrackerViewModel(repository, attachmentStorage, backupCoordinator) as T
+                    return GradeTrackerViewModel(
+                        repository,
+                        attachmentStorage,
+                        backupCoordinator,
+                        plusPointsImportCoordinator
+                    ) as T
                 }
             }
         }
@@ -829,6 +930,7 @@ class GradeTrackerViewModel(
                     selectedThemeMode = state.themeMode,
                     backupFileNameSuggestion = backupCoordinator.suggestedBackupFileName(),
                     pendingImportDisplayName = target.pendingPreparedImport?.displayName,
+                    pendingPlusPointsImportDisplayName = target.pendingPreparedPlusPointsImport?.displayName,
                     backupMessage = target.backupMessage,
                     backupMessageTone = target.backupMessageTone,
                     isBackupInProgress = target.isBackupInProgress
@@ -845,7 +947,9 @@ class GradeTrackerViewModel(
     private fun createDashboardSummary(
         subjectMetrics: Map<String, SubjectComputedMetrics>
     ): DashboardSummaryUiState {
-        val calculableAverages = subjectMetrics.values.mapNotNull { it.average }
+        val calculableAverages = state.subjects
+            .filter { it.isCounted || it.isOptionSubject }
+            .mapNotNull { subjectMetrics[it.id]?.average }
         val overallAverage = calculableAverages.takeIf { it.isNotEmpty() }?.average()
         val promotion = buildPromotionPresentation()
         val totalPromotionPoints = state.totalPromotionPoints(subjectMetrics)
@@ -911,6 +1015,7 @@ class GradeTrackerViewModel(
                 subjectId = subject.id,
                 title = subject.name,
                 subtitle = subject.optionChoice?.label,
+                isCounted = subject.isCounted,
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
                 officialAverageLabel = roundedAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
@@ -938,19 +1043,25 @@ class GradeTrackerViewModel(
         val branch = subject.toSimpleBranch()
         val rawAverage = GradeCalculator.weightedAverage(branch.grades)
         val officialAverage = GradeCalculator.computeBranchAverage(branch)
-        val points = officialAverage?.let(GradeCalculator::computePromotionPoints)
-        val statusLabel = officialAverage.toBranchStatusLabel(strings)
+        val countsInResults = subject.isCounted || subject.isOptionSubject
+        val points = if (countsInResults) officialAverage?.let(GradeCalculator::computePromotionPoints) else null
+        val statusLabel = if (countsInResults) {
+            officialAverage.toBranchStatusLabel(strings)
+        } else {
+            strings.notCountedLabel
+        }
 
         return SubjectDetailUiState(
             subjectId = subject.id,
             title = subject.name,
             subtitle = subject.optionChoice?.label,
+            isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.map(::toNoteUiState),
             officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
             secondaryAverageTitle = strings.rawAverage,
             secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
-            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
+            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals).orEmpty(),
             statusLabel = statusLabel,
             statusTone = statusLabel.toDetailStatusTone(),
             isAddGradeSheetVisible = isAddGradeSheetVisible,
@@ -980,7 +1091,7 @@ class GradeTrackerViewModel(
             add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch()))
             add(PromotionRoleAssignment.Option(option.toBranch()))
             state.subjects
-                .filterNot { it.id in basketSubjectIds }
+                .filter { it.isCounted && !it.isOptionSubject && it.id !in basketSubjectIds }
                 .forEach { subject ->
                     add(
                         PromotionRoleAssignment.Additional(
@@ -1013,7 +1124,7 @@ class GradeTrackerViewModel(
         metrics: SubjectComputedMetrics
     ): SubjectListItemUiState {
         val average = metrics.average
-        val points = metrics.points
+        val points = metrics.points.takeIf { subject.isCounted || subject.isOptionSubject }
         return SubjectListItemUiState(
             id = subject.id,
             title = subject.name,
@@ -1024,6 +1135,7 @@ class GradeTrackerViewModel(
             pointsValue = points,
             colorChoice = subject.subjectColor,
             iconChoice = subject.subjectIcon,
+            isCounted = subject.isCounted,
             isInBasket = subject.isInBasket,
             isOptionSubject = subject.isOptionSubject,
             isCompositeOption = subject.subSubjects.isNotEmpty()
@@ -1098,6 +1210,8 @@ class GradeTrackerViewModel(
         val screen = currentScreen as? InternalScreen.Settings ?: return
         screen.pendingPreparedImport?.let(backupCoordinator::discardPreparedImport)
         screen.pendingPreparedImport = null
+        screen.pendingPreparedPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
+        screen.pendingPreparedPlusPointsImport = null
     }
 }
 
@@ -1137,6 +1251,7 @@ private sealed interface InternalScreen {
     ) : InternalScreen
     data class Settings(
         var pendingPreparedImport: PreparedBackupImport? = null,
+        var pendingPreparedPlusPointsImport: PreparedPlusPointsImport? = null,
         var backupMessage: String? = null,
         var backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
         var isBackupInProgress: Boolean = false
@@ -1187,7 +1302,7 @@ private fun StoredSubject.toCompositeBranch(): Branch.Composite {
 }
 
 private fun GradeTrackerAppState.nonOptionBasketSubjects(): List<StoredSubject> {
-    return subjects.filter { it.isInBasket && !it.isOptionSubject }
+    return subjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
 }
 
 private fun GradeTrackerAppState.currentBasketTotal(
@@ -1211,7 +1326,9 @@ private fun GradeTrackerAppState.currentBasketTotal(
 private fun GradeTrackerAppState.totalPromotionPoints(
     subjectMetrics: Map<String, SubjectComputedMetrics>
 ): Double? {
-    val pointValues = subjects.mapNotNull { subject -> subjectMetrics[subject.id]?.points }
+    val pointValues = subjects
+        .filter { it.isCounted || it.isOptionSubject }
+        .mapNotNull { subject -> subjectMetrics[subject.id]?.points }
     return pointValues.takeIf { it.isNotEmpty() }?.sum()
 }
 
@@ -1219,6 +1336,7 @@ private fun GradeTrackerAppState.insufficiencyCount(
     subjectMetrics: Map<String, SubjectComputedMetrics>
 ): Int {
     return subjects.count { subject ->
+        (subject.isCounted || subject.isOptionSubject) &&
         subjectMetrics[subject.id]?.average?.let { average -> average < 4.0 } == true
     }
 }
@@ -1227,6 +1345,7 @@ private fun createStoredOptionSubject(choice: InitialOptionChoice): StoredSubjec
     return StoredSubject(
         id = "subject-1",
         name = choice.label,
+        isCounted = true,
         isInBasket = true,
         isOptionSubject = true,
         optionChoice = choice,
@@ -1328,6 +1447,8 @@ private fun String.toDetailStatusTone(): DashboardStatusTone {
         "Promu" -> DashboardStatusTone.POSITIVE
         "Insufficient",
         "Insuffisant" -> DashboardStatusTone.NEGATIVE
+        "Not counted",
+        "Non comptée" -> DashboardStatusTone.NEUTRAL
         else -> DashboardStatusTone.NEUTRAL
     }
 }

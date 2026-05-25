@@ -128,6 +128,7 @@ enum class SubjectIconChoice {
 data class StoredSubject(
     val id: String,
     val name: String,
+    val isCounted: Boolean = true,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean = false,
     val optionChoice: InitialOptionChoice? = null,
@@ -188,6 +189,7 @@ internal fun GradeTrackerAppState.encodeToJsonString(): String {
         val subjectJson = JSONObject()
             .put("id", subject.id)
             .put("name", subject.name)
+            .put("isCounted", subject.isCounted)
             .put("isInBasket", subject.isInBasket)
             .put("isOptionSubject", subject.isOptionSubject)
             .put("optionChoice", subject.optionChoice?.name)
@@ -263,6 +265,7 @@ internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAp
                 StoredSubject(
                     id = subjectJson.getString("id"),
                     name = subjectJson.getString("name"),
+                    isCounted = subjectJson.optBoolean("isCounted", true),
                     isInBasket = subjectJson.optBoolean("isInBasket", false),
                     isOptionSubject = subjectJson.optBoolean("isOptionSubject", false),
                     optionChoice = subjectJson.optString("optionChoice")
