@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.bundling.Zip
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -55,7 +57,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             if (!releaseKeystorePath.isNullOrBlank()) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -90,6 +95,23 @@ android {
             }
         }
     }
+}
+
+val nativeSymbolsSourceDir = layout.buildDirectory.dir(
+    "intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib"
+)
+
+tasks.register<Zip>("zipReleaseNativeDebugSymbols") {
+    group = "build"
+    description = "Packages native debug symbols for Play Console uploads."
+    dependsOn("mergeReleaseNativeLibs")
+    from(nativeSymbolsSourceDir)
+    destinationDirectory.set(layout.buildDirectory.dir("outputs/native-debug-symbols/release"))
+    archiveFileName.set("native-debug-symbols.zip")
+}
+
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    finalizedBy("zipReleaseNativeDebugSymbols")
 }
 
 dependencies {

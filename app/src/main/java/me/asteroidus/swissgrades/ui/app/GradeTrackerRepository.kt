@@ -1,6 +1,7 @@
 package me.asteroidus.swissgrades.ui.app
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
@@ -22,65 +23,51 @@ enum class AppThemeMode {
 
 enum class InitialOptionChoice(
     val label: String,
-    val categoryLabel: String,
     val optionType: OptionType?,
     val compositeSubSubjectNames: List<String> = emptyList()
 ) {
     PHYSICS_AND_APPLICATIONS_OF_MATH(
         label = "PYAM",
-        categoryLabel = "Experimental sciences",
         optionType = OptionType.PHYSICS_AND_MATH_APPLICATIONS,
         compositeSubSubjectNames = listOf("Physics", "Applications of Mathematics")
     ),
     BIOLOGY_CHEMISTRY(
         label = "BICH",
-        categoryLabel = "Experimental sciences",
         optionType = OptionType.BIOLOGY_CHEMISTRY,
         compositeSubSubjectNames = listOf("Biology", "Chemistry")
     ),
     ECONOMICS_LAW(
         label = "Economics-Law",
-        categoryLabel = "Management & society",
         optionType = OptionType.ECONOMICS_LAW
     ),
     SPANISH(
         label = "Spanish",
-        categoryLabel = "Modern languages",
         optionType = OptionType.SPANISH
     ),
     ITALIAN(
         label = "Italian",
-        categoryLabel = "Modern languages",
         optionType = OptionType.ITALIAN
     ),
     LATIN(
         label = "Latin",
-        categoryLabel = "Classical languages",
         optionType = OptionType.LATIN
     ),
     MUSIC(
         label = "Music",
-        categoryLabel = "Arts",
         optionType = OptionType.MUSIC
     ),
     PHILOSOPHY(
         label = "Philosophy",
-        categoryLabel = "Humanities",
         optionType = OptionType.PHILOSOPHY
     ),
     VISUAL_ARTS(
         label = "Visual Arts",
-        categoryLabel = "Arts",
         optionType = OptionType.VISUAL_ARTS
     ),
     OTHER(
         label = "Other",
-        categoryLabel = "Custom option",
         optionType = OptionType.OTHER
     );
-
-    val isComposite: Boolean
-        get() = compositeSubSubjectNames.isNotEmpty()
 }
 
 data class StoredNote(
@@ -167,9 +154,9 @@ class SharedPreferencesGradeTrackerRepository(
     }
 
     override fun save(state: GradeTrackerAppState) {
-        sharedPreferences.edit()
-            .putString(KEY_APP_STATE, state.encodeToJsonString())
-            .commit()
+        sharedPreferences.edit(commit = true) {
+            putString(KEY_APP_STATE, state.encodeToJsonString())
+        }
     }
 }
 
@@ -339,7 +326,7 @@ private fun JSONObject.toStoredNote(): StoredNote {
             val attachmentsJson = optJSONArray("attachments") ?: JSONArray()
             for (index in 0 until attachmentsJson.length()) {
                 val attachmentJson = attachmentsJson.getJSONObject(index)
-                val id = attachmentJson.optString("id"  )
+                val id = attachmentJson.optString("id"      )
                 val filePath = attachmentJson.optString("filePath")
                 if (id.isNotBlank() && filePath.isNotBlank()) {
                     add(StoredAttachment(id = id, filePath = filePath))
