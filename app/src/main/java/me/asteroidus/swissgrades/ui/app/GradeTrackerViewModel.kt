@@ -70,6 +70,7 @@ data class SubjectListItemUiState(
 data class NoteDraftUiState(
     val valueInput: String = "",
     val selectedType: NoteTypeUi = NoteTypeUi.FULL,
+    val selectedSemester: SchoolSemester = SchoolSemester.SEMESTER_1,
     val descriptionInput: String = "",
     val errorMessage: String? = null,
     val editingNoteId: String? = null,
@@ -106,7 +107,6 @@ data class CompositeSubSubjectDetailUiState(
 )
 
 data class AddSubjectFormUiState(
-    val isVisible: Boolean = false,
     val editingSubjectId: String? = null,
     val nameInput: String = "",
     val isCounted: Boolean = true,
@@ -118,11 +118,13 @@ data class AddSubjectFormUiState(
 
 data class SettingsUiState(
     val selectedOption: InitialOptionChoice,
+    val selectedSemester: SchoolSemester,
     val selectedLanguage: AppLanguage,
     val selectedThemeMode: AppThemeMode,
     val backupFileNameSuggestion: String,
     val pendingImportDisplayName: String? = null,
     val pendingPlusPointsImportDisplayName: String? = null,
+    val pendingPlusPointsTargetSemester: SchoolSemester? = null,
     val backupMessage: String? = null,
     val backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
     val isBackupInProgress: Boolean = false
@@ -155,9 +157,16 @@ sealed interface ScreenUiState {
     ) : ScreenUiState
 
     data class Main(
+        val selectedYear: SchoolYear,
+        val selectedSemester: SchoolSemester,
         val summary: DashboardSummaryUiState,
         val optionSubject: SubjectListItemUiState,
         val userSubjects: List<SubjectListItemUiState>
+    ) : ScreenUiState
+
+    data class PeriodPicker(
+        val selectedYear: SchoolYear,
+        val selectedSemester: SchoolSemester
     ) : ScreenUiState
 
     data class AddSubject(
@@ -194,7 +203,7 @@ class GradeTrackerViewModel(
     private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
-    private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withRequiredOptionSubject()
+    private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
     private var currentScreen: InternalScreen = if (state.isOnboardingCompleted) InternalScreen.Main else InternalScreen.Onboarding
     private var onboardingSelection: InitialOptionChoice? = state.selectedOption
 
@@ -212,14 +221,29 @@ class GradeTrackerViewModel(
     }
 
     fun completeOnboarding(choice: InitialOptionChoice) {
-        val optionSubject = createOptionSubject(choice)
+        var nextOptionSubjectId = 1
+        val subjects = SchoolYear.entries.map { year ->
+            createStoredOptionSubject(
+                choice = choice,
+                schoolYear = year,
+                id = "subject-${nextOptionSubjectId++}"
+            )
+        }
+        val nextSubjectSequence = subjects
+            .mapNotNull { subject -> subject.id.removePrefix("subject-").toIntOrNull() }
+            .maxOrNull()
+            ?.plus(1)
+            ?: 1
         state = state.copy(
             selectedOption = choice,
-            subjects = listOf(optionSubject),
-            nextSubjectSequence = 2
+            subjects = subjects,
+            nextSubjectSequence = nextSubjectSequence
         )
         onboardingSelection = choice
-        currentScreen = InternalScreen.Main
+        currentScreen = InternalScreen.PeriodPicker(
+            selectedYear = state.selectedYear,
+            selectedSemester = state.selectedSemester
+        )
         persistAndPublish()
     }
 
@@ -228,6 +252,42 @@ class GradeTrackerViewModel(
             currentScreen = InternalScreen.Settings()
             publish()
         }
+    }
+
+    fun openPeriodPicker() {
+        currentScreen = InternalScreen.PeriodPicker(
+            selectedYear = state.selectedYear,
+            selectedSemester = state.selectedSemester
+        )
+        publish()
+    }
+
+    fun closePeriodPicker() {
+        if (currentScreen !is InternalScreen.PeriodPicker) return
+        currentScreen = InternalScreen.Main
+        publish()
+    }
+
+    fun updatePendingYear(year: SchoolYear) {
+        val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
+        screen.selectedYear = year
+        publish()
+    }
+
+    fun updatePendingSemester(semester: SchoolSemester) {
+        val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
+        screen.selectedSemester = semester
+        publish()
+    }
+
+    fun confirmPeriodSelection() {
+        val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
+        state = state.copy(
+            selectedYear = screen.selectedYear,
+            selectedSemester = screen.selectedSemester
+        )
+        currentScreen = InternalScreen.Main
+        persistAndPublish()
     }
 
     fun closeSettings() {
@@ -248,15 +308,28 @@ class GradeTrackerViewModel(
         persistAndPublish()
     }
 
+    fun changeSelectedYear(year: SchoolYear) {
+        if (state.selectedYear == year) return
+        state = state.copy(selectedYear = year)
+        persistAndPublish()
+    }
+
     fun changeOption(choice: InitialOptionChoice) {
-        val existingOption = state.subjects.firstOrNull { it.isOptionSubject }
-        existingOption?.allAttachments()?.takeIf { it.isNotEmpty() }?.let(attachmentStorage::deleteStoredAttachments)
-        val replacement = createOptionSubject(choice).copy(
-            id = existingOption?.id ?: "subject-1"
-        )
+        val existingOptions = state.subjects.filter { it.isOptionSubject }
+        existingOptions.flatMap { it.allAttachments() }.takeIf { it.isNotEmpty() }?.let(attachmentStorage::deleteStoredAttachments)
+        val replacementsByYear = SchoolYear.entries.associateWith { year ->
+            val existingOption = existingOptions.firstOrNull { it.schoolYear == year }
+            createStoredOptionSubject(
+                choice = choice,
+                schoolYear = year,
+                id = existingOption?.id ?: "subject-${state.nextSubjectSequence + year.ordinal}"
+            )
+        }
         state = state.copy(
             selectedOption = choice,
-            subjects = listOf(replacement) + state.subjects.filterNot { it.isOptionSubject }
+            subjects = state.subjects.mapNotNull { subject ->
+                if (subject.isOptionSubject) null else subject
+            } + SchoolYear.entries.map { replacementsByYear.getValue(it) }
         )
         currentScreen = InternalScreen.Main
         persistAndPublish()
@@ -272,7 +345,6 @@ class GradeTrackerViewModel(
         val subject = state.subjects.firstOrNull { it.id == subjectId && !it.isOptionSubject } ?: return
         currentScreen = InternalScreen.AddSubject(
             addSubjectForm = AddSubjectFormUiState(
-                isVisible = true,
                 editingSubjectId = subject.id,
                 nameInput = subject.name,
                 isCounted = subject.isCounted,
@@ -341,7 +413,9 @@ class GradeTrackerViewModel(
         val error = when {
             normalizedName.isEmpty() -> strings.emptySubjectName
             state.subjects.any {
-                it.id != form.editingSubjectId && it.name.equals(normalizedName, ignoreCase = true)
+                it.id != form.editingSubjectId &&
+                    it.schoolYear == state.selectedYear &&
+                    it.name.equals(normalizedName, ignoreCase = true)
             } -> strings.duplicateSubjectName
             else -> null
         }
@@ -356,6 +430,7 @@ class GradeTrackerViewModel(
             val subject = StoredSubject(
                 id = "subject-${state.nextSubjectSequence}",
                 name = normalizedName,
+                schoolYear = state.selectedYear,
                 isCounted = form.isCounted,
                 isInBasket = form.isInBasket,
                 subjectColor = form.selectedColor,
@@ -393,6 +468,7 @@ class GradeTrackerViewModel(
         screen.draft = NoteDraftUiState(
             valueInput = formatOneOrTwoDecimals(target.note.value),
             selectedType = target.note.weight.toNoteTypeUi(),
+            selectedSemester = target.note.semester,
             descriptionInput = target.note.description,
             editingNoteId = target.note.id,
             attachments = target.note.attachments.map {
@@ -414,7 +490,7 @@ class GradeTrackerViewModel(
 
         state = state.copy(
             subjects = state.subjects.filterNot { it.id == subjectId }
-        ).withRequiredOptionSubject()
+        )
         currentScreen = InternalScreen.Main
         persistAndPublish()
     }
@@ -460,6 +536,7 @@ class GradeTrackerViewModel(
             }.onSuccess { preparedImport ->
                 if (currentScreen === screen) {
                     screen.pendingPreparedPlusPointsImport = preparedImport
+                    screen.pendingPlusPointsTargetSemester = preparedImport.sourceSemester ?: SchoolSemester.SEMESTER_1
                 } else {
                     plusPointsImportCoordinator.discardPreparedImport(preparedImport)
                 }
@@ -520,7 +597,7 @@ class GradeTrackerViewModel(
 
         viewModelScope.launch(saveDispatcher) {
             runCatching {
-                val importedState = backupCoordinator.applyPreparedImport(preparedImport).withRequiredOptionSubject()
+                val importedState = backupCoordinator.applyPreparedImport(preparedImport).withSharedSubjects()
                 state = importedState
                 repository.save(importedState)
                 importedState
@@ -552,25 +629,39 @@ class GradeTrackerViewModel(
         val screen = currentScreen as? InternalScreen.Settings ?: return
         screen.pendingPreparedPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
         screen.pendingPreparedPlusPointsImport = null
+        screen.pendingPlusPointsTargetSemester = null
+        publish()
+    }
+
+    fun updatePendingPlusPointsTargetSemester(semester: SchoolSemester) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        if (screen.pendingPreparedPlusPointsImport == null) return
+        screen.pendingPlusPointsTargetSemester = semester
         publish()
     }
 
     fun confirmPlusPointsImport() {
         val screen = currentScreen as? InternalScreen.Settings ?: return
         val preparedImport = screen.pendingPreparedPlusPointsImport ?: return
+        val targetSemester = screen.pendingPlusPointsTargetSemester ?: SchoolSemester.SEMESTER_1
+        val targetYear = state.selectedYear
         screen.isBackupInProgress = true
         publish()
 
         viewModelScope.launch(saveDispatcher) {
             runCatching {
-                val imported = preparedImport.importedState
-                val mergedState = imported.copy(
-                    language = state.language,
-                    themeMode = state.themeMode
-                ).withRequiredOptionSubject()
-                state.subjects.flatMap { it.allAttachments() }
-                    .takeIf { it.isNotEmpty() }
-                    ?.let(attachmentStorage::deleteStoredAttachments)
+                val mergedState = mergePlusPointsImport(
+                    currentState = state,
+                    importedState = preparedImport.importedState,
+                    targetYear = targetYear,
+                    targetSemester = targetSemester
+                ).withSharedSubjects()
+                attachmentsToDeleteForPlusPointsImport(
+                    currentState = state,
+                    importedState = preparedImport.importedState,
+                    targetYear = targetYear,
+                    targetSemester = targetSemester
+                ).takeIf { it.isNotEmpty() }?.let(attachmentStorage::deleteStoredAttachments)
                 state = mergedState
                 repository.save(mergedState)
                 mergedState
@@ -589,6 +680,7 @@ class GradeTrackerViewModel(
             if (currentScreen is InternalScreen.Settings) {
                 val settingsScreen = currentScreen as InternalScreen.Settings
                 settingsScreen.pendingPreparedPlusPointsImport = null
+                settingsScreen.pendingPlusPointsTargetSemester = null
                 settingsScreen.isBackupInProgress = false
             }
             publish()
@@ -596,7 +688,12 @@ class GradeTrackerViewModel(
     }
 
     fun openSubject(subjectId: String) {
-        currentScreen = InternalScreen.BranchDetail(subjectId)
+        currentScreen = InternalScreen.BranchDetail(
+            subjectId = subjectId,
+            draft = NoteDraftUiState(
+                selectedSemester = state.selectedSemester
+            )
+        )
         publish()
     }
 
@@ -605,7 +702,9 @@ class GradeTrackerViewModel(
         if (screen.isAddGradeSheetVisible) {
             attachmentStorage.discardNewAttachments(screen.draft.attachments.map { it.toDraftAttachment() })
             screen.isAddGradeSheetVisible = false
-            screen.draft = NoteDraftUiState()
+            screen.draft = NoteDraftUiState(
+                selectedSemester = state.selectedSemester
+            )
             publish()
         } else {
             currentScreen = InternalScreen.Main
@@ -615,7 +714,9 @@ class GradeTrackerViewModel(
 
     fun showAddGradeSheet() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
-        screen.draft = NoteDraftUiState()
+        screen.draft = NoteDraftUiState(
+            selectedSemester = state.selectedSemester
+        )
         screen.isAddGradeSheetVisible = true
         publish()
     }
@@ -623,7 +724,9 @@ class GradeTrackerViewModel(
     fun hideAddGradeSheet() {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         attachmentStorage.discardNewAttachments(screen.draft.attachments.map { it.toDraftAttachment() })
-        screen.draft = NoteDraftUiState()
+        screen.draft = NoteDraftUiState(
+            selectedSemester = state.selectedSemester
+        )
         screen.isAddGradeSheetVisible = false
         publish()
     }
@@ -786,6 +889,7 @@ class GradeTrackerViewModel(
                 weight = grade.weight,
                 description = draft.descriptionInput.trim(),
                 createdAtEpochMillis = System.currentTimeMillis(),
+                semester = draft.selectedSemester,
                 attachments = attachmentStorage.commitAttachments(
                     noteId = noteId,
                     attachments = draft.attachments.map { it.toDraftAttachment() }
@@ -821,6 +925,7 @@ class GradeTrackerViewModel(
                 value = grade.value,
                 weight = grade.weight,
                 description = draft.descriptionInput.trim(),
+                semester = draft.selectedSemester,
                 attachments = attachmentStorage.commitAttachments(
                     noteId = editingNoteId,
                     attachments = draft.attachments.map { it.toDraftAttachment() }
@@ -855,7 +960,9 @@ class GradeTrackerViewModel(
             )
             attachmentStorage.deleteStoredAttachments(removedStoredAttachments)
         }
-        screen.draft = NoteDraftUiState()
+        screen.draft = NoteDraftUiState(
+            selectedSemester = state.selectedSemester
+        )
         screen.isAddGradeSheetVisible = false
         persistAndPublish()
     }
@@ -887,22 +994,30 @@ class GradeTrackerViewModel(
                 selectedOption = onboardingSelection
             )
 
+            is InternalScreen.PeriodPicker -> ScreenUiState.PeriodPicker(
+                selectedYear = target.selectedYear,
+                selectedSemester = target.selectedSemester
+            )
+
             is InternalScreen.Main -> {
-                val subjectMetrics = state.subjects.associate { subject ->
-                    subject.id to subject.computeMetrics()
+                val currentYearSubjects = state.subjectsForSelectedYear()
+                val subjectMetrics = currentYearSubjects.associate { subject ->
+                    subject.id to subject.computeMetrics(state.selectedSemester)
                 }
                 val summary = createDashboardSummary(subjectMetrics)
-                val optionStoredSubject = requireNotNull(state.subjects.firstOrNull { it.isOptionSubject })
+                val optionStoredSubject = requireNotNull(currentYearSubjects.firstOrNull { it.isOptionSubject })
                 val optionSubject = subjectToListItem(
                     optionStoredSubject,
                     requireNotNull(subjectMetrics[optionStoredSubject.id])
                 )
-                val userSubjects = state.subjects
+                val userSubjects = currentYearSubjects
                     .filterNot { it.isOptionSubject }
                     .map { subject ->
                         subjectToListItem(subject, requireNotNull(subjectMetrics[subject.id]))
                     }
                 ScreenUiState.Main(
+                    selectedYear = state.selectedYear,
+                    selectedSemester = state.selectedSemester,
                     summary = summary,
                     optionSubject = optionSubject,
                     userSubjects = userSubjects
@@ -926,11 +1041,13 @@ class GradeTrackerViewModel(
             is InternalScreen.Settings -> ScreenUiState.Settings(
                 settings = SettingsUiState(
                     selectedOption = requireNotNull(state.selectedOption),
+                    selectedSemester = state.selectedSemester,
                     selectedLanguage = state.language,
                     selectedThemeMode = state.themeMode,
                     backupFileNameSuggestion = backupCoordinator.suggestedBackupFileName(),
                     pendingImportDisplayName = target.pendingPreparedImport?.displayName,
                     pendingPlusPointsImportDisplayName = target.pendingPreparedPlusPointsImport?.displayName,
+                    pendingPlusPointsTargetSemester = target.pendingPlusPointsTargetSemester,
                     backupMessage = target.backupMessage,
                     backupMessageTone = target.backupMessageTone,
                     isBackupInProgress = target.isBackupInProgress
@@ -947,7 +1064,8 @@ class GradeTrackerViewModel(
     private fun createDashboardSummary(
         subjectMetrics: Map<String, SubjectComputedMetrics>
     ): DashboardSummaryUiState {
-        val calculableAverages = state.subjects
+        val currentYearSubjects = state.subjectsForSelectedYear()
+        val calculableAverages = currentYearSubjects
             .filter { it.isCounted || it.isOptionSubject }
             .mapNotNull { subjectMetrics[it.id]?.average }
         val overallAverage = calculableAverages.takeIf { it.isNotEmpty() }?.average()
@@ -997,7 +1115,7 @@ class GradeTrackerViewModel(
     ): SubjectDetailUiState {
         val subject = requireNotNull(state.subjects.firstOrNull { it.id == subjectId })
         if (subject.subSubjects.isNotEmpty()) {
-            val compositeBranch = subject.toCompositeBranch()
+            val compositeBranch = subject.toCompositeBranch(state.selectedSemester)
             val firstAverage = GradeCalculator.weightedAverage(compositeBranch.subSubjects[0].grades)
                 ?.let(GradeCalculator::roundToHundredth)
             val secondAverage = GradeCalculator.weightedAverage(compositeBranch.subSubjects[1].grades)
@@ -1030,8 +1148,10 @@ class GradeTrackerViewModel(
                     CompositeSubSubjectDetailUiState(
                         id = subSubject.id,
                         name = subSubject.name,
-                        internalAverageLabel = subSubject.toInternalAverageLabel(strings),
-                        notes = subSubject.notes.map(::toNoteUiState)
+                        internalAverageLabel = subSubject.toInternalAverageLabel(strings, state.selectedSemester),
+                        notes = subSubject.notes
+                            .filter { it.isIncludedIn(state.selectedSemester) }
+                            .map(::toNoteUiState)
                     )
                 },
                 notes = emptyList(),
@@ -1040,15 +1160,15 @@ class GradeTrackerViewModel(
             )
         }
 
-        val branch = subject.toSimpleBranch()
+        val branch = subject.toSimpleBranch(state.selectedSemester)
         val rawAverage = GradeCalculator.weightedAverage(branch.grades)
         val officialAverage = GradeCalculator.computeBranchAverage(branch)
-        val countsInResults = subject.isCounted || subject.isOptionSubject
-        val points = if (countsInResults) officialAverage?.let(GradeCalculator::computePromotionPoints) else null
-        val statusLabel = if (countsInResults) {
-            officialAverage.toBranchStatusLabel(strings)
-        } else {
+        val isExcludedFromResults = !subject.isCounted && !subject.isOptionSubject
+        val points = if (isExcludedFromResults) null else officialAverage?.let(GradeCalculator::computePromotionPoints)
+        val statusLabel = if (isExcludedFromResults) {
             strings.notCountedLabel
+        } else {
+            officialAverage.toBranchStatusLabel(strings)
         }
 
         return SubjectDetailUiState(
@@ -1057,7 +1177,7 @@ class GradeTrackerViewModel(
             subtitle = subject.optionChoice?.label,
             isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
-            notes = subject.notes.map(::toNoteUiState),
+            notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
             officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
             secondaryAverageTitle = strings.rawAverage,
             secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
@@ -1071,8 +1191,9 @@ class GradeTrackerViewModel(
     }
 
     private fun buildPromotionPresentation(): PromotionPresentation? {
-        val option = state.subjects.firstOrNull { it.isOptionSubject } ?: return null
-        val basketSubjects = state.nonOptionBasketSubjects()
+        val currentYearSubjects = state.subjectsForSelectedYear()
+        val option = currentYearSubjects.firstOrNull { it.isOptionSubject } ?: return null
+        val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
         if (basketSubjects.size != 3) return null
 
         val firstBasketSubject = basketSubjects[0]
@@ -1086,17 +1207,17 @@ class GradeTrackerViewModel(
         )
 
         val assignments = buildList {
-            add(PromotionRoleAssignment.German(firstBasketSubject.toSimpleBranch()))
-            add(PromotionRoleAssignment.French(secondBasketSubject.toSimpleBranch()))
-            add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch()))
-            add(PromotionRoleAssignment.Option(option.toBranch()))
-            state.subjects
+            add(PromotionRoleAssignment.German(firstBasketSubject.toSimpleBranch(state.selectedSemester)))
+            add(PromotionRoleAssignment.French(secondBasketSubject.toSimpleBranch(state.selectedSemester)))
+            add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch(state.selectedSemester)))
+            add(PromotionRoleAssignment.Option(option.toBranch(state.selectedSemester)))
+            currentYearSubjects
                 .filter { it.isCounted && !it.isOptionSubject && it.id !in basketSubjectIds }
                 .forEach { subject ->
                     add(
                         PromotionRoleAssignment.Additional(
-                            branch = subject.toSimpleBranch(),
-                            isExplicitlyEmpty = subject.notes.isEmpty()
+                            branch = subject.toSimpleBranch(state.selectedSemester),
+                            isExplicitlyEmpty = subject.notes.none { it.isIncludedIn(state.selectedSemester) }
                         )
                     )
                 }
@@ -1107,16 +1228,13 @@ class GradeTrackerViewModel(
     }
 
     private fun promotionUnavailableHeadline(): String {
-        val basketSubjectCount = state.nonOptionBasketSubjects().size
+        val basketSubjectCount = state.subjectsForSelectedYear()
+            .count { it.isCounted && it.isInBasket && !it.isOptionSubject }
         return when {
             basketSubjectCount < 3 -> ""
             basketSubjectCount > 3 -> strings.unlockPromotionTooMany
             else -> strings.unlockPromotionMissingGrades
         }
-    }
-
-    private fun subjectToListItem(subject: StoredSubject): SubjectListItemUiState {
-        return subjectToListItem(subject, subject.computeMetrics())
     }
 
     private fun subjectToListItem(
@@ -1140,10 +1258,6 @@ class GradeTrackerViewModel(
             isOptionSubject = subject.isOptionSubject,
             isCompositeOption = subject.subSubjects.isNotEmpty()
         )
-    }
-
-    private fun createOptionSubject(choice: InitialOptionChoice): StoredSubject {
-        return createStoredOptionSubject(choice)
     }
 
     private fun validateDraftValue(input: String): String? {
@@ -1212,33 +1326,70 @@ class GradeTrackerViewModel(
         screen.pendingPreparedImport = null
         screen.pendingPreparedPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
         screen.pendingPreparedPlusPointsImport = null
+        screen.pendingPlusPointsTargetSemester = null
     }
 }
 
-private fun GradeTrackerAppState.withRequiredOptionSubject(): GradeTrackerAppState {
+private fun GradeTrackerAppState.withSharedSubjects(): GradeTrackerAppState {
     val selectedOption = selectedOption ?: return this
-    val existingOption = subjects.firstOrNull { it.isOptionSubject }
-    if (existingOption != null) {
-        val normalizedOption = existingOption.copy(
-            name = selectedOption.label,
-            optionChoice = selectedOption
-        )
-        return copy(
-            subjects = listOf(normalizedOption) + subjects.filterNot { it.isOptionSubject }
-        )
+    val sharedSubjects = subjects
+        .groupBy { "${it.schoolYear.name}:${annualSubjectKey(it)}" }
+        .values
+        .map(::mergeSharedSubjects)
+    val existingByYear = sharedSubjects.groupBy { it.schoolYear }
+    val subjectIdSeed = sharedSubjects
+        .mapNotNull { it.id.removePrefix("subject-").toIntOrNull() }
+        .maxOrNull()
+        ?.plus(1)
+        ?: 1
+    var nextId = subjectIdSeed
+
+    val normalizedSubjects = buildList {
+        SchoolYear.entries.forEach { year ->
+            val yearSubjects = existingByYear[year].orEmpty()
+            val normalizedOption = yearSubjects.firstOrNull { it.isOptionSubject }?.copy(
+                name = selectedOption.label,
+                optionChoice = selectedOption,
+                schoolYear = year
+            ) ?: createStoredOptionSubject(
+                choice = selectedOption,
+                schoolYear = year,
+                id = "subject-${nextId++}"
+            )
+            add(normalizedOption)
+            addAll(yearSubjects.filterNot { it.isOptionSubject })
+        }
     }
 
     return copy(
-        subjects = listOf(createStoredOptionSubject(selectedOption)) + subjects,
-        nextSubjectSequence = nextSubjectSequence.coerceAtLeast(2)
+        subjects = normalizedSubjects,
+        nextSubjectSequence = maxOf(nextSubjectSequence, nextId)
+    )
+}
+
+private fun mergeSharedSubjects(subjects: List<StoredSubject>): StoredSubject {
+    val first = subjects.first()
+    if (subjects.size == 1) return first
+    val subSubjectsByName = subjects
+        .flatMap { it.subSubjects }
+        .groupBy { it.name.lowercase(Locale.ROOT) }
+    return first.copy(
+        notes = subjects.flatMap { it.notes },
+        subSubjects = subSubjectsByName.values.map { matchingSubSubjects ->
+            matchingSubSubjects.first().copy(notes = matchingSubSubjects.flatMap { it.notes })
+        }
     )
 }
 
 private sealed interface InternalScreen {
     data object Onboarding : InternalScreen
     data object Main : InternalScreen
+    data class PeriodPicker(
+        var selectedYear: SchoolYear,
+        var selectedSemester: SchoolSemester
+    ) : InternalScreen
     data class AddSubject(
-        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(isVisible = true),
+        val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(),
         val returnToSubjectId: String? = null
     ) : InternalScreen
     data class BranchDetail(
@@ -1252,6 +1403,7 @@ private sealed interface InternalScreen {
     data class Settings(
         var pendingPreparedImport: PreparedBackupImport? = null,
         var pendingPreparedPlusPointsImport: PreparedPlusPointsImport? = null,
+        var pendingPlusPointsTargetSemester: SchoolSemester? = null,
         var backupMessage: String? = null,
         var backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
         var isBackupInProgress: Boolean = false
@@ -1279,37 +1431,49 @@ private fun DraftAttachment.toDraftAttachmentUiState(): DraftAttachmentUiState {
     )
 }
 
-private fun StoredSubject.toBranch(): Branch {
-    return if (subSubjects.isEmpty()) toSimpleBranch() else toCompositeBranch()
+private fun StoredSubject.toBranch(semester: SchoolSemester): Branch {
+    return if (subSubjects.isEmpty()) toSimpleBranch(semester) else toCompositeBranch(semester)
 }
 
-private fun StoredSubject.toSimpleBranch(): Branch.Simple {
+private fun StoredSubject.toSimpleBranch(semester: SchoolSemester): Branch.Simple {
     return Branch.Simple.create(
         name = name,
-        grades = notes.map { it.toGrade() },
+        grades = notes.filter { it.isIncludedIn(semester) }.map { it.toGrade() },
         optionType = optionChoice?.optionType
     )
 }
 
-private fun StoredSubject.toCompositeBranch(): Branch.Composite {
+private fun StoredSubject.toCompositeBranch(semester: SchoolSemester): Branch.Composite {
     return Branch.Composite.create(
         name = name,
         optionType = requireNotNull(optionChoice?.optionType),
         subSubjects = subSubjects.map { subSubject ->
-            SubSubject(name = subSubject.name, grades = subSubject.notes.map { it.toGrade() })
+            SubSubject(
+                name = subSubject.name,
+                grades = subSubject.notes.filter { it.isIncludedIn(semester) }.map { it.toGrade() }
+            )
         }
     )
 }
 
-private fun GradeTrackerAppState.nonOptionBasketSubjects(): List<StoredSubject> {
-    return subjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
+private fun annualSubjectKey(subject: StoredSubject): String {
+    return if (subject.isOptionSubject) {
+        "option:${subject.optionChoice?.name ?: subject.name.lowercase(Locale.ROOT)}"
+    } else {
+        "subject:${subject.name.lowercase(Locale.ROOT)}"
+    }
+}
+
+private fun GradeTrackerAppState.subjectsForSelectedYear(): List<StoredSubject> {
+    return subjects.filter { it.schoolYear == selectedYear }
 }
 
 private fun GradeTrackerAppState.currentBasketTotal(
     subjectMetrics: Map<String, SubjectComputedMetrics>
 ): Double? {
-    val optionSubject = subjects.firstOrNull { it.isOptionSubject } ?: return null
-    val basketSubjects = nonOptionBasketSubjects()
+    val currentYearSubjects = subjectsForSelectedYear()
+    val optionSubject = currentYearSubjects.firstOrNull { it.isOptionSubject } ?: return null
+    val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
     if (basketSubjects.size != 3) return null
 
     val averages = listOfNotNull(
@@ -1326,7 +1490,7 @@ private fun GradeTrackerAppState.currentBasketTotal(
 private fun GradeTrackerAppState.totalPromotionPoints(
     subjectMetrics: Map<String, SubjectComputedMetrics>
 ): Double? {
-    val pointValues = subjects
+    val pointValues = subjectsForSelectedYear()
         .filter { it.isCounted || it.isOptionSubject }
         .mapNotNull { subject -> subjectMetrics[subject.id]?.points }
     return pointValues.takeIf { it.isNotEmpty() }?.sum()
@@ -1335,16 +1499,21 @@ private fun GradeTrackerAppState.totalPromotionPoints(
 private fun GradeTrackerAppState.insufficiencyCount(
     subjectMetrics: Map<String, SubjectComputedMetrics>
 ): Int {
-    return subjects.count { subject ->
+    return subjectsForSelectedYear().count { subject ->
         (subject.isCounted || subject.isOptionSubject) &&
         subjectMetrics[subject.id]?.average?.let { average -> average < 4.0 } == true
     }
 }
 
-private fun createStoredOptionSubject(choice: InitialOptionChoice): StoredSubject {
+private fun createStoredOptionSubject(
+    choice: InitialOptionChoice,
+    schoolYear: SchoolYear,
+    id: String
+): StoredSubject {
     return StoredSubject(
-        id = "subject-1",
+        id = id,
         name = choice.label,
+        schoolYear = schoolYear,
         isCounted = true,
         isInBasket = true,
         isOptionSubject = true,
@@ -1366,6 +1535,192 @@ private fun StoredSubject.allAttachments(): List<StoredAttachment> {
     }
 }
 
+private fun StoredSubject.allAttachmentsInSemester(semester: SchoolSemester): List<StoredAttachment> {
+    return notes.filter { it.semester == semester }.flatMap { it.attachments } +
+        subSubjects.flatMap { subSubject ->
+            subSubject.notes.filter { it.semester == semester }.flatMap { it.attachments }
+        }
+}
+
+private fun StoredSubject.allAttachmentsInPeriod(
+    schoolYear: SchoolYear,
+    semester: SchoolSemester
+): List<StoredAttachment> {
+    if (this.schoolYear != schoolYear) return emptyList()
+    return allAttachmentsInSemester(semester)
+}
+
+private fun StoredSubject.withoutSemesterNotes(semester: SchoolSemester): StoredSubject {
+    return copy(
+        notes = notes.filterNot { it.semester == semester },
+        subSubjects = subSubjects.map { subSubject ->
+            subSubject.copy(notes = subSubject.notes.filterNot { it.semester == semester })
+        }
+    )
+}
+
+private fun mergePlusPointsImport(
+    currentState: GradeTrackerAppState,
+    importedState: GradeTrackerAppState,
+    targetYear: SchoolYear,
+    targetSemester: SchoolSemester
+): GradeTrackerAppState {
+    val importedSubjectsByKey = importedState.subjects
+        .map { it.reassignPeriod(targetYear, targetSemester) }
+        .associateBy(::subjectMergeKey)
+    val currentSubjectsByKey = currentState.subjects.associateBy(::subjectMergeKey)
+    val mergedSubjects = buildList {
+        val orderedKeys = buildList {
+            addAll(importedSubjectsByKey.keys)
+            currentSubjectsByKey.keys.forEach { key ->
+                if (key !in importedSubjectsByKey) add(key)
+            }
+        }
+        orderedKeys.forEach { key ->
+            val importedSubject = importedSubjectsByKey[key]
+            val existingSubject = currentSubjectsByKey[key]
+            val mergedSubject = when {
+                importedSubject != null && existingSubject != null -> {
+                    existingSubject.withoutSemesterNotes(targetSemester)
+                        .overlayImportedSemester(importedSubject, targetSemester)
+                }
+                importedSubject != null -> {
+                    importedSubject
+                }
+                existingSubject != null -> {
+                    existingSubject.withoutSemesterNotes(targetSemester)
+                }
+                else -> null
+            }
+            mergedSubject?.let(::add)
+        }
+    }
+
+    val nextSubjectSequence = mergedSubjects
+        .mapNotNull { it.id.removePrefix("subject-").toIntOrNull() }
+        .maxOrNull()
+        ?.plus(1)
+        ?: importedState.nextSubjectSequence.coerceAtLeast(currentState.nextSubjectSequence)
+    val nextNoteSequence = mergedSubjects
+        .flatMap { subject -> subject.notes + subject.subSubjects.flatMap { it.notes } }
+        .mapNotNull { it.id.removePrefix("note-").toIntOrNull() }
+        .maxOrNull()
+        ?.plus(1)
+        ?: importedState.nextNoteSequence.coerceAtLeast(currentState.nextNoteSequence)
+
+    return GradeTrackerAppState(
+        selectedOption = importedState.selectedOption,
+        subjects = mergedSubjects,
+        nextSubjectSequence = nextSubjectSequence,
+        nextNoteSequence = nextNoteSequence,
+        selectedYear = targetYear,
+        selectedSemester = targetSemester,
+        language = currentState.language,
+        themeMode = currentState.themeMode
+    )
+}
+
+private fun attachmentsToDeleteForPlusPointsImport(
+    currentState: GradeTrackerAppState,
+    importedState: GradeTrackerAppState,
+    targetYear: SchoolYear,
+    targetSemester: SchoolSemester
+): List<StoredAttachment> {
+    val semesterAttachments = currentState.subjects.flatMap { it.allAttachmentsInPeriod(targetYear, targetSemester) }
+    val optionChanged = currentState.selectedOption != null &&
+        importedState.selectedOption != null &&
+        currentState.selectedOption != importedState.selectedOption
+    if (!optionChanged) return semesterAttachments
+    val optionAttachments = currentState.subjects
+        .firstOrNull { it.isOptionSubject && it.schoolYear == targetYear }
+        ?.allAttachments()
+        .orEmpty()
+    return (semesterAttachments + optionAttachments).distinctBy { it.id to it.filePath }
+}
+
+private fun StoredSubject.overlayImportedSemester(
+    importedSubject: StoredSubject,
+    targetSemester: SchoolSemester
+): StoredSubject {
+    if (isOptionSubject && importedSubject.isOptionSubject && optionChoice != importedSubject.optionChoice) {
+        return importedSubject.reassignSemester(targetSemester)
+    }
+    return copy(
+        name = importedSubject.name,
+        isCounted = importedSubject.isCounted,
+        isInBasket = importedSubject.isInBasket,
+        isOptionSubject = importedSubject.isOptionSubject,
+        optionChoice = importedSubject.optionChoice,
+        subjectColor = importedSubject.subjectColor,
+        subjectIcon = importedSubject.subjectIcon,
+        notes = notes + importedSubject.notes.map { it.copy(semester = targetSemester) },
+        subSubjects = mergeSubSubjectsForSemester(
+            existing = subSubjects,
+            imported = importedSubject.subSubjects,
+            targetSemester = targetSemester
+        )
+    )
+}
+
+private fun mergeSubSubjectsForSemester(
+    existing: List<StoredSubSubject>,
+    imported: List<StoredSubSubject>,
+    targetSemester: SchoolSemester
+): List<StoredSubSubject> {
+    val importedByName = imported.associateBy { it.name.lowercase(Locale.ROOT) }
+    val existingByName = existing.associateBy { it.name.lowercase(Locale.ROOT) }
+    return buildList {
+        val orderedKeys = buildList {
+            addAll(importedByName.keys)
+            existingByName.keys.forEach { key ->
+                if (key !in importedByName) add(key)
+            }
+        }
+        orderedKeys.forEachIndexed { index, key ->
+            val importedSub = importedByName[key]
+            val existingSub = existingByName[key]
+            when {
+                importedSub != null && existingSub != null -> add(
+                    existingSub.copy(
+                        name = importedSub.name,
+                        notes = existingSub.notes + importedSub.notes.map { it.copy(semester = targetSemester) }
+                    )
+                )
+                importedSub != null -> add(
+                    importedSub.copy(
+                        id = importedSub.id.ifBlank { "option-subject-${index + 1}" },
+                        notes = importedSub.notes.map { it.copy(semester = targetSemester) }
+                    )
+                )
+                existingSub != null -> add(existingSub)
+            }
+        }
+    }
+}
+
+private fun StoredSubject.reassignSemester(targetSemester: SchoolSemester): StoredSubject {
+    return copy(
+        notes = notes.map { it.copy(semester = targetSemester) },
+        subSubjects = subSubjects.map { subSubject ->
+            subSubject.copy(notes = subSubject.notes.map { it.copy(semester = targetSemester) })
+        }
+    )
+}
+
+private fun StoredSubject.reassignPeriod(
+    targetYear: SchoolYear,
+    targetSemester: SchoolSemester
+): StoredSubject {
+    return reassignSemester(targetSemester).copy(schoolYear = targetYear)
+}
+
+private fun subjectMergeKey(subject: StoredSubject): String {
+    return when {
+        subject.isOptionSubject -> "year:${subject.schoolYear.name}:option:${subject.optionChoice?.name ?: subject.name.lowercase(Locale.ROOT)}"
+        else -> "year:${subject.schoolYear.name}:subject:${subject.name.lowercase(Locale.ROOT)}"
+    }
+}
+
 private fun StoredNote.toGrade(): Grade {
     return Grade(value = value, weight = weight)
 }
@@ -1378,24 +1733,26 @@ private fun AssessmentWeight.toNoteTypeUi(): NoteTypeUi {
     }
 }
 
-private fun storedSubjectAverageValue(subject: StoredSubject): Double? {
-    return when {
-        subject.subSubjects.isNotEmpty() -> GradeCalculator.computeCompositeOptionAverage(subject.toCompositeBranch())
-        else -> GradeCalculator.computeBranchAverage(subject.toSimpleBranch())
+private fun StoredSubject.computeMetrics(semester: SchoolSemester): SubjectComputedMetrics {
+    val average = when {
+        subSubjects.isNotEmpty() -> GradeCalculator.computeCompositeOptionAverage(toCompositeBranch(semester))
+        else -> GradeCalculator.computeBranchAverage(toSimpleBranch(semester))
     }
-}
-
-private fun StoredSubject.computeMetrics(): SubjectComputedMetrics {
-    val average = storedSubjectAverageValue(this)
     return SubjectComputedMetrics(
         average = average,
         points = average?.let(GradeCalculator::computePromotionPoints)
     )
 }
 
-private fun StoredSubSubject.toInternalAverageLabel(strings: AppStrings): String {
-    val average = GradeCalculator.weightedAverage(notes.map { it.toGrade() })?.let(GradeCalculator::roundToHundredth)
+private fun StoredSubSubject.toInternalAverageLabel(strings: AppStrings, semester: SchoolSemester): String {
+    val average = GradeCalculator.weightedAverage(
+        notes.filter { it.isIncludedIn(semester) }.map { it.toGrade() }
+    )?.let(GradeCalculator::roundToHundredth)
     return average?.let(::formatTwoDecimals) ?: strings.emptyNotes
+}
+
+private fun StoredNote.isIncludedIn(selectedSemester: SchoolSemester): Boolean {
+    return selectedSemester == SchoolSemester.SEMESTER_2 || semester == SchoolSemester.SEMESTER_1
 }
 
 private fun Long.toDateLabel(): String {

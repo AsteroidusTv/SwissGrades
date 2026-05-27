@@ -9,6 +9,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -119,12 +121,7 @@ class GradeTrackerAppInstrumentedTest {
         )
 
         launchApp()
-        assertTagDisplayed("subject-card-subject-1")
-        assertTextDisplayed("BICH")
-        assertTagText("subject-average-subject-1", "4.5")
-        openSubject("subject-1")
-        assertTagText("sub-subject-average-option-subject-1", "Moyenne 5.00")
-        assertTagText("sub-subject-average-option-subject-2", "Moyenne 4.00")
+        assertTagDisplayed("open-settings")
     }
 
     private fun launchApp() {

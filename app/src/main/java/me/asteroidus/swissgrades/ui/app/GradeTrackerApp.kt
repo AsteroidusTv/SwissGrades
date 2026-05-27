@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
@@ -95,6 +96,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Biotech
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -129,18 +131,12 @@ import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
 import me.asteroidus.swissgrades.ui.theme.AppBackgroundDark
-import me.asteroidus.swissgrades.ui.theme.AppOutlineDark
-import me.asteroidus.swissgrades.ui.theme.AppOutlineLight
 import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerDark
 import me.asteroidus.swissgrades.ui.theme.AppPositiveContainerLight
 import me.asteroidus.swissgrades.ui.theme.AppPositiveDark
 import me.asteroidus.swissgrades.ui.theme.AppPositiveLight
 import me.asteroidus.swissgrades.ui.theme.AppPositiveOnBlueDark
 import me.asteroidus.swissgrades.ui.theme.AppPositiveOnBlueLight
-import me.asteroidus.swissgrades.ui.theme.AppSurfaceDark
-import me.asteroidus.swissgrades.ui.theme.AppSurfaceLight
-import me.asteroidus.swissgrades.ui.theme.AppSurfaceVariantDark
-import me.asteroidus.swissgrades.ui.theme.AppSurfaceVariantLight
 import me.asteroidus.swissgrades.ui.theme.AppWarningContainerDark
 import me.asteroidus.swissgrades.ui.theme.AppWarningContainerLight
 import me.asteroidus.swissgrades.ui.theme.AppWarningDark
@@ -298,6 +294,7 @@ fun GradeTrackerApp(
         when (uiState.screen) {
             is ScreenUiState.AddSubject -> viewModel.hideAddSubjectForm()
             is ScreenUiState.BranchDetail -> viewModel.backFromDetail()
+            is ScreenUiState.PeriodPicker -> viewModel.closePeriodPicker()
             is ScreenUiState.Settings -> viewModel.closeSettings()
             else -> Unit
         }
@@ -341,6 +338,7 @@ fun GradeTrackerApp(
                                 onOpenSubject = viewModel::openSubject,
                                 onShowAddSubjectForm = viewModel::showAddSubjectForm,
                                 onDeleteSubject = viewModel::deleteSubject,
+                                onOpenPeriodPicker = viewModel::openPeriodPicker,
                                 onOpenSettings = viewModel::openSettings,
                                 modifier = Modifier
                             )
@@ -379,6 +377,16 @@ fun GradeTrackerApp(
                                 modifier = Modifier
                             )
 
+                            is ScreenUiState.PeriodPicker -> PeriodPickerScreen(
+                                selectedYear = screen.selectedYear,
+                                selectedSemester = screen.selectedSemester,
+                                onBack = viewModel::closePeriodPicker,
+                                onSelectYear = viewModel::updatePendingYear,
+                                onSelectSemester = viewModel::updatePendingSemester,
+                                onConfirm = viewModel::confirmPeriodSelection,
+                                modifier = Modifier
+                            )
+
                             is ScreenUiState.Settings -> SettingsScreen(
                                 settings = screen.settings,
                                 onSelectLanguage = viewModel::changeLanguage,
@@ -396,6 +404,7 @@ fun GradeTrackerApp(
                                 onDismissPendingImport = viewModel::dismissPendingBackupImport,
                                 onConfirmPendingImport = viewModel::confirmBackupImport,
                                 onDismissPendingPlusPointsImport = viewModel::dismissPendingPlusPointsImport,
+                                onSelectPendingPlusPointsSemester = viewModel::updatePendingPlusPointsTargetSemester,
                                 onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
                                 onBack = viewModel::closeSettings,
                                 modifier = Modifier
@@ -409,6 +418,7 @@ fun GradeTrackerApp(
 }
 
 @Composable
+@Suppress("DEPRECATION")
 private fun ApplySystemBars(darkTheme: Boolean) {
     val context = LocalContext.current
     val activity = context.findActivity() ?: return
@@ -436,6 +446,7 @@ private fun screenAnimationKey(screen: ScreenUiState): String {
     return when (screen) {
         is ScreenUiState.Onboarding -> "onboarding"
         is ScreenUiState.Main -> "main"
+        is ScreenUiState.PeriodPicker -> "period-picker"
         is ScreenUiState.AddSubject -> "add-subject"
         is ScreenUiState.Settings -> "settings"
         is ScreenUiState.BranchDetail -> "branch-detail-${screen.detail.subjectId}"
@@ -464,6 +475,7 @@ private fun screenDepth(screen: ScreenUiState): Int {
     return when (screen) {
         is ScreenUiState.Onboarding -> 0
         is ScreenUiState.Main -> 1
+        is ScreenUiState.PeriodPicker -> 2
         is ScreenUiState.AddSubject,
         is ScreenUiState.BranchDetail,
         is ScreenUiState.Settings -> 2
@@ -472,6 +484,7 @@ private fun screenDepth(screen: ScreenUiState): Int {
 
 private fun screenSupportsInAppBack(screen: ScreenUiState): Boolean {
     return when (screen) {
+        is ScreenUiState.PeriodPicker,
         is ScreenUiState.AddSubject,
         is ScreenUiState.BranchDetail,
         is ScreenUiState.Settings -> true
@@ -581,7 +594,6 @@ private fun OnboardingOptionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val strings = currentAppStrings()
     val language = LocalAppLanguage.current
     val selectedContainer = appSelectedOptionContainer()
     val selectedBorder = appSelectedOptionBorder()
@@ -683,6 +695,7 @@ private fun MainScreen(
     onOpenSubject: (String) -> Unit,
     onShowAddSubjectForm: () -> Unit,
     onDeleteSubject: (String) -> Unit,
+    onOpenPeriodPicker: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -720,6 +733,13 @@ private fun MainScreen(
                     )
                 }
             }
+        }
+        item {
+            PeriodSummaryButton(
+                selectedYear = state.selectedYear,
+                selectedSemester = state.selectedSemester,
+                onClick = onOpenPeriodPicker
+            )
         }
         item {
             SummaryCard(state.summary)
@@ -774,6 +794,337 @@ private fun MainScreen(
                 onDeleteSubject(subject.id)
             }
         )
+    }
+}
+
+@Composable
+private fun PeriodSummaryButton(
+    selectedYear: SchoolYear,
+    selectedSemester: SchoolSemester,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = currentAppStrings()
+    val accentBlue = appAccentBlue()
+    OutlinedCard(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("open-period-picker"),
+        shape = RoundedCornerShape(24.dp),
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = appCardSurface()
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
+            ) {
+                Box(
+                    modifier = Modifier.size(52.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CalendarMonth,
+                        contentDescription = null,
+                        tint = accentBlue
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text(
+                    text = strings.schoolYearLabel(selectedYear),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = appSoftAccentContainer()
+                ) {
+                    Text(
+                        text = strings.semesterLabel(selectedSemester),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = accentBlue,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            Surface(
+                shape = CircleShape,
+                color = appSoftAccentContainer()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = strings.periodTitle,
+                    tint = accentBlue,
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SemesterSwitcher(
+    selectedSemester: SchoolSemester,
+    onSelectSemester: (SchoolSemester) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = currentAppStrings()
+    val accentBlue = appAccentBlue()
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        listOf(SchoolSemester.SEMESTER_1, SchoolSemester.SEMESTER_2).forEach { semester ->
+            val isSelected = semester == selectedSemester
+            OutlinedCard(
+                onClick = { onSelectSemester(semester) },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("semester-${semester.name}"),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    if (isSelected) accentBlue else appCardBorderColor()
+                ),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = if (isSelected) appSoftAccentContainer() else appCardSurface()
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp, horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = strings.semesterLabel(semester),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodPickerScreen(
+    selectedYear: SchoolYear,
+    selectedSemester: SchoolSemester,
+    onBack: () -> Unit,
+    onSelectYear: (SchoolYear) -> Unit,
+    onSelectSemester: (SchoolSemester) -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = currentAppStrings()
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            HeaderBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("back-from-period-picker")
+            )
+            Text(
+                text = strings.periodTitle,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = strings.choosePeriodTitle,
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Surface(
+                shape = RoundedCornerShape(100.dp),
+                color = appSoftAccentContainer()
+            ) {
+                Text(
+                    text = strings.periodLabel(selectedYear, selectedSemester),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = appAccentBlue(),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            color = appCardSurface(),
+            border = appCardBorder()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.schoolYearTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    PeriodYearSelector(
+                        selectedYear = selectedYear,
+                        onSelectYear = onSelectYear
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(appCardBorderColor())
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.semesterTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    PeriodSemesterSelector(
+                        selectedSemester = selectedSemester,
+                        onSelectSemester = onSelectSemester
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = onConfirm,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .testTag("confirm-period-selection"),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
+        ) {
+            Text(
+                text = strings.continueLabel,
+                modifier = Modifier.padding(vertical = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PeriodYearSelector(
+    selectedYear: SchoolYear,
+    onSelectYear: (SchoolYear) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SchoolYear.entries.forEachIndexed { index, year ->
+            val selected = selectedYear == year
+            Surface(
+                onClick = { onSelectYear(year) },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("period-year-${year.name}"),
+                shape = RoundedCornerShape(20.dp),
+                color = if (selected) appSelectedOptionContainer() else Color.Transparent,
+                border = BorderStroke(
+                    if (selected) 2.dp else 1.dp,
+                    if (selected) appSelectedOptionBorder() else appCardBorderColor()
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(104.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selected) appAccentBlue() else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeriodSemesterSelector(
+    selectedSemester: SchoolSemester,
+    onSelectSemester: (SchoolSemester) -> Unit
+) {
+    val strings = currentAppStrings()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = appCardBorder()
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            SchoolSemester.entries.forEach { semester ->
+                val selected = selectedSemester == semester
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (selected) appAccentBlue() else Color.Transparent)
+                        .clickable(role = Role.Button) { onSelectSemester(semester) }
+                        .testTag("semester-${semester.name}")
+                        .padding(vertical = 13.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = strings.semesterLabel(semester),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1178,6 +1529,7 @@ private fun HighlightMetricCard(
     progress: Float?
 ) {
     val strings = currentAppStrings()
+    val progressValue = progress ?: 0f
     val hasNumericValue = progress != null && !value.equals(strings.emptyNotes, ignoreCase = true)
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1245,7 +1597,7 @@ private fun HighlightMetricCard(
             }
             if (hasNumericValue) {
                 LinearProgressIndicator(
-                    progress = { progress ?: 0f },
+                    progress = { progressValue },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
@@ -1319,18 +1671,18 @@ private fun SubjectCard(
     val strings = currentAppStrings()
     val isDarkTheme = isDarkPalette()
     val warningRed = appWarningColor()
-    val countsInResults = subject.isCounted || subject.isOptionSubject
+    val isExcludedFromResults = !subject.isCounted && !subject.isOptionSubject
     val valueColor = when {
         subject.averageValue == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        countsInResults && subject.averageValue < 4.0 -> warningRed
+        !isExcludedFromResults && subject.averageValue < 4.0 -> warningRed
         else -> subject.colorChoice.toColor(isDarkTheme)
     }
     val secondaryText = when {
-        !subject.isCounted && !subject.isOptionSubject -> strings.notCountedLabel
+        isExcludedFromResults -> strings.notCountedLabel
         subject.averageValue == null && subject.subtitle != null -> subject.subtitle
         subject.averageValue == null -> strings.emptyNotes
         subject.isOptionSubject && subject.subtitle != null -> subject.subtitle
-        countsInResults && subject.averageValue < 4.0 -> "${subject.pointsLabel} ${strings.pointLabel.lowercase()} • ${strings.insufficientLabel}"
+        !isExcludedFromResults && subject.averageValue < 4.0 -> "${subject.pointsLabel} ${strings.pointLabel.lowercase()} • ${strings.insufficientLabel}"
         subject.isInBasket -> strings.inBasketLabel
         else -> "${subject.pointsLabel} ${strings.pointsLabel}"
     }
@@ -1341,7 +1693,7 @@ private fun SubjectCard(
             .fillMaxWidth()
             .testTag("subject-card-${subject.id}"),
         shape = DashboardCardShape,
-        border = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
+        border = if (!isExcludedFromResults && subject.averageValue != null && subject.averageValue < 4.0) {
             BorderStroke(1.5.dp, warningRed.copy(alpha = 0.45f))
         } else {
             appCardBorder()
@@ -1371,7 +1723,7 @@ private fun SubjectCard(
                         Icon(
                             imageVector = subject.iconChoice.toImageVector(),
                             contentDescription = null,
-                            tint = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
+                            tint = if (!isExcludedFromResults && subject.averageValue != null && subject.averageValue < 4.0) {
                                 warningRed
                             } else {
                                 subject.colorChoice.toColor(isDarkTheme)
@@ -1393,7 +1745,7 @@ private fun SubjectCard(
                     Text(
                         text = secondaryText,
                         style = MaterialTheme.typography.titleSmall,
-                        color = if (countsInResults && subject.averageValue != null && subject.averageValue < 4.0) {
+                        color = if (!isExcludedFromResults && subject.averageValue != null && subject.averageValue < 4.0) {
                             warningRed
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -1413,14 +1765,6 @@ private fun SubjectCard(
                 }
             }
         }
-    }
-}
-
-private fun SubjectListItemUiState.icon(): ImageVector {
-    return when {
-        isOptionSubject && isCompositeOption -> Icons.Filled.Science
-        isOptionSubject -> iconChoice.toImageVector()
-        else -> iconChoice.toImageVector()
     }
 }
 
@@ -1632,6 +1976,7 @@ private fun BranchDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .testTag("branch-detail-list")
                 .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 84.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1777,7 +2122,7 @@ private fun BranchDetailScreen(
                     }
                     pendingCameraRequest = request
                     showAttachmentSourceDialog = false
-                    takePictureLauncher.launch(Uri.parse(request.outputUriString))
+                    takePictureLauncher.launch(request.outputUriString.toUri())
                 }
             )
         }
@@ -1856,7 +2201,7 @@ private fun BranchDetailSummaryCard(
     statusLabelColor: Color
 ) {
     val strings = currentAppStrings()
-    val countsInResults = detail.isCounted || detail.isOptionSubject
+    val isExcludedFromResults = !detail.isCounted && !detail.isOptionSubject
     val compactStatusLabel = if (detail.statusLabel == strings.branchInsufficient) {
         strings.branchInsufficientShort
     } else {
@@ -1905,7 +2250,7 @@ private fun BranchDetailSummaryCard(
                             )
                         }
                     }
-                    if (countsInResults) {
+                    if (!isExcludedFromResults) {
                         Card(
                             shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(
@@ -1948,7 +2293,7 @@ private fun BranchDetailSummaryCard(
                     }
                 }
 
-                if (countsInResults) {
+                if (!isExcludedFromResults) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -2203,33 +2548,6 @@ private fun GradeHistoryHeader(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             modifier = Modifier.padding(bottom = 2.dp)
-        )
-    }
-}
-
-@Composable
-private fun DetailMiniMetric(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    val strings = currentAppStrings()
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimary,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -2565,6 +2883,8 @@ private fun AttachmentViewerDialog(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.76f))
         ) {
+            val maxImageWidth = maxWidth * 0.96f
+            val maxImageHeight = maxHeight * 0.86f
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -2583,8 +2903,6 @@ private fun AttachmentViewerDialog(
                 } else {
                     3f / 4f
                 }
-                val maxImageWidth = maxWidth * 0.96f
-                val maxImageHeight = maxHeight * 0.86f
                 val widthFromHeight = maxImageHeight * aspectRatio
                 val finalWidth = minOf(maxImageWidth, widthFromHeight)
                 val finalHeight = finalWidth / aspectRatio
@@ -2904,6 +3222,7 @@ private fun SettingsScreen(
     onDismissPendingImport: () -> Unit,
     onConfirmPendingImport: () -> Unit,
     onDismissPendingPlusPointsImport: () -> Unit,
+    onSelectPendingPlusPointsSemester: (SchoolSemester) -> Unit,
     onConfirmPendingPlusPointsImport: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -3091,12 +3410,42 @@ private fun SettingsScreen(
     }
 
     settings.pendingPlusPointsImportDisplayName?.let { displayName ->
-        ConfirmationDialog(
-            title = strings.plusPointsImportTitle,
-            message = strings.plusPointsImportMessage(displayName),
-            confirmLabel = strings.plusPointsImportConfirm,
-            onDismiss = onDismissPendingPlusPointsImport,
-            onConfirm = onConfirmPendingPlusPointsImport
+        AlertDialog(
+            onDismissRequest = onDismissPendingPlusPointsImport,
+            title = {
+                Text(
+                    text = strings.plusPointsImportTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(strings.plusPointsImportMessage(displayName))
+                    Text(
+                        text = strings.plusPointsTargetSemesterTitle,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    SemesterSwitcher(
+                        selectedSemester = settings.pendingPlusPointsTargetSemester
+                            ?: settings.selectedSemester,
+                        onSelectSemester = onSelectPendingPlusPointsSemester
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onConfirmPendingPlusPointsImport) {
+                    Text(strings.plusPointsImportConfirm)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissPendingPlusPointsImport) {
+                    Text(strings.cancelLabel)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = appCardSurface()
         )
     }
 }

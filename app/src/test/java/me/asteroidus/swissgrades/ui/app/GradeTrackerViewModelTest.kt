@@ -1,5 +1,6 @@
 package me.asteroidus.swissgrades.ui.app
 
+import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,11 +23,14 @@ class GradeTrackerViewModelTest {
         val viewModel = GradeTrackerViewModel(repository)
 
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        assertTrue(viewModel.uiState.value.screen is ScreenUiState.PeriodPicker)
+        viewModel.confirmPeriodSelection()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
         assertEquals("Spanish", screen.optionSubject.title)
         assertEquals(null, screen.optionSubject.subtitle)
         assertTrue(screen.optionSubject.isInBasket)
+        assertTrue(screen.userSubjects.isEmpty())
     }
 
     @Test
@@ -36,6 +40,7 @@ class GradeTrackerViewModelTest {
         val viewModel = GradeTrackerViewModel(repository)
 
         viewModel.completeOnboarding(InitialOptionChoice.BIOLOGY_CHEMISTRY)
+        viewModel.confirmPeriodSelection()
         val main = viewModel.uiState.value.screen as ScreenUiState.Main
 
         viewModel.openSubject(main.optionSubject.id)
@@ -54,6 +59,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.ITALIAN)
+        viewModel.confirmPeriodSelection()
 
         viewModel.showAddSubjectForm()
         viewModel.updateAddSubjectName("History")
@@ -73,6 +79,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.LATIN)
+        viewModel.confirmPeriodSelection()
 
         viewModel.showAddSubjectForm()
         viewModel.updateAddSubjectName("History")
@@ -80,7 +87,7 @@ class GradeTrackerViewModelTest {
         viewModel.addSubject()
 
         val main = viewModel.uiState.value.screen as ScreenUiState.Main
-        val historyId = main.userSubjects.single().id
+        val historyId = main.userSubjects.single { it.title == "History" }.id
 
         viewModel.openSubject(historyId)
         viewModel.updateDraftValue("5.0")
@@ -100,6 +107,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.LATIN)
+        viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
@@ -115,7 +123,7 @@ class GradeTrackerViewModelTest {
 
         viewModel.backFromDetail()
         val main = viewModel.uiState.value.screen as ScreenUiState.Main
-        val updatedSubject = main.userSubjects.single()
+        val updatedSubject = main.userSubjects.single { it.title == "Geography" }
         assertEquals("Geography", updatedSubject.title)
         assertTrue(updatedSubject.isInBasket)
         assertEquals(SubjectColorChoice.GREEN, updatedSubject.colorChoice)
@@ -128,6 +136,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.showAddSubjectForm()
         viewModel.updateAddSubjectName("Projet libre")
@@ -156,6 +165,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.showAddSubjectForm()
         viewModel.updateAddSubjectName("Projet libre")
@@ -184,6 +194,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
@@ -209,12 +220,72 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun changingSemester_keepsBranchesAndIncludesEarlierSemesterGrades() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+        viewModel.backFromDetail()
+
+        viewModel.openPeriodPicker()
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_2)
+        viewModel.confirmPeriodSelection()
+
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals("5.0", main.userSubjects.single { it.title == "History" }.averageLabel)
+    }
+
+    @Test
+    fun secondSemesterAverageCombinesGradesFromBothSemesters() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+        viewModel.backFromDetail()
+
+        viewModel.openPeriodPicker()
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_2)
+        viewModel.confirmPeriodSelection()
+
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("3.0")
+        viewModel.addNote()
+        viewModel.backFromDetail()
+
+        val persistedSubject = repository.load()?.subjects.orEmpty().single { it.name == "History" }
+        assertEquals(setOf(SchoolSemester.SEMESTER_1, SchoolSemester.SEMESTER_2), persistedSubject.notes.map { it.semester }.toSet())
+        assertEquals(setOf(5.0, 3.0), persistedSubject.notes.map { it.value }.toSet())
+        val secondSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals("4.0", secondSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("4.0", secondSemesterMain.summary.overallAverageLabel)
+
+        viewModel.openPeriodPicker()
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_1)
+        viewModel.confirmPeriodSelection()
+        val firstSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals("5.0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+    }
+
+    @Test
     fun addingGradeWithAttachments_persistsOnlyAfterSave() {
         val repository = InMemoryGradeTrackerRepository
         val attachmentStorage = FakeGradeAttachmentStorage()
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
         viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
@@ -243,6 +314,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
         viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
@@ -269,6 +341,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
         viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
@@ -290,6 +363,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.changeOption(InitialOptionChoice.PHYSICS_AND_APPLICATIONS_OF_MATH)
@@ -307,6 +381,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         val literatureId = viewModel.addSubjectWithBasketFlag("Literature", isInBasket = true)
         val scienceId = viewModel.addSubjectWithBasketFlag("Science", isInBasket = true)
@@ -330,6 +405,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         val literatureId = viewModel.addSubjectWithBasketFlag("Literature", isInBasket = false)
         val scienceId = viewModel.addSubjectWithBasketFlag("Science", isInBasket = false)
@@ -353,6 +429,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         listOf("Literature", "Science", "Projects", "History").forEach { name ->
             viewModel.addSubjectWithBasketFlag(name, isInBasket = true)
@@ -390,6 +467,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.changeLanguage(AppLanguage.FRENCH)
@@ -406,6 +484,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.changeThemeMode(AppThemeMode.DARK)
@@ -423,6 +502,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.prepareBackupImport("content://backup")
@@ -439,6 +519,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.prepareBackupImport("content://backup")
@@ -466,6 +547,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository, backupCoordinator = backupCoordinator)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.prepareBackupImport("content://backup")
@@ -490,6 +572,7 @@ class GradeTrackerViewModelTest {
         repository.save(GradeTrackerAppState())
         val viewModel = GradeTrackerViewModel(repository)
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
 
         viewModel.openSettings()
         viewModel.changeLanguage(AppLanguage.FRENCH)
@@ -503,6 +586,71 @@ class GradeTrackerViewModelTest {
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertEquals(AppStrings.French.emptyNotes, detail.officialAverageLabel)
         assertEquals(AppStrings.French.compositeAverage.takeIf { detail.isCompositeOption } ?: AppStrings.French.rawAverage, detail.secondaryAverageTitle)
+    }
+
+    @Test
+    fun plusPointsImport_replacesOnlyTargetSemester() {
+        val repository = InMemoryGradeTrackerRepository
+        val plusPointsCoordinator = FakePlusPointsImportCoordinator(
+            importedState = GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isCounted = true,
+                        isInBasket = false,
+                        notes = listOf(
+                            StoredNote(
+                                id = "note-10",
+                                value = 4.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Imported S2",
+                                createdAtEpochMillis = 1_000L,
+                                semester = SchoolSemester.SEMESTER_2
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 11,
+                selectedSemester = SchoolSemester.SEMESTER_2
+            ),
+            sourceSemester = SchoolSemester.SEMESTER_2
+        )
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, plusPointsImportCoordinator = plusPointsCoordinator)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+        viewModel.backFromDetail()
+        viewModel.openPeriodPicker()
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_2)
+        viewModel.confirmPeriodSelection()
+        viewModel.openSubject(historyId)
+        viewModel.updateDraftValue("3.0")
+        viewModel.addNote()
+        viewModel.backFromDetail()
+
+        viewModel.openSettings()
+        viewModel.preparePlusPointsImport("content://pluspoints")
+        waitUntil { (viewModel.uiState.value.screen as ScreenUiState.Settings).settings.pendingPlusPointsImportDisplayName != null }
+        viewModel.confirmPlusPointsImport()
+        waitUntil {
+            val screen = viewModel.uiState.value.screen
+            screen is ScreenUiState.Settings && screen.settings.backupMessage == AppStrings.French.plusPointsImportSuccess
+        }
+
+        val persistedSubject = repository.load()?.subjects.orEmpty().single { it.id == historyId }
+        val semester1Notes = persistedSubject.notes.filter { it.semester == SchoolSemester.SEMESTER_1 }
+        val semester2Notes = persistedSubject.notes.filter { it.semester == SchoolSemester.SEMESTER_2 }
+        assertEquals(listOf(""), semester1Notes.map { it.description })
+        assertEquals(listOf("Imported S2"), semester2Notes.map { it.description })
     }
 
     private fun GradeTrackerViewModel.addSubjectWithBasketFlag(name: String, isInBasket: Boolean): String {
@@ -590,6 +738,21 @@ class GradeTrackerViewModelTest {
         override fun discardPreparedImport(preparedBackupImport: PreparedBackupImport) {
             discardedImports += preparedBackupImport
         }
+    }
+
+    private class FakePlusPointsImportCoordinator(
+        private val importedState: GradeTrackerAppState,
+        private val sourceSemester: SchoolSemester?
+    ) : PlusPointsImportCoordinator {
+        override fun prepareImport(sourceUriString: String): PreparedPlusPointsImport {
+            return PreparedPlusPointsImport(
+                displayName = "pluspoints-export.PlusPointsExport",
+                importedState = importedState,
+                sourceSemester = sourceSemester
+            )
+        }
+
+        override fun discardPreparedImport(preparedImport: PreparedPlusPointsImport) = Unit
     }
 
     private fun waitUntil(timeoutMillis: Long = 2_000, condition: () -> Boolean) {

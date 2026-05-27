@@ -3,6 +3,7 @@ package me.asteroidus.swissgrades.ui.app
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.core.net.toUri
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.ByteArrayInputStream
@@ -11,7 +12,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 
 data class PreparedPlusPointsImport(
     val displayName: String,
-    val importedState: GradeTrackerAppState
+    val importedState: GradeTrackerAppState,
+    val sourceSemester: SchoolSemester? = null
 )
 
 interface PlusPointsImportCoordinator {
@@ -23,13 +25,14 @@ class LocalPlusPointsImportCoordinator(
     private val context: Context
 ) : PlusPointsImportCoordinator {
     override fun prepareImport(sourceUriString: String): PreparedPlusPointsImport {
-        val sourceUri = Uri.parse(sourceUriString)
+        val sourceUri = sourceUriString.toUri()
         val displayName = resolveDisplayName(sourceUri) ?: "pluspoints-export.PlusPointsExport"
         val xml = context.contentResolver.openInputStream(sourceUri)?.use { it.readBytes().decodeToString() }
             ?: throw IllegalStateException("Could not open PlusPoints export.")
         return PreparedPlusPointsImport(
             displayName = displayName,
-            importedState = parsePlusPointsExport(xml)
+            importedState = parsePlusPointsExport(xml),
+            sourceSemester = detectPlusPointsSourceSemesterFromXml(xml)
         )
     }
 
@@ -54,6 +57,7 @@ object NoOpPlusPointsImportCoordinator : PlusPointsImportCoordinator {
 internal fun parsePlusPointsExport(xml: String): GradeTrackerAppState {
     val root = parsePlistRoot(xml)
     val data = root["data"] as? Map<*, *> ?: throw IllegalStateException("Missing PlusPoints data.")
+    val sourceSemester = detectPlusPointsSourceSemester(data["name"] as? String)
     val subjectMaps = data["subjects"] as? List<*> ?: emptyList<Any>()
 
     val detectedOption = detectOptionChoice(subjectMaps)
@@ -71,7 +75,8 @@ internal fun parsePlusPointsExport(xml: String): GradeTrackerAppState {
             val importedOption = importOptionSubject(
                 source = subject,
                 base = optionSubject,
-                nextNoteId = { "note-${nextNoteSequence++}" }
+                nextNoteId = { "note-${nextNoteSequence++}" },
+                sourceSemester = sourceSemester
             )
             importedSubjects += importedOption
         } else {
@@ -79,7 +84,8 @@ internal fun parsePlusPointsExport(xml: String): GradeTrackerAppState {
                 source = subject,
                 subjectId = "subject-${nextSubjectSequence++}",
                 counted = counted,
-                nextNoteId = { "note-${nextNoteSequence++}" }
+                nextNoteId = { "note-${nextNoteSequence++}" },
+                sourceSemester = sourceSemester
             )
         }
     }
@@ -93,7 +99,8 @@ internal fun parsePlusPointsExport(xml: String): GradeTrackerAppState {
         selectedOption = detectedOption,
         subjects = subjects,
         nextSubjectSequence = nextSubjectSequence,
-        nextNoteSequence = nextNoteSequence
+        nextNoteSequence = nextNoteSequence,
+        selectedSemester = sourceSemester ?: SchoolSemester.SEMESTER_1
     )
 }
 
@@ -101,11 +108,18 @@ private fun importRegularSubject(
     source: Map<*, *>,
     subjectId: String,
     counted: Boolean,
-    nextNoteId: () -> String
+    nextNoteId: () -> String,
+    sourceSemester: SchoolSemester? = null
 ): StoredSubject {
     val subjectName = source["name"] as? String ?: "Subject"
     val exams = source["exams"] as? List<*> ?: emptyList<Any>()
-    val notes = exams.flatMap { importExamAsNotes(it as? Map<*, *> ?: emptyMap<Any, Any>(), nextNoteId) }
+    val notes = exams.flatMap {
+        importExamAsNotes(
+            exam = it as? Map<*, *> ?: emptyMap<Any, Any>(),
+            nextNoteId = nextNoteId,
+            sourceSemester = sourceSemester
+        )
+    }
     return StoredSubject(
         id = subjectId,
         name = normalizePlusPointsSubjectName(subjectName),
@@ -120,12 +134,19 @@ private fun importRegularSubject(
 private fun importOptionSubject(
     source: Map<*, *>,
     base: StoredSubject,
-    nextNoteId: () -> String
+    nextNoteId: () -> String,
+    sourceSemester: SchoolSemester? = null
 ): StoredSubject {
     if (base.subSubjects.isEmpty()) {
         val exams = source["exams"] as? List<*> ?: emptyList<Any>()
         return base.copy(
-            notes = exams.flatMap { importExamAsNotes(it as? Map<*, *> ?: emptyMap<Any, Any>(), nextNoteId) }
+            notes = exams.flatMap {
+                importExamAsNotes(
+                    exam = it as? Map<*, *> ?: emptyMap<Any, Any>(),
+                    nextNoteId = nextNoteId,
+                    sourceSemester = sourceSemester
+                )
+            }
         )
     }
 
@@ -143,7 +164,7 @@ private fun importOptionSubject(
             else -> base.subSubjects.firstOrNull()?.id
         } ?: return@forEach
 
-        importExamAsNotes(exam, nextNoteId).forEach { note ->
+        importExamAsNotes(exam, nextNoteId, sourceSemester).forEach { note ->
             subSubjectNotesById.getValue(targetSubSubjectId) += note
         }
     }
@@ -157,7 +178,8 @@ private fun importOptionSubject(
 
 private fun importExamAsNotes(
     exam: Map<*, *>,
-    nextNoteId: () -> String
+    nextNoteId: () -> String,
+    sourceSemester: SchoolSemester? = null
 ): List<StoredNote> {
     val nested = exam["exams"] as? List<*> ?: emptyList<Any>()
     return if (nested.isNotEmpty()) {
@@ -165,17 +187,26 @@ private fun importExamAsNotes(
             createStoredNote(
                 exam = nestedExam as? Map<*, *> ?: return@mapNotNull null,
                 noteId = nextNoteId(),
+                semester = sourceSemester ?: SchoolSemester.SEMESTER_1,
                 fallbackName = exam["name"] as? String
             )
         }
     } else {
-        listOfNotNull(createStoredNote(exam, nextNoteId(), null))
+        listOfNotNull(
+            createStoredNote(
+                exam = exam,
+                noteId = nextNoteId(),
+                semester = sourceSemester ?: SchoolSemester.SEMESTER_1,
+                fallbackName = null
+            )
+        )
     }
 }
 
 private fun createStoredNote(
     exam: Map<*, *>,
     noteId: String,
+    semester: SchoolSemester,
     fallbackName: String?
 ): StoredNote? {
     val rawMark = exam["mark"] as? Number ?: return null
@@ -187,7 +218,8 @@ private fun createStoredNote(
         value = rawMark.toDouble(),
         weight = weight,
         description = description,
-        createdAtEpochMillis = plusPointsDateToUnixMillis(exam["dAtEaTtr:date"] as? Number)
+        createdAtEpochMillis = plusPointsDateToUnixMillis(exam["dAtEaTtr:date"] as? Number),
+        semester = semester
     )
 }
 
@@ -223,6 +255,20 @@ private fun detectOptionChoice(subjectMaps: List<*>): InitialOptionChoice {
         detectOptionChoiceFromName(name)?.let { return it }
     }
     return InitialOptionChoice.OTHER
+}
+
+private fun detectPlusPointsSourceSemesterFromXml(xml: String): SchoolSemester? {
+    val root = parsePlistRoot(xml)
+    val data = root["data"] as? Map<*, *> ?: return null
+    return detectPlusPointsSourceSemester(data["name"] as? String)
+}
+
+private fun detectPlusPointsSourceSemester(rawName: String?): SchoolSemester? {
+    return when (normalizeKey(rawName)) {
+        "semestre 1", "semester 1", "s1" -> SchoolSemester.SEMESTER_1
+        "semestre 2", "semester 2", "s2" -> SchoolSemester.SEMESTER_2
+        else -> null
+    }
 }
 
 private fun isOptionSubjectName(name: String): Boolean {
@@ -322,7 +368,8 @@ private fun parsePlistRoot(xml: String): Map<String, Any?> {
     val plist = document.documentElement
     val firstElement = plist.childNodes.asElementSequence().firstOrNull()
         ?: throw IllegalStateException("Invalid plist file.")
-    return parsePlistNode(firstElement) as? Map<String, Any?> ?: throw IllegalStateException("Invalid plist root.")
+    return parsePlistNode(firstElement).asStringKeyedMap()
+        ?: throw IllegalStateException("Invalid plist root.")
 }
 
 private fun parsePlistNode(node: Element): Any? {
@@ -353,6 +400,13 @@ private fun parseDict(node: Element): Map<String, Any?> {
         index += 2
     }
     return result
+}
+
+private fun Any?.asStringKeyedMap(): Map<String, Any?>? {
+    val rawMap = this as? Map<*, *> ?: return null
+    if (rawMap.keys.any { it !is String }) return null
+    @Suppress("UNCHECKED_CAST")
+    return rawMap as Map<String, Any?>
 }
 
 private fun org.w3c.dom.NodeList.asElementSequence(): Sequence<Element> = sequence {

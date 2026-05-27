@@ -82,4 +82,45 @@ class GradeTrackerRepositorySerializationInstrumentedTest {
 
         assertTrue(restored.subjects.single().notes.single().attachments.isEmpty())
     }
+
+    @Test
+    fun decode_withoutSemester_defaultsToSemester1() {
+        val serialized = """
+            {
+              "selectedOption":"SPANISH",
+              "nextSubjectSequence":2,
+              "nextNoteSequence":2,
+              "language":"FRENCH",
+              "themeMode":"SYSTEM",
+              "subjects":[
+                {
+                  "id":"subject-1",
+                  "name":"Spanish",
+                  "isCounted":true,
+                  "isInBasket":true,
+                  "isOptionSubject":true,
+                  "optionChoice":"SPANISH",
+                  "subjectColor":"BLUE",
+                  "subjectIcon":"BOOK",
+                  "notes":[
+                    {
+                      "id":"note-1",
+                      "value":5.0,
+                      "weight":"FULL",
+                      "description":"Legacy",
+                      "createdAtEpochMillis":1000,
+                      "attachments":[]
+                    }
+                  ],
+                  "subSubjects":[]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val restored = decodeGradeTrackerAppState(serialized)
+
+        assertEquals(SchoolSemester.SEMESTER_1, restored.selectedSemester)
+        assertEquals(SchoolSemester.SEMESTER_1, restored.subjects.single().notes.single().semester)
+    }
 }

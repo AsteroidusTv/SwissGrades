@@ -21,6 +21,17 @@ enum class AppThemeMode {
     DARK
 }
 
+enum class SchoolSemester {
+    SEMESTER_1,
+    SEMESTER_2
+}
+
+enum class SchoolYear {
+    YEAR_1,
+    YEAR_2,
+    YEAR_3
+}
+
 enum class InitialOptionChoice(
     val label: String,
     val optionType: OptionType?,
@@ -76,6 +87,7 @@ data class StoredNote(
     val weight: AssessmentWeight,
     val description: String,
     val createdAtEpochMillis: Long,
+    val semester: SchoolSemester = SchoolSemester.SEMESTER_1,
     val attachments: List<StoredAttachment> = emptyList()
 )
 
@@ -115,6 +127,7 @@ enum class SubjectIconChoice {
 data class StoredSubject(
     val id: String,
     val name: String,
+    val schoolYear: SchoolYear = SchoolYear.YEAR_1,
     val isCounted: Boolean = true,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean = false,
@@ -130,6 +143,8 @@ data class GradeTrackerAppState(
     val subjects: List<StoredSubject> = emptyList(),
     val nextSubjectSequence: Int = 1,
     val nextNoteSequence: Int = 1,
+    val selectedYear: SchoolYear = SchoolYear.YEAR_1,
+    val selectedSemester: SchoolSemester = SchoolSemester.SEMESTER_1,
     val language: AppLanguage = AppLanguage.FRENCH,
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM
 ) {
@@ -176,6 +191,7 @@ internal fun GradeTrackerAppState.encodeToJsonString(): String {
         val subjectJson = JSONObject()
             .put("id", subject.id)
             .put("name", subject.name)
+            .put("schoolYear", subject.schoolYear.name)
             .put("isCounted", subject.isCounted)
             .put("isInBasket", subject.isInBasket)
             .put("isOptionSubject", subject.isOptionSubject)
@@ -209,6 +225,8 @@ internal fun GradeTrackerAppState.encodeToJsonString(): String {
         .put("selectedOption", selectedOption?.name)
         .put("nextSubjectSequence", nextSubjectSequence)
         .put("nextNoteSequence", nextNoteSequence)
+        .put("selectedYear", selectedYear.name)
+        .put("selectedSemester", selectedSemester.name)
         .put("language", language.name)
         .put("themeMode", themeMode.name)
         .put("subjects", subjectsJson)
@@ -252,6 +270,10 @@ internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAp
                 StoredSubject(
                     id = subjectJson.getString("id"),
                     name = subjectJson.getString("name"),
+                    schoolYear = subjectJson.optString("schoolYear")
+                        .takeIf { it.isNotBlank() }
+                        ?.toEnumOrNull<SchoolYear>()
+                        ?: SchoolYear.YEAR_1,
                     isCounted = subjectJson.optBoolean("isCounted", true),
                     isInBasket = subjectJson.optBoolean("isInBasket", false),
                     isOptionSubject = subjectJson.optBoolean("isOptionSubject", false),
@@ -283,6 +305,14 @@ internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAp
             "nextNoteSequence",
             subjects.sumOf { it.notes.size + it.subSubjects.sumOf { sub -> sub.notes.size } } + 1
         ),
+        selectedYear = root.optString("selectedYear")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<SchoolYear>()
+            ?: SchoolYear.YEAR_1,
+        selectedSemester = root.optString("selectedSemester")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<SchoolSemester>()
+            ?: SchoolSemester.SEMESTER_1,
         language = root.optString("language")
             .takeIf { it.isNotBlank() }
             ?.toEnumOrNull<AppLanguage>()
@@ -301,6 +331,7 @@ private fun StoredNote.toJson(): JSONObject {
         .put("weight", weight.name)
         .put("description", description)
         .put("createdAtEpochMillis", createdAtEpochMillis)
+        .put("semester", semester.name)
         .put(
             "attachments",
             JSONArray().apply {
@@ -322,6 +353,10 @@ private fun JSONObject.toStoredNote(): StoredNote {
         weight = getString("weight").toEnumOrNull<AssessmentWeight>() ?: AssessmentWeight.FULL,
         description = optString("description"),
         createdAtEpochMillis = optLong("createdAtEpochMillis", 0L),
+        semester = optString("semester")
+            .takeIf { it.isNotBlank() }
+            ?.toEnumOrNull<SchoolSemester>()
+            ?: SchoolSemester.SEMESTER_1,
         attachments = buildList {
             val attachmentsJson = optJSONArray("attachments") ?: JSONArray()
             for (index in 0 until attachmentsJson.length()) {

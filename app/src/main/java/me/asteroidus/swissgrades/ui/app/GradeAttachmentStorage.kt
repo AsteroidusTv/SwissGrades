@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -56,7 +57,7 @@ class LocalGradeAttachmentStorage(
     private val notesDirectory = GradeAttachmentPaths.notesDirectory(context.filesDir)
 
     override fun stageImportedAttachment(sourceUriString: String): DraftAttachment? {
-        val sourceUri = Uri.parse(sourceUriString)
+        val sourceUri = sourceUriString.toUri()
         val attachmentId = nextAttachmentId()
         val extension = resolveFileExtension(sourceUri) ?: "jpg"
         val targetFile = createStagedFile(attachmentId, extension)

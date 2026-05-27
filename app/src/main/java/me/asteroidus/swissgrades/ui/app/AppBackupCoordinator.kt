@@ -3,6 +3,7 @@ package me.asteroidus.swissgrades.ui.app
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.core.net.toUri
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
@@ -46,7 +47,7 @@ class LocalAppBackupCoordinator(
     }
 
     override fun exportBackup(state: GradeTrackerAppState, destinationUriString: String) {
-        val destinationUri = Uri.parse(destinationUriString)
+        val destinationUri = destinationUriString.toUri()
         context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
             ZipOutputStream(outputStream).use { zipOutputStream ->
                 writeBackupArchive(zipOutputStream, state)
@@ -55,7 +56,7 @@ class LocalAppBackupCoordinator(
     }
 
     override fun prepareImport(sourceUriString: String): PreparedBackupImport {
-        val sourceUri = Uri.parse(sourceUriString)
+        val sourceUri = sourceUriString.toUri()
         val workingDirectory = File(context.cacheDir, "prepared-backup-import-${UUID.randomUUID()}").apply {
             mkdirs()
         }

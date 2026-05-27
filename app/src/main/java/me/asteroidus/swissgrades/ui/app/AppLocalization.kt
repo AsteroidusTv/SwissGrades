@@ -43,6 +43,16 @@ data class AppStrings(
     val optionSectionTitle: String,
     val optionSectionDescriptionPrefix: String,
     val optionSectionDescriptionSuffix: String,
+    val periodTitle: String,
+    val choosePeriodTitle: String,
+    val schoolYearTitle: String,
+    val schoolYear1Label: String,
+    val schoolYear2Label: String,
+    val schoolYear3Label: String,
+    val semesterTitle: String,
+    val semester1Label: String,
+    val semester2Label: String,
+    val plusPointsTargetSemesterTitle: String,
     val darkModeSystem: String,
     val darkModeLight: String,
     val darkModeDark: String,
@@ -198,6 +208,25 @@ data class AppStrings(
         }
     }
 
+    fun semesterLabel(semester: SchoolSemester): String {
+        return when (semester) {
+            SchoolSemester.SEMESTER_1 -> semester1Label
+            SchoolSemester.SEMESTER_2 -> semester2Label
+        }
+    }
+
+    fun schoolYearLabel(year: SchoolYear): String {
+        return when (year) {
+            SchoolYear.YEAR_1 -> schoolYear1Label
+            SchoolYear.YEAR_2 -> schoolYear2Label
+            SchoolYear.YEAR_3 -> schoolYear3Label
+        }
+    }
+
+    fun periodLabel(year: SchoolYear, semester: SchoolSemester): String {
+        return "${schoolYearLabel(year)} · ${semesterLabel(semester)}"
+    }
+
     companion object {
         val English = AppStrings(
             appName = "SwissGrades",
@@ -219,7 +248,7 @@ data class AppStrings(
             importBackupLabel = "Import backup",
             importPlusPointsLabel = "Import PlusPoints",
             plusPointsImportTitle = "Import PlusPoints data?",
-            plusPointsImportMessageTemplate = "Import {file} from PlusPoints and replace your current subjects and grades? Your language and theme stay unchanged. Photos attached to replaced SwissGrades grades will be removed.",
+            plusPointsImportMessageTemplate = "Import {file} from PlusPoints and replace the notes in the selected semester? Your language and theme stay unchanged. Photos attached to replaced SwissGrades grades from that semester will be removed.",
             plusPointsImportConfirm = "Import data",
             plusPointsImportSuccess = "PlusPoints data imported successfully.",
             plusPointsImportFailure = "Could not import this PlusPoints file.",
@@ -234,6 +263,16 @@ data class AppStrings(
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Current option: ",
             optionSectionDescriptionSuffix = ". Changing it updates your Option subject directly.",
+            periodTitle = "Period",
+            choosePeriodTitle = "Choose a period",
+            schoolYearTitle = "School year",
+            schoolYear1Label = "First year",
+            schoolYear2Label = "Second year",
+            schoolYear3Label = "Third year",
+            semesterTitle = "Semester",
+            semester1Label = "Semester 1",
+            semester2Label = "Semester 2",
+            plusPointsTargetSemesterTitle = "Import into semester",
             darkModeSystem = "Auto",
             darkModeLight = "Light",
             darkModeDark = "Dark",
@@ -346,7 +385,7 @@ data class AppStrings(
             importBackupLabel = "Importer une sauvegarde",
             importPlusPointsLabel = "Importer PlusPoints",
             plusPointsImportTitle = "Importer des données PlusPoints ?",
-            plusPointsImportMessageTemplate = "Importer {file} depuis PlusPoints et remplacer tes branches et notes actuelles ? La langue et le thème restent inchangés. Les photos liées aux notes SwissGrades remplacées seront supprimées.",
+            plusPointsImportMessageTemplate = "Importer {file} depuis PlusPoints et remplacer les notes du semestre choisi ? La langue et le thème restent inchangés. Les photos liées aux notes SwissGrades remplacées de ce semestre seront supprimées.",
             plusPointsImportConfirm = "Importer les données",
             plusPointsImportSuccess = "Données PlusPoints importées avec succès.",
             plusPointsImportFailure = "Impossible d'importer ce fichier PlusPoints.",
@@ -361,6 +400,16 @@ data class AppStrings(
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Option actuelle : ",
             optionSectionDescriptionSuffix = ". La changer met à jour directement ta branche Option.",
+            periodTitle = "Période",
+            choosePeriodTitle = "Choisir une période",
+            schoolYearTitle = "Année scolaire",
+            schoolYear1Label = "Première année",
+            schoolYear2Label = "Deuxième année",
+            schoolYear3Label = "Troisième année",
+            semesterTitle = "Semestre",
+            semester1Label = "Semestre 1",
+            semester2Label = "Semestre 2",
+            plusPointsTargetSemesterTitle = "Importer dans le semestre",
             darkModeSystem = "Auto",
             darkModeLight = "Clair",
             darkModeDark = "Sombre",

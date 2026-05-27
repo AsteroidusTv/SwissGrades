@@ -290,4 +290,57 @@ class PlusPointsImportCoordinatorTest {
         assertEquals("Vocabulaire", option.notes.single().description)
         assertEquals(5.25, option.notes.single().value, 0.0001)
     }
+
+    @Test
+    fun parsePlusPointsExport_detectsSemesterFromRootName() {
+        val importedState = parsePlusPointsExport(
+            """
+            <plist version="1.0">
+              <dict>
+                <key>data</key>
+                <dict>
+                  <key>class</key>
+                  <string>Semester</string>
+                  <key>name</key>
+                  <string>Semestre 2</string>
+                  <key>subjects</key>
+                  <array>
+                    <dict>
+                      <key>class</key>
+                      <string>Subject</string>
+                      <key>name</key>
+                      <string>Allemand</string>
+                      <key>counted</key>
+                      <integer>1</integer>
+                      <key>exams</key>
+                      <array>
+                        <dict>
+                          <key>class</key>
+                          <string>Exam</string>
+                          <key>name</key>
+                          <string>Vocabulaire</string>
+                          <key>counted</key>
+                          <integer>1</integer>
+                          <key>mark</key>
+                          <real>5.25</real>
+                          <key>weight</key>
+                          <string>1</string>
+                          <key>dAtEaTtr:date</key>
+                          <real>7.9e+08</real>
+                          <key>exams</key>
+                          <array/>
+                        </dict>
+                      </array>
+                    </dict>
+                  </array>
+                </dict>
+              </dict>
+            </plist>
+            """.trimIndent()
+        )
+
+        val note = importedState.subjects.first { !it.isOptionSubject }.notes.single()
+        assertEquals(SchoolSemester.SEMESTER_2, importedState.selectedSemester)
+        assertEquals(SchoolSemester.SEMESTER_2, note.semester)
+    }
 }
