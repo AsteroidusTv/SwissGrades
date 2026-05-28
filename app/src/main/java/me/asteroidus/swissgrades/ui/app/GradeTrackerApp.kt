@@ -829,7 +829,7 @@ private fun PeriodSummaryButton(
                 colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
             ) {
                 Box(
-                    modifier = Modifier.size(52.dp),
+                    modifier = Modifier.size(56.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -841,7 +841,7 @@ private fun PeriodSummaryButton(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = strings.schoolYearLabel(selectedYear),
@@ -2381,62 +2381,108 @@ private fun CompositeSubSubjectSelectorCard(
         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
                 text = strings.subSubjectsTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
-            detail.subSubjects.forEach { subSubject ->
+            detail.subSubjects.forEachIndexed { index, subSubject ->
                 val isSelected = subSubject.id == activeSubSubject?.id
+                val subtitle = if (subSubject.internalAverageLabel == strings.emptyNotes) {
+                    strings.emptyNotes
+                } else {
+                    "${strings.averagePrefix} ${subSubject.internalAverageLabel}"
+                }
                 OutlinedCard(
                     onClick = { onSelectedSubSubjectChanged(subSubject.id) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("select-sub-subject-${subSubject.id}"),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(22.dp),
                     border = BorderStroke(
                         if (isSelected) 2.dp else 1.dp,
                         if (isSelected) accentBlue else appCardBorderColor()
                     ),
-                    colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = if (isSelected) accentBlue.copy(alpha = 0.14f) else appCardSurface()
+                    )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp, vertical = 15.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = subSubject.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.testTag("sub-subject-name-${subSubject.id}")
-                            )
-                            val subtitle = if (subSubject.internalAverageLabel == strings.emptyNotes) {
-                                strings.emptyNotes
-                            } else {
-                                "${strings.averagePrefix} ${subSubject.internalAverageLabel}"
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) accentBlue else appNeutralBackground()
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = (index + 1).toString(),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = subSubject.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.testTag("sub-subject-name-${subSubject.id}"),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                            Text(
-                                text = subtitle,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.testTag("sub-subject-average-${subSubject.id}")
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) accentBlue else appNeutralBackground(),
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(appCardBorderColor())
+                                        )
+                                    }
+                                }
+                            }
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) accentBlue else appCardBorderColor())
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("sub-subject-average-${subSubject.id}")
                         )
                     }
                 }

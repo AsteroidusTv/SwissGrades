@@ -175,6 +175,12 @@ Automatic pushes create prereleases so the repository can always expose the late
 
 `ANDROID_KEYSTORE_BASE64` must contain the base64-encoded contents of your Android signing keystore.
 
+### Optional GitHub Secret
+
+- `RELEASE_TOKEN`
+
+`RELEASE_TOKEN` is only needed when the workflow must push tags or create releases with a token that has broader permissions than the default GitHub Actions token.
+
 ## Current state
 
 SwissGrades already has a usable first version of the student workflow, with local persistence, editable subjects, editable grades, and automated validation in CI.
