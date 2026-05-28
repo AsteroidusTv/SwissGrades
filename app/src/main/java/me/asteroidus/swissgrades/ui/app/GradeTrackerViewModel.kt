@@ -876,8 +876,9 @@ class GradeTrackerViewModel(
             publish()
             return
         }
+        val normalizedValueInput = normalizeGradeInput(draft.valueInput)
         val grade = Grade(
-            value = draft.valueInput.trim().toDouble(),
+            value = normalizedValueInput.toDouble(),
             weight = draft.selectedType.weight
         )
         val editingNoteId = draft.editingNoteId
@@ -1261,7 +1262,7 @@ class GradeTrackerViewModel(
     }
 
     private fun validateDraftValue(input: String): String? {
-        val normalized = input.trim()
+        val normalized = normalizeGradeInput(input)
         if (normalized.isEmpty()) {
             return strings.invalidGradeValue
         }
@@ -1272,6 +1273,10 @@ class GradeTrackerViewModel(
         } catch (_: IllegalArgumentException) {
             strings.invalidGradeValue
         }
+    }
+
+    private fun normalizeGradeInput(input: String): String {
+        return input.trim().replace(',', '.')
     }
 
     private fun persistAndPublish() {

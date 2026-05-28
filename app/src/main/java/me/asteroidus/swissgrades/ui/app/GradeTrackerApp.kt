@@ -79,10 +79,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -606,7 +611,11 @@ private fun OnboardingOptionCard(
 
     OutlinedCard(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics {
+            selected = isSelected
+            role = Role.RadioButton
+            contentDescription = choice.label
+        },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = if (isSelected) selectedContainer else MaterialTheme.colorScheme.surface
@@ -897,6 +906,11 @@ private fun SemesterSwitcher(
                 onClick = { onSelectSemester(semester) },
                 modifier = Modifier
                     .weight(1f)
+                    .semantics {
+                        selected = isSelected
+                        role = Role.RadioButton
+                        contentDescription = strings.semesterLabel(semester)
+                    }
                     .testTag("semester-${semester.name}"),
                 shape = RoundedCornerShape(20.dp),
                 border = BorderStroke(
@@ -1051,6 +1065,7 @@ private fun PeriodYearSelector(
     selectedYear: SchoolYear,
     onSelectYear: (SchoolYear) -> Unit
 ) {
+    val strings = currentAppStrings()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1061,6 +1076,11 @@ private fun PeriodYearSelector(
                 onClick = { onSelectYear(year) },
                 modifier = Modifier
                     .weight(1f)
+                    .semantics {
+                        this.selected = selected
+                        role = Role.RadioButton
+                        contentDescription = strings.schoolYearLabel(year)
+                    }
                     .testTag("period-year-${year.name}"),
                 shape = RoundedCornerShape(20.dp),
                 color = if (selected) appSelectedOptionContainer() else Color.Transparent,
@@ -1108,6 +1128,11 @@ private fun PeriodSemesterSelector(
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .semantics {
+                            this.selected = selected
+                            role = Role.RadioButton
+                            contentDescription = strings.semesterLabel(semester)
+                        }
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (selected) appAccentBlue() else Color.Transparent)
                         .clickable(role = Role.Button) { onSelectSemester(semester) }
@@ -1820,39 +1845,51 @@ private fun ColorChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
     val chipColor = colorChoice.toColor(isDarkPalette())
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .testTag("subject-color-${colorChoice.name}"),
+            .semantics {
+                selected = isSelected
+                role = Role.RadioButton
+                contentDescription = language.colorChoiceLabel(colorChoice)
+            },
         contentAlignment = Alignment.Center
     ) {
-        Card(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(2.dp),
-            shape = CircleShape,
-            border = BorderStroke(
-                if (isSelected) 2.dp else 0.dp,
-                MaterialTheme.colorScheme.surface
-            ),
-            colors = CardDefaults.cardColors(
-                containerColor = chipColor
-            )
-        ) {}
+                .clip(CircleShape)
+                .clickable(onClick = onClick, role = Role.RadioButton)
+            .testTag("subject-color-${colorChoice.name}"),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(3.dp),
+                shape = CircleShape,
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 0.dp,
+                    MaterialTheme.colorScheme.surface
+                ),
+                colors = CardDefaults.cardColors(
+                    containerColor = chipColor
+                )
+            ) {}
+        }
 
         if (isSelected) {
             Card(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(28.dp),
+                    .padding(4.dp)
+                    .size(28.dp)
+                    .zIndex(1f),
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -1860,9 +1897,9 @@ private fun ColorChoiceChip(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = strings.selectedColorDescription,
+                        contentDescription = null,
                         tint = chipColor,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
@@ -1878,10 +1915,16 @@ private fun IconChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val language = LocalAppLanguage.current
     Card(
         modifier = modifier
             .height(72.dp)
-            .clickable(onClick = onClick)
+            .semantics {
+                selected = isSelected
+                role = Role.RadioButton
+                contentDescription = language.iconChoiceLabel(iconChoice)
+            }
+            .clickable(onClick = onClick, role = Role.RadioButton)
             .testTag("subject-icon-${iconChoice.name}"),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
@@ -2400,6 +2443,11 @@ private fun CompositeSubSubjectSelectorCard(
                     onClick = { onSelectedSubSubjectChanged(subSubject.id) },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .semantics {
+                            selected = isSelected
+                            role = Role.RadioButton
+                            contentDescription = subSubject.name
+                        }
                         .testTag("select-sub-subject-${subSubject.id}"),
                     shape = RoundedCornerShape(22.dp),
                     border = BorderStroke(
@@ -2418,7 +2466,6 @@ private fun CompositeSubSubjectSelectorCard(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
@@ -2450,32 +2497,6 @@ private fun CompositeSubSubjectSelectorCard(
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isSelected) accentBlue else appNeutralBackground(),
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(appCardBorderColor())
-                                        )
-                                    }
-                                }
                             }
                         }
                         Text(
@@ -2662,6 +2683,11 @@ private fun AddGradeSheetContent(
                     onClick = { onDraftTypeChanged(type) },
                     modifier = Modifier
                         .weight(1f)
+                        .semantics {
+                            selected = isSelected
+                            role = Role.RadioButton
+                            contentDescription = strings.noteTypeLabel(type.weight)
+                        }
                         .testTag("note-type-${type.name}"),
                     shape = RoundedCornerShape(18.dp),
                     border = BorderStroke(
@@ -2828,7 +2854,7 @@ private fun DraftAttachmentChip(
         ) {
             AsyncImage(
                 model = File(attachment.filePath),
-                contentDescription = null,
+                contentDescription = currentAppStrings().attachedPhotosTitle,
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(onClick = onPreview),
@@ -2840,7 +2866,7 @@ private fun DraftAttachmentChip(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = 2.dp)
-                .size(34.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
                 .clickable(onClick = onRemove, role = Role.Button)
@@ -3530,7 +3556,13 @@ private fun SettingsChoiceCard(
 ) {
     OutlinedCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                this.selected = selected
+                role = Role.RadioButton
+                contentDescription = title
+            },
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(
             if (selected) 2.dp else 1.dp,
@@ -3570,7 +3602,7 @@ private fun HeaderBackButton(
     val strings = currentAppStrings()
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(
                 onClick = onClick,
@@ -3593,7 +3625,7 @@ private fun HeaderActionButton(
 ) {
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(
                 onClick = onClick,

@@ -1,6 +1,7 @@
 package me.asteroidus.swissgrades.ui.simulation
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,9 +19,9 @@ class SharedPreferencesSimulationEditorPersistence(
     }
 
     override fun save(state: PersistedSimulationEditorState) {
-        sharedPreferences.edit()
-            .putString(KEY_EDITOR_STATE, encode(state))
-            .apply()
+        sharedPreferences.edit {
+            putString(KEY_EDITOR_STATE, encode(state))
+        }
     }
 
     private fun encode(state: PersistedSimulationEditorState): String {

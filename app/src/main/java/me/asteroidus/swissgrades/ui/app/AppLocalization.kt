@@ -451,7 +451,7 @@ data class AppStrings(
             evaluationSingular = "évaluation",
             evaluationPlural = "évaluations",
             gradeValueLabel = "Valeur de la note",
-            gradeValuePlaceholder = "Ex : 5.5",
+            gradeValuePlaceholder = "Ex : 5,5",
             descriptionOptional = "Description (optionnelle)",
             attachmentsTitle = "Photos de l'examen",
             addPhotoLabel = "Ajouter une photo",
@@ -480,7 +480,7 @@ data class AppStrings(
             deleteSubjectActionTemplate = "Supprimer {subject}",
             gradeFallbackDescription = "cette note",
             emptyNotes = "Aucune note pour l'instant",
-            invalidGradeValue = "Entre une note de 1.0 à 6.0 par pas de 0.25.",
+            invalidGradeValue = "Entre une note de 1,0 à 6,0 par pas de 0,25.",
             emptySubjectName = "Entre un nom de branche.",
             duplicateSubjectName = "Cette branche existe déjà.",
             rawAverage = "Moyenne brute",
@@ -548,6 +548,68 @@ fun AppLanguage.optionCategoryLabel(choice: InitialOptionChoice): String {
             InitialOptionChoice.VISUAL_ARTS -> "Arts"
             InitialOptionChoice.PHILOSOPHY -> "Sciences humaines"
             InitialOptionChoice.OTHER -> "Option personnalisée"
+        }
+    }
+}
+
+fun AppLanguage.colorChoiceLabel(choice: SubjectColorChoice): String {
+    return when (this) {
+        AppLanguage.ENGLISH -> when (choice) {
+            SubjectColorChoice.BLUE -> "Blue"
+            SubjectColorChoice.RED -> "Red"
+            SubjectColorChoice.TEAL -> "Teal"
+            SubjectColorChoice.SLATE -> "Slate"
+            SubjectColorChoice.PURPLE -> "Purple"
+            SubjectColorChoice.PINK -> "Pink"
+            SubjectColorChoice.GREEN -> "Green"
+            SubjectColorChoice.AMBER -> "Amber"
+            SubjectColorChoice.ORANGE -> "Orange"
+        }
+
+        AppLanguage.FRENCH -> when (choice) {
+            SubjectColorChoice.BLUE -> "Bleu"
+            SubjectColorChoice.RED -> "Rouge"
+            SubjectColorChoice.TEAL -> "Turquoise"
+            SubjectColorChoice.SLATE -> "Ardoise"
+            SubjectColorChoice.PURPLE -> "Violet"
+            SubjectColorChoice.PINK -> "Rose"
+            SubjectColorChoice.GREEN -> "Vert"
+            SubjectColorChoice.AMBER -> "Ambre"
+            SubjectColorChoice.ORANGE -> "Orange"
+        }
+    }
+}
+
+fun AppLanguage.iconChoiceLabel(choice: SubjectIconChoice): String {
+    return when (this) {
+        AppLanguage.ENGLISH -> when (choice) {
+            SubjectIconChoice.BOOK -> "Book"
+            SubjectIconChoice.SCIENCE -> "Science"
+            SubjectIconChoice.LANGUAGE -> "Language"
+            SubjectIconChoice.MUSIC -> "Music"
+            SubjectIconChoice.ART -> "Art"
+            SubjectIconChoice.MIND -> "Mind"
+            SubjectIconChoice.BALANCE -> "Balance"
+            SubjectIconChoice.CATEGORY -> "Category"
+            SubjectIconChoice.HISTORY -> "History"
+            SubjectIconChoice.MATH -> "Math"
+            SubjectIconChoice.WORLD -> "World"
+            SubjectIconChoice.SPORT -> "Sport"
+        }
+
+        AppLanguage.FRENCH -> when (choice) {
+            SubjectIconChoice.BOOK -> "Livre"
+            SubjectIconChoice.SCIENCE -> "Science"
+            SubjectIconChoice.LANGUAGE -> "Langue"
+            SubjectIconChoice.MUSIC -> "Musique"
+            SubjectIconChoice.ART -> "Art"
+            SubjectIconChoice.MIND -> "Esprit"
+            SubjectIconChoice.BALANCE -> "Balance"
+            SubjectIconChoice.CATEGORY -> "Catégorie"
+            SubjectIconChoice.HISTORY -> "Histoire"
+            SubjectIconChoice.MATH -> "Mathématiques"
+            SubjectIconChoice.WORLD -> "Monde"
+            SubjectIconChoice.SPORT -> "Sport"
         }
     }
 }
