@@ -49,7 +49,8 @@ enum class InitialOptionChoice(
     ),
     ECONOMICS_LAW(
         label = "Economics-Law",
-        optionType = OptionType.ECONOMICS_LAW
+        optionType = OptionType.ECONOMICS_AND_LAW,
+        compositeSubSubjectNames = listOf("Economics", "Law")
     ),
     SPANISH(
         label = "Spanish",

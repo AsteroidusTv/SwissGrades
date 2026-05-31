@@ -418,13 +418,18 @@ private fun OnboardingScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = AppScreenHorizontalPadding,
+                top = AppScreenTopPadding,
+                end = AppScreenHorizontalPadding,
+                bottom = AppScreenBottomPadding
+            ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, bottom = 16.dp),
+                .padding(bottom = AppScreenBottomPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
@@ -514,13 +519,14 @@ private fun OnboardingOptionCard(
     val idleBadgeTint = appIdleBadgeTint()
     val selectedBadgeTint = Color.White
     val selectedSecondaryText = appAccentBlue()
+    val optionLabel = language.optionChoiceLabel(choice)
 
     OutlinedCard(
         onClick = onClick,
         modifier = modifier.semantics {
             selected = isSelected
             role = Role.RadioButton
-            contentDescription = choice.label
+            contentDescription = optionLabel
         },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.outlinedCardColors(
@@ -568,7 +574,7 @@ private fun OnboardingOptionCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = choice.label,
+                    text = optionLabel,
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -622,7 +628,12 @@ private fun MainScreen(
     }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(
+            start = AppScreenHorizontalPadding,
+            top = AppScreenTopPadding,
+            end = AppScreenHorizontalPadding,
+            bottom = AppScreenListBottomPadding
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -863,7 +874,12 @@ private fun PeriodPickerScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = AppScreenHorizontalPadding,
+                top = AppScreenTopPadding,
+                end = AppScreenHorizontalPadding,
+                bottom = AppScreenBottomPadding
+            ),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         Row(
@@ -1092,29 +1108,35 @@ private fun SwipeableSubjectCard(
         modifier = Modifier.testTag("swipe-subject-${subject.id}"),
         enableDismissFromEndToStart = false,
         backgroundContent = {
-            Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .testTag("delete-subject-${subject.id}"),
-                shape = DashboardCardShape,
-                colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
-            ) {
-                Box(
+            if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                Card(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 22.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .testTag("delete-subject-${subject.id}"),
+                    shape = DashboardCardShape,
+                    colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = strings.deleteSubjectActionTemplate.replace("{subject}", subject.title),
-                        tint = Color.White
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 22.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = strings.deleteSubjectActionTemplate.replace("{subject}", subject.title),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
     ) {
-        SubjectCard(subject = subject, onOpenSubject = onOpenSubject)
+        SubjectCard(
+            subject = subject,
+            onOpenSubject = onOpenSubject,
+            modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
+        )
     }
 }
 
@@ -1384,12 +1406,18 @@ private fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
     var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = AppScreenHorizontalPadding,
+                top = AppScreenTopPadding,
+                end = AppScreenHorizontalPadding,
+                bottom = AppScreenBottomPadding
+            ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(
@@ -1520,7 +1548,7 @@ private fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = strings.optionDescription(settings.selectedOption.label),
+                text = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption)),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

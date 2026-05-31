@@ -2,6 +2,7 @@ package me.asteroidus.swissgrades.ui.app
 
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.compose.animation.animateContentSize
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -90,7 +92,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import me.asteroidus.swissgrades.domain.GradeCalculator
 import java.io.File
+import java.util.Locale
+import kotlin.math.ceil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,8 +173,13 @@ fun BranchDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .testTag("branch-detail-list")
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 84.dp),
+                .testTag("branch-detail-list"),
+            contentPadding = PaddingValues(
+                start = AppScreenHorizontalPadding,
+                top = AppScreenTopPadding,
+                end = AppScreenHorizontalPadding,
+                bottom = 84.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -187,6 +197,13 @@ fun BranchDetailScreen(
                     accentBlue = accentBlue,
                     onBlueSupport = onBlueSupport,
                     statusLabelColor = statusLabelColor
+                )
+            }
+
+            item {
+                TargetSimulationCard(
+                    notes = visibleNotes,
+                    accentBlue = accentBlue
                 )
             }
 
@@ -254,8 +271,8 @@ fun BranchDetailScreen(
             onClick = onShowAddNoteSheet,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .padding(start = AppScreenHorizontalPadding, end = AppScreenHorizontalPadding, bottom = 12.dp)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .testTag("show-add-note-sheet"),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
@@ -557,6 +574,261 @@ private fun BranchDetailSummaryCard(
                     fontWeight = FontWeight.Bold,
                     maxLines = 2
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TargetSimulationCard(
+    notes: List<NoteUiState>,
+    accentBlue: Color
+) {
+    val strings = currentAppStrings()
+    val warningRed = appWarningColor()
+    val positiveGreen = appPositiveColor()
+    var isExpanded by remember { mutableStateOf(false) }
+    val openInteractionSource = remember { MutableInteractionSource() }
+    val closeInteractionSource = remember { MutableInteractionSource() }
+    var targetInput by remember { mutableStateOf("5.0") }
+    var nextTestType by remember { mutableStateOf(NoteTypeUi.FULL) }
+    val result = remember(notes, targetInput, nextTestType) {
+        computeTargetSimulation(
+            notes = notes,
+            targetInput = targetInput,
+            nextTestType = nextTestType
+        )
+    }
+    val resultTone = when (result) {
+        TargetSimulationResult.Invalid,
+        TargetSimulationResult.Impossible -> warningRed
+        TargetSimulationResult.AlreadyReached -> positiveGreen
+        is TargetSimulationResult.Required -> accentBlue
+    }
+
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .then(
+                if (isExpanded) {
+                    Modifier
+                } else {
+                    Modifier.clickable(
+                        interactionSource = openInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = { isExpanded = true }
+                    )
+                }
+            )
+            .testTag(if (isExpanded) "target-simulation-card" else "show-target-simulation-card"),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.targetSimulationTitle,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (isExpanded) {
+                    Box(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable(
+                                interactionSource = closeInteractionSource,
+                                indication = null,
+                                role = Role.Button,
+                                onClick = { isExpanded = false }
+                            )
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = strings.closeLabel,
+                            color = accentBlue,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier.size(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = accentBlue
+                        )
+                    }
+                }
+            }
+
+            if (!isExpanded) return@Column
+
+            Text(
+                text = strings.targetSimulationSubtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = strings.targetAverageLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold
+                )
+                OutlinedTextField(
+                    value = targetInput,
+                    onValueChange = { targetInput = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(76.dp)
+                        .testTag("target-average-input"),
+                    placeholder = { Text("5.0") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = result == TargetSimulationResult.Invalid,
+                    shape = RoundedCornerShape(20.dp),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = appCardBorderColor(),
+                        unfocusedBorderColor = appCardBorderColor(),
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+                        focusedContainerColor = appNeutralBackground(),
+                        unfocusedContainerColor = appNeutralBackground(),
+                        errorContainerColor = appNeutralBackground(),
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = strings.nextTestWeightTitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    NoteTypeUi.entries.forEach { type ->
+                        val isSelected = nextTestType == type
+                        OutlinedCard(
+                            onClick = { nextTestType = type },
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics {
+                                    selected = isSelected
+                                    role = Role.RadioButton
+                                    contentDescription = strings.noteTypeLabel(type.weight)
+                                }
+                                .testTag("target-note-type-${type.name}"),
+                            shape = RoundedCornerShape(18.dp),
+                            border = BorderStroke(
+                                if (isSelected) 2.dp else 1.dp,
+                                if (isSelected) accentBlue else appCardBorderColor()
+                            ),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = if (isSelected) {
+                                    appSoftAccentContainer()
+                                } else {
+                                    appNeutralBackground()
+                                }
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 13.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = strings.noteTypeLabel(type.weight),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("target-simulation-result"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = resultTone.copy(alpha = 0.14f)),
+                border = BorderStroke(1.dp, resultTone.copy(alpha = 0.36f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = strings.requiredGradeTitle,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                    when (result) {
+                        TargetSimulationResult.Invalid -> Text(
+                            text = strings.targetInvalid,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = resultTone,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        TargetSimulationResult.AlreadyReached -> Text(
+                            text = strings.targetAlreadyReached,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = resultTone,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        TargetSimulationResult.Impossible -> Text(
+                            text = strings.targetImpossible,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = resultTone,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        is TargetSimulationResult.Required -> {
+                            Text(
+                                text = result.requiredGradeLabel,
+                                style = MaterialTheme.typography.displaySmall,
+                                color = resultTone,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = strings.targetProjectedAverage(result.projectedAverageLabel),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1200,7 +1472,7 @@ private fun AttachmentViewerDialog(
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 16.dp, end = 16.dp)
+                    .padding(top = AppScreenTopPadding, end = AppScreenHorizontalPadding)
                     .testTag("attachment-viewer-close")
             ) {
                 Icon(
@@ -1245,31 +1517,34 @@ private fun SwipeableNoteHistoryCard(
         modifier = Modifier.testTag("swipe-note-${note.id}"),
         enableDismissFromEndToStart = false,
         backgroundContent = {
-            Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .testTag("delete-note-${note.id}"),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
-            ) {
-                Box(
+            if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                Card(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .testTag("delete-note-${note.id}"),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = appSwipeDeleteBackground())
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = strings.deleteGradeLabel,
-                        tint = Color.White
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = strings.deleteGradeLabel,
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
     ) {
         NoteHistoryCard(
             note = note,
-            onClick = onRequestEdit
+            onClick = onRequestEdit,
+            modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
     }
 }
@@ -1277,14 +1552,15 @@ private fun SwipeableNoteHistoryCard(
 @Composable
 private fun NoteHistoryCard(
     note: NoteUiState,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     val warningRed = appWarningColor()
     OutlinedCard(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .testTag("note-card-${note.id}"),
         shape = RoundedCornerShape(22.dp),
@@ -1314,7 +1590,7 @@ private fun NoteHistoryCard(
                     border = BorderStroke(1.dp, appCardBorderColor())
                 ) {
                     Box(
-                        modifier = Modifier.size(width = 74.dp, height = 82.dp),
+                        modifier = Modifier.size(78.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1384,5 +1660,65 @@ private fun NoteHistoryCard(
                 }
             }
         }
+    }
+}
+
+internal sealed interface TargetSimulationResult {
+    data object Invalid : TargetSimulationResult
+    data object AlreadyReached : TargetSimulationResult
+    data object Impossible : TargetSimulationResult
+    data class Required(
+        val requiredGradeLabel: String,
+        val projectedAverageLabel: String
+    ) : TargetSimulationResult
+}
+
+internal fun computeTargetSimulation(
+    notes: List<NoteUiState>,
+    targetInput: String,
+    nextTestType: NoteTypeUi
+): TargetSimulationResult {
+    val targetAverage = targetInput.toDecimalOrNull()
+    if (targetAverage == null || targetAverage < 1.0 || targetAverage > 6.0) {
+        return TargetSimulationResult.Invalid
+    }
+
+    val weightedSum = notes.sumOf { it.numericValue * it.weightCoefficient }
+    val totalWeight = notes.sumOf { it.weightCoefficient }
+    val nextWeight = nextTestType.weight.coefficient
+    val rawAverageNeeded = (targetAverage - 0.25).coerceAtLeast(1.0)
+    val requiredRawGrade = (
+        rawAverageNeeded * (totalWeight + nextWeight) - weightedSum
+    ) / nextWeight
+
+    if (requiredRawGrade <= 1.0) {
+        return TargetSimulationResult.AlreadyReached
+    }
+    if (requiredRawGrade > 6.0) {
+        return TargetSimulationResult.Impossible
+    }
+
+    val requiredGrade = requiredRawGrade.roundUpToQuarter().coerceIn(1.0, 6.0)
+    val projectedRawAverage = (weightedSum + requiredGrade * nextWeight) / (totalWeight + nextWeight)
+    val projectedOfficialAverage = GradeCalculator.roundToHalf(projectedRawAverage)
+    return TargetSimulationResult.Required(
+        requiredGradeLabel = requiredGrade.toGradeLabel(),
+        projectedAverageLabel = projectedOfficialAverage.toGradeLabel()
+    )
+}
+
+private fun String.toDecimalOrNull(): Double? {
+    return trim().replace(',', '.').toDoubleOrNull()
+}
+
+private fun Double.roundUpToQuarter(): Double {
+    return ceil((this * 4.0) - 1e-9) / 4.0
+}
+
+private fun Double.toGradeLabel(): String {
+    return if (this % 1.0 == 0.0) {
+        String.format(Locale.US, "%.1f", this)
+    } else {
+        String.format(Locale.US, "%.2f", this).trimEnd('0')
     }
 }

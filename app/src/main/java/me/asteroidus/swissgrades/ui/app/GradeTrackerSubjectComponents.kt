@@ -117,7 +117,12 @@ fun AddSubjectScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 18.dp),
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = AppScreenBottomPadding
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -136,7 +141,7 @@ fun AddSubjectScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = AppScreenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -325,7 +330,8 @@ fun AddSubjectScreen(
 @Composable
 fun SubjectCard(
     subject: SubjectListItemUiState,
-    onOpenSubject: (String) -> Unit
+    onOpenSubject: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
     val isDarkTheme = isDarkPalette()
@@ -349,7 +355,7 @@ fun SubjectCard(
 
     OutlinedCard(
         onClick = { onOpenSubject(subject.id) },
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .testTag("subject-card-${subject.id}"),
         shape = DashboardCardShape,

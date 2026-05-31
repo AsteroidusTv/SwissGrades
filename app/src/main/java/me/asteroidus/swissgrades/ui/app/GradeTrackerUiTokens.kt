@@ -20,6 +20,10 @@ import me.asteroidus.swissgrades.ui.theme.AppWarningLight
 import me.asteroidus.swissgrades.ui.theme.SwissBlueDark
 
 internal val DashboardCardShape = RoundedCornerShape(24.dp)
+internal val AppScreenHorizontalPadding = 16.dp
+internal val AppScreenTopPadding = 16.dp
+internal val AppScreenBottomPadding = 16.dp
+internal val AppScreenListBottomPadding = 28.dp
 internal const val MaxGradeAttachments = 5
 
 @Composable

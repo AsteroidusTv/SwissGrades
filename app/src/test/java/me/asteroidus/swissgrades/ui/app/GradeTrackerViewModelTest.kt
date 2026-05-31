@@ -27,7 +27,7 @@ class GradeTrackerViewModelTest {
         viewModel.confirmPeriodSelection()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("Spanish", screen.optionSubject.title)
+        assertEquals("Espagnol", screen.optionSubject.title)
         assertEquals(null, screen.optionSubject.subtitle)
         assertTrue(screen.optionSubject.isInBasket)
         assertTrue(screen.userSubjects.isEmpty())
@@ -47,10 +47,62 @@ class GradeTrackerViewModelTest {
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertTrue(detail.isCompositeOption)
-        assertEquals(listOf("Biology", "Chemistry"), detail.subSubjects.map { it.name })
+        assertEquals(listOf("Biologie", "Chimie"), detail.subSubjects.map { it.name })
         assertEquals(AppStrings.French.emptyNotes, detail.officialAverageLabel)
         assertEquals(AppStrings.French.emptyNotes, detail.secondaryAverageLabel)
         assertEquals(AppStrings.French.emptyNotes, detail.pointsLabel)
+    }
+
+    @Test
+    fun completingOnboardingWithEconomicsLaw_createsCompositeOptionDetail() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.completeOnboarding(InitialOptionChoice.ECONOMICS_LAW)
+        viewModel.confirmPeriodSelection()
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+
+        viewModel.openSubject(main.optionSubject.id)
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertTrue(detail.isCompositeOption)
+        assertEquals("Économie-droit", detail.title)
+        assertEquals(listOf("Économie", "Droit"), detail.subSubjects.map { it.name })
+    }
+
+    @Test
+    fun loadingStateWithDuplicateSubjectIds_normalizesVisibleIds() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        schoolYear = SchoolYear.YEAR_1,
+                        isInBasket = false,
+                        notes = emptyList()
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Geography",
+                        schoolYear = SchoolYear.YEAR_1,
+                        isInBasket = false,
+                        notes = emptyList()
+                    )
+                ),
+                nextSubjectSequence = 3
+            )
+        )
+
+        val viewModel = GradeTrackerViewModel(repository)
+
+        val main = viewModel.uiState.value.screen as ScreenUiState.Main
+        val visibleIds = listOf(main.optionSubject.id) + main.userSubjects.map { it.id }
+        assertEquals(visibleIds.distinct(), visibleIds)
     }
 
     @Test

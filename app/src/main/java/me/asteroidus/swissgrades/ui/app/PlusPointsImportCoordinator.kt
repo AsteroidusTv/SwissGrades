@@ -161,6 +161,8 @@ private fun importOptionSubject(
             "physique", "physics" -> base.subSubjects.getOrNull(0)?.id
             "biologie", "biology" -> base.subSubjects.getOrNull(0)?.id
             "chimie", "chemistry" -> base.subSubjects.getOrNull(1)?.id
+            "economie", "economics" -> base.subSubjects.getOrNull(0)?.id
+            "droit", "law" -> base.subSubjects.getOrNull(1)?.id
             else -> base.subSubjects.firstOrNull()?.id
         } ?: return@forEach
 
@@ -273,7 +275,12 @@ private fun detectPlusPointsSourceSemester(rawName: String?): SchoolSemester? {
 
 private fun isOptionSubjectName(name: String): Boolean {
     val normalized = normalizeKey(name)
-    return normalized.startsWith("os ") || normalized == "pyam" || normalized == "bich"
+    return normalized.startsWith("os ") ||
+        normalized == "pyam" ||
+        normalized == "bich" ||
+        normalized.contains("economie-droit") ||
+        normalized.contains("economics-law") ||
+        normalized.contains("economie droit")
 }
 
 private fun detectOptionChoiceFromName(name: String): InitialOptionChoice? {

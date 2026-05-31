@@ -13,6 +13,7 @@ enum class NoteTypeUi(val weight: AssessmentWeight) {
 data class NoteUiState(
     val id: String,
     val numericValue: Double,
+    val weightCoefficient: Double,
     val displayValue: String,
     val noteTypeLabel: String,
     val description: String,

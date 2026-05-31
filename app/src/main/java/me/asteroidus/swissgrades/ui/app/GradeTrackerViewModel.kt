@@ -968,8 +968,8 @@ class GradeTrackerViewModel(
 
             return SubjectDetailUiState(
                 subjectId = subject.id,
-                title = subject.name,
-                subtitle = subject.optionChoice?.label,
+                title = subject.localizedDisplayName(state.language),
+                subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
                 isCounted = subject.isCounted,
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
@@ -984,7 +984,7 @@ class GradeTrackerViewModel(
                 subSubjects = subject.subSubjects.map { subSubject ->
                     CompositeSubSubjectDetailUiState(
                         id = subSubject.id,
-                        name = subSubject.name,
+                        name = state.language.optionSubSubjectLabel(subSubject.name),
                         internalAverageLabel = subSubject.toInternalAverageLabel(strings, state.selectedSemester),
                         notes = subSubject.notes
                             .filter { it.isIncludedIn(state.selectedSemester) }
@@ -1010,8 +1010,8 @@ class GradeTrackerViewModel(
 
         return SubjectDetailUiState(
             subjectId = subject.id,
-            title = subject.name,
-            subtitle = subject.optionChoice?.label,
+            title = subject.localizedDisplayName(state.language),
+            subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
             isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
@@ -1082,7 +1082,7 @@ class GradeTrackerViewModel(
         val points = metrics.points.takeIf { subject.isCounted || subject.isOptionSubject }
         return SubjectListItemUiState(
             id = subject.id,
-            title = subject.name,
+            title = subject.localizedDisplayName(state.language),
             subtitle = null,
             averageLabel = average?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
             pointsLabel = points?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
@@ -1149,6 +1149,7 @@ class GradeTrackerViewModel(
         return NoteUiState(
             id = note.id,
             numericValue = note.value,
+            weightCoefficient = note.weight.coefficient,
             displayValue = formatOneOrTwoDecimals(note.value),
             noteTypeLabel = strings.noteTypeLabel(note.weight),
             description = note.description,
@@ -1188,9 +1189,8 @@ private fun GradeTrackerAppState.withSharedSubjects(): GradeTrackerAppState {
     val normalizedSubjects = buildList {
         SchoolYear.entries.forEach { year ->
             val yearSubjects = existingByYear[year].orEmpty()
-            val normalizedOption = yearSubjects.firstOrNull { it.isOptionSubject }?.copy(
-                name = selectedOption.label,
-                optionChoice = selectedOption,
+            val normalizedOption = yearSubjects.firstOrNull { it.isOptionSubject }?.asConfiguredOption(
+                choice = selectedOption,
                 schoolYear = year
             ) ?: createStoredOptionSubject(
                 choice = selectedOption,
@@ -1200,7 +1200,7 @@ private fun GradeTrackerAppState.withSharedSubjects(): GradeTrackerAppState {
             add(normalizedOption)
             addAll(yearSubjects.filterNot { it.isOptionSubject })
         }
-    }
+    }.withUniqueSubjectIds { "subject-${nextId++}" }
 
     return copy(
         subjects = normalizedSubjects,
@@ -1219,6 +1219,57 @@ private fun mergeSharedSubjects(subjects: List<StoredSubject>): StoredSubject {
         subSubjects = subSubjectsByName.values.map { matchingSubSubjects ->
             matchingSubSubjects.first().copy(notes = matchingSubSubjects.flatMap { it.notes })
         }
+    )
+}
+
+private fun List<StoredSubject>.withUniqueSubjectIds(nextId: () -> String): List<StoredSubject> {
+    val usedIds = mutableSetOf<String>()
+    return map { subject ->
+        if (subject.id.isNotBlank() && usedIds.add(subject.id)) {
+            subject
+        } else {
+            var replacementId: String
+            do {
+                replacementId = nextId()
+            } while (!usedIds.add(replacementId))
+            subject.copy(id = replacementId)
+        }
+    }
+}
+
+private fun StoredSubject.asConfiguredOption(
+    choice: InitialOptionChoice,
+    schoolYear: SchoolYear
+): StoredSubject {
+    val configured = copy(
+        name = choice.label,
+        optionChoice = choice,
+        schoolYear = schoolYear
+    )
+    if (choice.compositeSubSubjectNames.isEmpty()) {
+        return configured.copy(subSubjects = emptyList())
+    }
+
+    val existingByName = configured.subSubjects.associateBy { it.name.lowercase(Locale.ROOT) }
+    val configuredSubSubjects = choice.compositeSubSubjectNames.mapIndexed { index, name ->
+        existingByName[name.lowercase(Locale.ROOT)]?.copy(name = name)
+            ?: StoredSubSubject(
+                id = "option-subject-${index + 1}",
+                name = name,
+                notes = emptyList()
+            )
+    }
+    val directNotes = configured.notes
+    val subSubjectsWithMigratedNotes = if (directNotes.isEmpty()) {
+        configuredSubSubjects
+    } else {
+        configuredSubSubjects.mapIndexed { index, subSubject ->
+            if (index == 0) subSubject.copy(notes = subSubject.notes + directNotes) else subSubject
+        }
+    }
+    return configured.copy(
+        notes = emptyList(),
+        subSubjects = subSubjectsWithMigratedNotes
     )
 }
 
@@ -1374,6 +1425,10 @@ private fun StoredSubject.allAttachments(): List<StoredAttachment> {
     return notes.flatMap { it.attachments } + subSubjects.flatMap { subSubject ->
         subSubject.notes.flatMap { it.attachments }
     }
+}
+
+private fun StoredSubject.localizedDisplayName(language: AppLanguage): String {
+    return optionChoice?.let(language::optionChoiceLabel) ?: name
 }
 
 private fun StoredSubject.allAttachmentsInSemester(semester: SchoolSemester): List<StoredAttachment> {

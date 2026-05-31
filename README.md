@@ -6,30 +6,41 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
 
 ## Current features
 
-- onboarding flow to choose your option
-- local persistence of your setup and grades
-- editable required Option subject
-- app settings for language, theme mode, and option
-- custom subjects with name, icon, color, and basket flag
-- simple and composite options
-- multi-grade subject support
+- onboarding flow to choose the school year/semester and option subject
+- local persistence of setup, subjects, grades, and optional attachments
+- app settings for language, theme mode, option, imports, and backups
+- custom subjects with name, icon, color, basket flag, and result inclusion flag
+- simple and composite option subjects
+- semester-aware grade tracking with shared branches across semesters
+- multi-grade subject support with editable grade history
 - weighted grades:
   - full grade
   - half grade
   - quarter grade
+- target average simulator:
+  - choose an official target average
+  - pick the next test weight
+  - see the needed next grade using official half-point rounding
 - promotion summary with:
   - overall average
   - promotion points
   - basket
   - insufficiencies
-- subject detail pages with grade history
+- subject detail pages with:
+  - raw and official averages
+  - optional composite sub-subject selector
+  - recent grade evolution
+  - grade history
+- swipe-to-delete support for subjects and grades
+- optional photo/gallery attachments for grades
+- PlusPoints import support
+- local backup import/export support
 - edit and delete for subjects and grades
 
 ## Supported option types
 
 Simple options:
 
-- Economics-Law
 - Spanish
 - Italian
 - Latin
@@ -46,6 +57,9 @@ Composite options:
 - BICH
   - Biology
   - Chemistry
+- Economics-Law
+  - Economics
+  - Law
 
 ## Product direction
 
@@ -55,6 +69,7 @@ SwissGrades is currently focused on being a strong personal-use app:
 - reliable averages
 - useful promotion overview
 - simple local persistence
+- quick simulations for target averages
 
 It is not yet a full school-management app, and it does not try to be one.
 
@@ -69,6 +84,13 @@ SwissGrades is currently built around local-first storage on your device.
 See the full privacy policy here:
 
 - [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
+
+## Current release
+
+- Version name: `1.3.0`
+- Version code: `4`
+- Minimum SDK: `24`
+- Target SDK: `36`
 
 ## Tech stack
 
@@ -92,6 +114,7 @@ Gradle daemon usage is also disabled locally on this machine to avoid an observe
 ```bash
 ./scripts/gradlew21.sh testDebugUnitTest --no-parallel
 ./scripts/gradlew21.sh assembleDebug --no-parallel
+./gradlew :app:lintRelease :app:testReleaseUnitTest :app:bundleRelease
 ```
 
 ## Test commands
@@ -160,6 +183,7 @@ It can:
 - create an automatic prerelease on every push to `main` / `master`
 - build a signed release APK
 - build a signed release AAB
+- upload native debug symbols for Play Console
 - create or reuse a Git tag
 - publish a GitHub Release
 - upload release artifacts
@@ -183,4 +207,4 @@ Automatic pushes create prereleases so the repository can always expose the late
 
 ## Current state
 
-SwissGrades already has a usable first version of the student workflow, with local persistence, editable subjects, editable grades, and automated validation in CI.
+SwissGrades has a release-ready personal grade tracking workflow with semester-aware subjects, weighted grades, target average simulation, localized option handling, local backups/imports, and automated validation in CI.

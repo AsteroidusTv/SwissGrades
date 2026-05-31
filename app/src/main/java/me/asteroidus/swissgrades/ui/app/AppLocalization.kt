@@ -142,7 +142,16 @@ data class AppStrings(
     val addGradeToTemplate: String,
     val editGrade: String,
     val editGradeInTemplate: String,
-    val evaluationDefaultTitle: String
+    val evaluationDefaultTitle: String,
+    val targetSimulationTitle: String,
+    val targetSimulationSubtitle: String,
+    val targetAverageLabel: String,
+    val nextTestWeightTitle: String,
+    val requiredGradeTitle: String,
+    val targetAlreadyReached: String,
+    val targetImpossible: String,
+    val targetInvalid: String,
+    val targetProjectedAverageTemplate: String
 ) {
     fun optionDescription(optionLabel: String): String {
         return "$optionSectionDescriptionPrefix$optionLabel$optionSectionDescriptionSuffix"
@@ -191,6 +200,10 @@ data class AppStrings(
 
     fun photoAttachmentCount(count: Int): String {
         return photoAttachmentCountTemplate.replace("{count}", count.toString())
+    }
+
+    fun targetProjectedAverage(average: String): String {
+        return targetProjectedAverageTemplate.replace("{average}", average)
     }
 
     fun themeModeLabel(mode: AppThemeMode): String {
@@ -362,7 +375,16 @@ data class AppStrings(
             addGradeToTemplate = "Add a grade to {subject}",
             editGrade = "Edit grade",
             editGradeInTemplate = "Edit grade in {subject}",
-            evaluationDefaultTitle = "Evaluation"
+            evaluationDefaultTitle = "Evaluation",
+            targetSimulationTitle = "Grade simulator",
+            targetSimulationSubtitle = "Choose a target average and see what the next test needs.",
+            targetAverageLabel = "Target average",
+            nextTestWeightTitle = "Next test weight",
+            requiredGradeTitle = "Needed next grade",
+            targetAlreadyReached = "Already secured, even with 1.0 next.",
+            targetImpossible = "Impossible with one test, even with 6.0.",
+            targetInvalid = "Enter a target from 1.0 to 6.0.",
+            targetProjectedAverageTemplate = "Projected official average: {average}"
         )
 
         val French = AppStrings(
@@ -499,7 +521,16 @@ data class AppStrings(
             addGradeToTemplate = "Ajouter une note à {subject}",
             editGrade = "Modifier la note",
             editGradeInTemplate = "Modifier la note de {subject}",
-            evaluationDefaultTitle = "Évaluation"
+            evaluationDefaultTitle = "Évaluation",
+            targetSimulationTitle = "Simulateur de note",
+            targetSimulationSubtitle = "Choisis une moyenne visée et vois ce qu'il faut au prochain test.",
+            targetAverageLabel = "Moyenne visée",
+            nextTestWeightTitle = "Poids du prochain test",
+            requiredGradeTitle = "Note nécessaire",
+            targetAlreadyReached = "Déjà assuré, même avec 1,0 au prochain test.",
+            targetImpossible = "Impossible avec un seul test, même avec 6,0.",
+            targetInvalid = "Entre un objectif de 1,0 à 6,0.",
+            targetProjectedAverageTemplate = "Moyenne officielle projetée : {average}"
         )
     }
 }
@@ -548,6 +579,60 @@ fun AppLanguage.optionCategoryLabel(choice: InitialOptionChoice): String {
             InitialOptionChoice.VISUAL_ARTS -> "Arts"
             InitialOptionChoice.PHILOSOPHY -> "Sciences humaines"
             InitialOptionChoice.OTHER -> "Option personnalisée"
+        }
+    }
+}
+
+fun AppLanguage.optionChoiceLabel(choice: InitialOptionChoice): String {
+    return when (this) {
+        AppLanguage.ENGLISH -> when (choice) {
+            InitialOptionChoice.PHYSICS_AND_APPLICATIONS_OF_MATH -> "PYAM"
+            InitialOptionChoice.BIOLOGY_CHEMISTRY -> "BICH"
+            InitialOptionChoice.ECONOMICS_LAW -> "Economics-Law"
+            InitialOptionChoice.SPANISH -> "Spanish"
+            InitialOptionChoice.ITALIAN -> "Italian"
+            InitialOptionChoice.LATIN -> "Latin"
+            InitialOptionChoice.MUSIC -> "Music"
+            InitialOptionChoice.PHILOSOPHY -> "Philosophy"
+            InitialOptionChoice.VISUAL_ARTS -> "Visual Arts"
+            InitialOptionChoice.OTHER -> "Other"
+        }
+
+        AppLanguage.FRENCH -> when (choice) {
+            InitialOptionChoice.PHYSICS_AND_APPLICATIONS_OF_MATH -> "PYAM"
+            InitialOptionChoice.BIOLOGY_CHEMISTRY -> "BICH"
+            InitialOptionChoice.ECONOMICS_LAW -> "Économie-droit"
+            InitialOptionChoice.SPANISH -> "Espagnol"
+            InitialOptionChoice.ITALIAN -> "Italien"
+            InitialOptionChoice.LATIN -> "Latin"
+            InitialOptionChoice.MUSIC -> "Musique"
+            InitialOptionChoice.PHILOSOPHY -> "Philosophie"
+            InitialOptionChoice.VISUAL_ARTS -> "Arts visuels"
+            InitialOptionChoice.OTHER -> "Autre"
+        }
+    }
+}
+
+fun AppLanguage.optionSubSubjectLabel(name: String): String {
+    return when (this) {
+        AppLanguage.ENGLISH -> when (name) {
+            "Physics" -> "Physics"
+            "Applications of Mathematics" -> "Applications of Mathematics"
+            "Biology" -> "Biology"
+            "Chemistry" -> "Chemistry"
+            "Economics" -> "Economics"
+            "Law" -> "Law"
+            else -> name
+        }
+
+        AppLanguage.FRENCH -> when (name) {
+            "Physics" -> "Physique"
+            "Applications of Mathematics" -> "Applications des mathématiques"
+            "Biology" -> "Biologie"
+            "Chemistry" -> "Chimie"
+            "Economics" -> "Économie"
+            "Law" -> "Droit"
+            else -> name
         }
     }
 }
