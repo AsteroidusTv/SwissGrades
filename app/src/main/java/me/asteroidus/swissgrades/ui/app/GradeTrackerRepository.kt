@@ -9,6 +9,7 @@ import me.asteroidus.swissgrades.domain.model.OptionType
 
 private const val PREFS_NAME = "grade_tracker_app_prefs"
 private const val KEY_APP_STATE = "app_state"
+private const val APP_STATE_SCHEMA_VERSION = 1
 
 enum class AppLanguage {
     ENGLISH,
@@ -223,6 +224,7 @@ internal fun GradeTrackerAppState.encodeToJsonString(): String {
     }
 
     return JSONObject()
+        .put("schemaVersion", APP_STATE_SCHEMA_VERSION)
         .put("selectedOption", selectedOption?.name)
         .put("nextSubjectSequence", nextSubjectSequence)
         .put("nextNoteSequence", nextNoteSequence)

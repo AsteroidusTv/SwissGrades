@@ -36,7 +36,8 @@ class GradeTrackerViewModel(
     private val repository: GradeTrackerRepository,
     private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
     private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
-    private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator
+    private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
+    private val resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
@@ -141,6 +142,14 @@ class GradeTrackerViewModel(
     fun changeThemeMode(themeMode: AppThemeMode) {
         if (state.themeMode == themeMode) return
         state = state.copy(themeMode = themeMode)
+        persistAndPublish()
+    }
+
+    fun resetApp() {
+        clearPendingSettingsImport()
+        state = resetAppUseCase.reset()
+        currentScreen = InternalScreen.Onboarding
+        onboardingSelection = null
         persistAndPublish()
     }
 
@@ -809,7 +818,8 @@ class GradeTrackerViewModel(
             repository: GradeTrackerRepository,
             attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
             backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
-            plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator
+            plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
+            resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -818,7 +828,8 @@ class GradeTrackerViewModel(
                         repository,
                         attachmentStorage,
                         backupCoordinator,
-                        plusPointsImportCoordinator
+                        plusPointsImportCoordinator,
+                        resetAppUseCase
                     ) as T
                 }
             }

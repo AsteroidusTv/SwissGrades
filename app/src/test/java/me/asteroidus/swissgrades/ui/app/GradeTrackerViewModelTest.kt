@@ -410,6 +410,42 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun resetApp_clearsStateAndReturnsToOnboarding() {
+        val repository = InMemoryGradeTrackerRepository
+        val attachmentStorage = FakeGradeAttachmentStorage()
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository, attachmentStorage)
+        viewModel.completeOnboarding(InitialOptionChoice.MUSIC)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.showAddGradeSheet()
+        viewModel.importDraftAttachments(listOf("content://image-1"))
+        viewModel.updateDraftValue("5.0")
+        viewModel.addNote()
+
+        viewModel.openSettings()
+        viewModel.resetApp()
+
+        assertTrue(viewModel.uiState.value.screen is ScreenUiState.Onboarding)
+        waitUntil { repository.load() == GradeTrackerAppState() }
+        assertEquals(GradeTrackerAppState(), repository.load())
+        assertTrue(attachmentStorage.didDeleteAllAttachments)
+    }
+
+    @Test
+    fun defaultResetAppUseCase_returnsEmptyStateAndDeletesAttachments() {
+        val attachmentStorage = FakeGradeAttachmentStorage()
+        val resetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
+
+        val resetState = resetAppUseCase.reset()
+
+        assertEquals(GradeTrackerAppState(), resetState)
+        assertTrue(attachmentStorage.didDeleteAllAttachments)
+    }
+
+    @Test
     fun changingOption_canReplaceSimpleWithComposite() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -725,6 +761,7 @@ class GradeTrackerViewModelTest {
     private class FakeGradeAttachmentStorage : GradeAttachmentStorage {
         private var nextSequence = 1
         val deletedStoredAttachments = mutableListOf<StoredAttachment>()
+        var didDeleteAllAttachments = false
 
         override fun stageImportedAttachment(sourceUriString: String): DraftAttachment {
             val id = "draft-${nextSequence++}"
@@ -758,6 +795,10 @@ class GradeTrackerViewModelTest {
 
         override fun deleteStoredAttachments(attachments: List<StoredAttachment>) {
             deletedStoredAttachments += attachments
+        }
+
+        override fun deleteAllAttachments() {
+            didDeleteAllAttachments = true
         }
     }
 

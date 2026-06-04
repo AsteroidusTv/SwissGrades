@@ -2,6 +2,9 @@ package me.asteroidus.swissgrades.ui.app
 
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -74,7 +77,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -148,9 +150,7 @@ import me.asteroidus.swissgrades.ui.theme.AppWarningDark
 import me.asteroidus.swissgrades.ui.theme.AppWarningLight
 import me.asteroidus.swissgrades.ui.theme.SwissBlue
 import me.asteroidus.swissgrades.ui.theme.SwissBlueDark
-import android.app.Activity
 import android.content.ContextWrapper
-import androidx.core.view.WindowCompat
 import me.asteroidus.swissgrades.ui.theme.SwissGradesTheme
 
 @Composable
@@ -212,7 +212,7 @@ fun GradeTrackerApp(
     }
 
     SwissGradesTheme(darkTheme = useDarkTheme) {
-        ApplySystemBars(darkTheme = useDarkTheme)
+        ApplyEdgeToEdgeSystemBars(darkTheme = useDarkTheme)
         ProvideAppStrings(uiState.language) {
             Surface(
                 modifier = modifier.fillMaxSize(),
@@ -317,6 +317,7 @@ fun GradeTrackerApp(
                                 onDismissPendingPlusPointsImport = viewModel::dismissPendingPlusPointsImport,
                                 onSelectPendingPlusPointsSemester = viewModel::updatePendingPlusPointsTargetSemester,
                                 onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
+                                onResetApp = viewModel::resetApp,
                                 onBack = viewModel::closeSettings,
                                 modifier = Modifier
                             )
@@ -329,25 +330,30 @@ fun GradeTrackerApp(
 }
 
 @Composable
-@Suppress("DEPRECATION")
-private fun ApplySystemBars(darkTheme: Boolean) {
+private fun ApplyEdgeToEdgeSystemBars(darkTheme: Boolean) {
     val context = LocalContext.current
     val activity = context.findActivity() ?: return
-    val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
 
     SideEffect {
-        activity.window.statusBarColor = backgroundColor
-        activity.window.navigationBarColor = backgroundColor
-        val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-        insetsController.isAppearanceLightStatusBars = !darkTheme
-        insetsController.isAppearanceLightNavigationBars = !darkTheme
+        activity.enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                lightScrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+                detectDarkMode = { darkTheme }
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                lightScrim = android.graphics.Color.TRANSPARENT,
+                darkScrim = android.graphics.Color.TRANSPARENT,
+                detectDarkMode = { darkTheme }
+            )
+        )
     }
 }
 
-private fun android.content.Context.findActivity(): Activity? {
+private fun android.content.Context.findActivity(): ComponentActivity? {
     var current = this
     while (current is ContextWrapper) {
-        if (current is Activity) return current
+        if (current is ComponentActivity) return current
         current = current.baseContext
     }
     return null
@@ -504,7 +510,7 @@ private fun OnboardingScreen(
 }
 
 @Composable
-private fun OnboardingOptionCard(
+internal fun OnboardingOptionCard(
     choice: InitialOptionChoice,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -806,7 +812,7 @@ private fun PeriodSummaryButton(
 }
 
 @Composable
-private fun SemesterSwitcher(
+internal fun SemesterSwitcher(
     selectedSemester: SchoolSemester,
     onSelectSemester: (SchoolSemester) -> Unit,
     modifier: Modifier = Modifier
@@ -1384,324 +1390,6 @@ private fun CompactMetricCard(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsScreen(
-    settings: SettingsUiState,
-    onSelectLanguage: (AppLanguage) -> Unit,
-    onSelectThemeMode: (AppThemeMode) -> Unit,
-    onSelectOption: (InitialOptionChoice) -> Unit,
-    onExportBackup: () -> Unit,
-    onImportBackup: () -> Unit,
-    onImportPlusPoints: () -> Unit,
-    onDismissPendingImport: () -> Unit,
-    onConfirmPendingImport: () -> Unit,
-    onDismissPendingPlusPointsImport: () -> Unit,
-    onSelectPendingPlusPointsSemester: (SchoolSemester) -> Unit,
-    onConfirmPendingPlusPointsImport: () -> Unit,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val strings = currentAppStrings()
-    val language = LocalAppLanguage.current
-    var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = AppScreenBottomPadding
-            ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-settings")
-            )
-            Text(
-                text = strings.optionSettingsTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        SettingsChoiceSection(
-            title = strings.languageSectionTitle,
-            description = strings.languageSectionDescription
-        ) {
-            AppLanguage.entries.forEach { language ->
-                SettingsChoiceCard(
-                    title = strings.languageLabel(language),
-                    selected = settings.selectedLanguage == language,
-                    onClick = { onSelectLanguage(language) }
-                )
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.themeSectionTitle,
-            description = strings.themeSectionDescription
-        ) {
-            AppThemeMode.entries.forEach { themeMode ->
-                SettingsChoiceCard(
-                    title = strings.themeModeLabel(themeMode),
-                    selected = settings.selectedThemeMode == themeMode,
-                    onClick = { onSelectThemeMode(themeMode) }
-                )
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.backupSectionTitle,
-            description = strings.backupSectionDescription
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = onExportBackup,
-                    enabled = !settings.isBackupInProgress,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = appSoftAccentContainer(),
-                        contentColor = appAccentBlue()
-                    )
-                ) {
-                    Text(strings.exportBackupLabel, textAlign = TextAlign.Center)
-                }
-                Button(
-                    onClick = onImportBackup,
-                    enabled = !settings.isBackupInProgress,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
-                ) {
-                    Text(strings.importBackupLabel, textAlign = TextAlign.Center)
-                }
-            }
-
-            settings.backupMessage?.let { message ->
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = when (settings.backupMessageTone) {
-                        DashboardStatusTone.POSITIVE -> appPositiveBackground()
-                        DashboardStatusTone.NEGATIVE -> appWarningBackground()
-                        DashboardStatusTone.NEUTRAL -> appNeutralBackground()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = message,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (settings.backupMessageTone) {
-                            DashboardStatusTone.POSITIVE -> appPositiveColor()
-                            DashboardStatusTone.NEGATIVE -> appWarningColor()
-                            DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                }
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.plusPointsSectionTitle,
-            description = strings.plusPointsSectionDescription
-        ) {
-            Button(
-                onClick = onImportPlusPoints,
-                enabled = !settings.isBackupInProgress,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = appSelectedOptionContainer(),
-                    contentColor = appAccentBlue()
-                )
-            ) {
-                Text(strings.importPlusPointsLabel, textAlign = TextAlign.Center)
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = strings.optionSectionTitle,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption)),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        InitialOptionChoice.entries.forEach { choice ->
-            OnboardingOptionCard(
-                choice = choice,
-                isSelected = settings.selectedOption == choice,
-                onClick = {
-                    if (settings.selectedOption != choice) {
-                        pendingOptionChange = choice
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings-option-${choice.name}")
-            )
-        }
-    }
-
-    pendingOptionChange?.let { choice ->
-        ConfirmationDialog(
-            title = strings.changeOptionTitle,
-            message = strings.changeOptionMessage,
-            confirmLabel = strings.changeOptionConfirm,
-            onDismiss = { pendingOptionChange = null },
-            onConfirm = {
-                pendingOptionChange = null
-                onSelectOption(choice)
-            }
-        )
-    }
-
-    settings.pendingImportDisplayName?.let { displayName ->
-        ConfirmationDialog(
-            title = strings.backupImportTitle,
-            message = strings.backupImportMessage(displayName),
-            confirmLabel = strings.backupImportConfirm,
-            onDismiss = onDismissPendingImport,
-            onConfirm = onConfirmPendingImport
-        )
-    }
-
-    settings.pendingPlusPointsImportDisplayName?.let { displayName ->
-        AlertDialog(
-            onDismissRequest = onDismissPendingPlusPointsImport,
-            title = {
-                Text(
-                    text = strings.plusPointsImportTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(strings.plusPointsImportMessage(displayName))
-                    Text(
-                        text = strings.plusPointsTargetSemesterTitle,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    SemesterSwitcher(
-                        selectedSemester = settings.pendingPlusPointsTargetSemester
-                            ?: settings.selectedSemester,
-                        onSelectSemester = onSelectPendingPlusPointsSemester
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = onConfirmPendingPlusPointsImport) {
-                    Text(strings.plusPointsImportConfirm)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismissPendingPlusPointsImport) {
-                    Text(strings.cancelLabel)
-                }
-            },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = appCardSurface()
-        )
-    }
-}
-
-@Composable
-private fun SettingsChoiceSection(
-    title: String,
-    description: String,
-    content: @Composable () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SettingsChoiceCard(
-    title: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    OutlinedCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                this.selected = selected
-                role = Role.RadioButton
-                contentDescription = title
-            },
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            if (selected) appSelectedOptionBorder() else appCardBorderColor()
-        ),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = if (selected) appSelectedOptionContainer() else appCardSurface()
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) appSelectedOptionBorder() else appCardBorderColor())
-            )
         }
     }
 }

@@ -48,6 +48,8 @@ interface GradeAttachmentStorage {
     fun discardNewAttachments(attachments: List<DraftAttachment>)
 
     fun deleteStoredAttachments(attachments: List<StoredAttachment>)
+
+    fun deleteAllAttachments()
 }
 
 class LocalGradeAttachmentStorage(
@@ -144,6 +146,10 @@ class LocalGradeAttachmentStorage(
         }
     }
 
+    override fun deleteAllAttachments() {
+        GradeAttachmentPaths.attachmentsRoot(context.filesDir).deleteRecursively()
+    }
+
     private fun resolveFileExtension(uri: Uri): String? {
         val mimeType = context.contentResolver.getType(uri)
         if (mimeType != null) {
@@ -183,4 +189,6 @@ object NoOpGradeAttachmentStorage : GradeAttachmentStorage {
     override fun discardNewAttachments(attachments: List<DraftAttachment>) = Unit
 
     override fun deleteStoredAttachments(attachments: List<StoredAttachment>) = Unit
+
+    override fun deleteAllAttachments() = Unit
 }

@@ -114,7 +114,7 @@ Gradle daemon usage is also disabled locally on this machine to avoid an observe
 ```bash
 ./scripts/gradlew21.sh testDebugUnitTest --no-parallel
 ./scripts/gradlew21.sh assembleDebug --no-parallel
-./gradlew :app:lintRelease :app:testReleaseUnitTest :app:bundleRelease
+./scripts/release-check.sh
 ```
 
 ## Test commands

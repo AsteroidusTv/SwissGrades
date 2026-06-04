@@ -103,6 +103,9 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Check source diff
+        run: git diff --check
+
       - name: Decode signing keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -121,6 +124,12 @@ jobs:
             git remote set-url origin "https://x-access-token:${RELEASE_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           fi
 
+      - name: Run release validation
+        env:
+          RELEASE_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
+          RELEASE_VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
+        run: ./gradlew lintRelease testReleaseUnitTest --no-parallel
+
       - name: Build signed release artifacts
         env:
           RELEASE_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
@@ -130,6 +139,22 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew clean assembleRelease bundleRelease --no-parallel
+
+      - name: Verify release artifacts
+        run: |
+          required_artifacts=(
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/mapping/release/mapping.txt
+            app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+          )
+
+          for artifact in "${required_artifacts[@]}"; do
+            if [ ! -s "$artifact" ]; then
+              echo "Missing required release artifact: $artifact" >&2
+              exit 1
+            fi
+          done
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
