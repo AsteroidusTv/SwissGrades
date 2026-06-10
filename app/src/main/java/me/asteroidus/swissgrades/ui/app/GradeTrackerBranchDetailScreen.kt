@@ -615,15 +615,19 @@ private fun BranchTargetAverageCard(
     ) {
         Column(
             modifier = Modifier.padding(
-                horizontal = 18.dp,
-                vertical = if (isEditing) 18.dp else 16.dp
+                start = 18.dp,
+                top = 18.dp,
+                end = 18.dp,
+                bottom = if (isEditing) 18.dp else 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(if (isEditing) 12.dp else 4.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = strings.branchTargetTitle,
