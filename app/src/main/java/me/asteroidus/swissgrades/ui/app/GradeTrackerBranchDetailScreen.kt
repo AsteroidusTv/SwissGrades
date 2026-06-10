@@ -615,7 +615,7 @@ private fun BranchTargetAverageCard(
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(if (isEditing) 12.dp else 4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -629,17 +629,26 @@ private fun BranchTargetAverageCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 if (!isEditing) {
-                    HeaderActionButton(
-                        onClick = {
-                            targetInput = detail.targetAverageInput.orEmpty()
-                            isEditing = true
-                        },
-                        modifier = Modifier.testTag("edit-branch-target-average")
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .offset(y = 2.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                onClick = {
+                                    targetInput = detail.targetAverageInput.orEmpty()
+                                    isEditing = true
+                                },
+                                role = Role.Button
+                            )
+                            .testTag("edit-branch-target-average"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = strings.branchTargetEdit,
-                            tint = accentBlue
+                            tint = accentBlue,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
