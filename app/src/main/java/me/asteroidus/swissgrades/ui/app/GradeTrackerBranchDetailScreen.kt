@@ -208,7 +208,8 @@ fun BranchDetailScreen(
                 TargetSimulationCard(
                     notes = visibleNotes,
                     accentBlue = accentBlue,
-                    initialTargetInput = detail.targetAverageInput
+                    initialTargetInput = detail.targetAverageInput,
+                    targetKey = detail.subjectId
                 )
             }
 
@@ -591,12 +592,16 @@ private fun BranchTargetAverageCard(
     onTargetAverageChanged: (String, String) -> Unit
 ) {
     val strings = currentAppStrings()
-    var targetInput by remember(detail.subjectId, detail.targetAverageInput) {
+    var isEditing by remember(detail.subjectId) {
+        mutableStateOf(false)
+    }
+    var targetInput by remember(detail.subjectId) {
         mutableStateOf(detail.targetAverageInput.orEmpty())
     }
     val normalizedInput = targetInput.trim().replace(',', '.')
     val isInvalid = normalizedInput.isNotBlank() &&
         normalizedInput.toDoubleOrNull()?.let { it !in 1.0..6.0 } != false
+    val canSave = !isInvalid
 
     OutlinedCard(
         modifier = Modifier
@@ -610,53 +615,103 @@ private fun BranchTargetAverageCard(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = strings.branchTargetTitle,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.branchTargetTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (!isEditing) {
+                    TextButton(
+                        onClick = {
+                            targetInput = detail.targetAverageInput.orEmpty()
+                            isEditing = true
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(strings.branchTargetEdit, color = accentBlue)
+                    }
+                }
+            }
             Text(
                 text = strings.branchTargetSubtitle,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            OutlinedTextField(
-                value = targetInput,
-                onValueChange = { input ->
-                    targetInput = input
-                    val normalized = input.trim().replace(',', '.')
-                    if (normalized.isBlank() || normalized.toDoubleOrNull()?.let { it in 1.0..6.0 } == true) {
-                        onTargetAverageChanged(detail.subjectId, input)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(76.dp)
-                    .testTag("branch-target-average-input"),
-                placeholder = { Text(strings.branchTargetPlaceholder) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                isError = isInvalid,
-                supportingText = if (isInvalid) {
-                    { Text(strings.branchTargetInvalid) }
-                } else {
-                    null
-                },
-                shape = RoundedCornerShape(20.dp),
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Medium
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = accentBlue,
-                    unfocusedBorderColor = appCardBorderColor(),
-                    errorBorderColor = MaterialTheme.colorScheme.error,
-                    focusedContainerColor = appNeutralBackground(),
-                    unfocusedContainerColor = appNeutralBackground(),
-                    errorContainerColor = appNeutralBackground(),
-                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+            if (isEditing) {
+                OutlinedTextField(
+                    value = targetInput,
+                    onValueChange = { input ->
+                        targetInput = input
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(76.dp)
+                        .testTag("branch-target-average-input"),
+                    placeholder = { Text(strings.branchTargetPlaceholder) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = isInvalid,
+                    supportingText = if (isInvalid) {
+                        { Text(strings.branchTargetInvalid) }
+                    } else {
+                        null
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentBlue,
+                        unfocusedBorderColor = appCardBorderColor(),
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+                        focusedContainerColor = appNeutralBackground(),
+                        unfocusedContainerColor = appNeutralBackground(),
+                        errorContainerColor = appNeutralBackground(),
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
-            )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            targetInput = detail.targetAverageInput.orEmpty()
+                            isEditing = false
+                        }
+                    ) {
+                        Text(strings.cancelLabel, color = accentBlue)
+                    }
+                    Button(
+                        onClick = {
+                            onTargetAverageChanged(detail.subjectId, targetInput)
+                            isEditing = false
+                        },
+                        enabled = canSave,
+                        colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                    ) {
+                        Text(strings.saveChanges)
+                    }
+                }
+            } else {
+                Text(
+                    text = detail.targetAverageInput ?: strings.branchTargetUnset,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = if (detail.targetAverageInput == null) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        accentBlue
+                    },
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }

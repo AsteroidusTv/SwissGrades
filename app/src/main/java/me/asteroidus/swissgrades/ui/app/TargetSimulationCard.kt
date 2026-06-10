@@ -52,7 +52,8 @@ import me.asteroidus.swissgrades.domain.TargetSimulationResult
 internal fun TargetSimulationCard(
     notes: List<NoteUiState>,
     accentBlue: Color,
-    initialTargetInput: String?
+    initialTargetInput: String?,
+    targetKey: String
 ) {
     val strings = currentAppStrings()
     val warningRed = appWarningColor()
@@ -60,7 +61,7 @@ internal fun TargetSimulationCard(
     var isExpanded by remember { mutableStateOf(false) }
     val openInteractionSource = remember { MutableInteractionSource() }
     val closeInteractionSource = remember { MutableInteractionSource() }
-    var targetInput by remember(initialTargetInput) { mutableStateOf(initialTargetInput ?: "5.0") }
+    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: "5.0") }
     var nextTestType by remember { mutableStateOf(NoteTypeUi.FULL) }
     val result = remember(notes, targetInput, nextTestType) {
         TargetSimulationCalculator.compute(
