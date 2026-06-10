@@ -2,7 +2,6 @@ import org.gradle.api.tasks.bundling.Zip
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -27,6 +26,7 @@ val releaseKeystorePath = providers.gradleProperty("ANDROID_KEYSTORE_PATH")
 android {
     namespace = "me.asteroidus.swissgrades"
     compileSdk = 36
+    testBuildType = "release"
 
     defaultConfig {
         applicationId = "me.asteroidus.swissgrades"
@@ -73,9 +73,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
