@@ -73,6 +73,7 @@ data class SubjectDetailUiState(
     val notes: List<NoteUiState>,
     val isCompositeOption: Boolean = false,
     val subSubjects: List<CompositeSubSubjectDetailUiState> = emptyList(),
+    val targetAverageInput: String? = null,
     val officialAverageLabel: String = AppStrings.English.emptyNotes,
     val secondaryAverageTitle: String = AppStrings.English.rawAverage,
     val secondaryAverageLabel: String = AppStrings.English.emptyNotes,

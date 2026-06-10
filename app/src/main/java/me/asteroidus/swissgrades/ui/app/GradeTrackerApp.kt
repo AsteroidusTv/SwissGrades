@@ -284,6 +284,7 @@ fun GradeTrackerApp(
                                 onCompleteCameraCapture = viewModel::completeCameraCapture,
                                 onRemoveDraftAttachment = viewModel::removeDraftAttachment,
                                 onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
+                                onTargetAverageChanged = viewModel::updateSubjectTargetAverage,
                                 onAddNote = viewModel::addNote,
                                 modifier = Modifier
                             )

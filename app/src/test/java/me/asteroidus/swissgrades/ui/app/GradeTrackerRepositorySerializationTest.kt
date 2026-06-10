@@ -19,6 +19,7 @@ class GradeTrackerRepositorySerializationTest {
                     schoolYear = SchoolYear.YEAR_2,
                     isCounted = true,
                     isInBasket = false,
+                    targetAverage = 5.25,
                     notes = listOf(
                         StoredNote(
                             id = "note-1",

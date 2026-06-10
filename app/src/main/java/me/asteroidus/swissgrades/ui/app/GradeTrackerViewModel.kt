@@ -340,6 +340,27 @@ class GradeTrackerViewModel(
         persistAndPublish()
     }
 
+    fun updateSubjectTargetAverage(subjectId: String, input: String) {
+        val normalizedInput = normalizeGradeInput(input)
+        val targetAverage = if (normalizedInput.isBlank()) {
+            null
+        } else {
+            normalizedInput.toDoubleOrNull()
+                ?.takeIf { it in 1.0..6.0 }
+                ?: return
+        }
+        state = state.copy(
+            subjects = state.subjects.map { subject ->
+                if (subject.id == subjectId) {
+                    subject.copy(targetAverage = targetAverage)
+                } else {
+                    subject
+                }
+            }
+        )
+        persistAndPublish()
+    }
+
     fun exportBackup(destinationUriString: String) {
         val screen = currentScreen as? InternalScreen.Settings ?: return
         val stateSnapshot = state
@@ -984,6 +1005,7 @@ class GradeTrackerViewModel(
                 isCounted = subject.isCounted,
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
+                targetAverageInput = subject.targetAverage?.let(::formatOneOrTwoDecimals),
                 officialAverageLabel = roundedAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
                 secondaryAverageTitle = strings.compositeAverage,
                 secondaryAverageLabel = finalAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
@@ -1026,6 +1048,7 @@ class GradeTrackerViewModel(
             isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
+            targetAverageInput = subject.targetAverage?.let(::formatOneOrTwoDecimals),
             officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
             secondaryAverageTitle = strings.rawAverage,
             secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,

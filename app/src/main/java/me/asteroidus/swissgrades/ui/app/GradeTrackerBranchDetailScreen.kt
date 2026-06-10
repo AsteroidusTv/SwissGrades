@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -112,6 +113,7 @@ fun BranchDetailScreen(
     onCompleteCameraCapture: (PendingCameraCaptureRequest, Boolean) -> Unit,
     onRemoveDraftAttachment: (String) -> Unit,
     onSelectedSubSubjectChanged: (String) -> Unit,
+    onTargetAverageChanged: (String, String) -> Unit,
     onAddNote: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -196,9 +198,19 @@ fun BranchDetailScreen(
             }
 
             item {
+                BranchTargetAverageCard(
+                    detail = detail,
+                    accentBlue = accentBlue,
+                    onTargetAverageChanged = onTargetAverageChanged
+                )
+            }
+
+            item {
                 TargetSimulationCard(
                     notes = visibleNotes,
-                    accentBlue = accentBlue
+                    accentBlue = accentBlue,
+                    initialTargetInput = detail.targetAverageInput,
+                    targetKey = detail.subjectId
                 )
             }
 
@@ -568,6 +580,165 @@ private fun BranchDetailSummaryCard(
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BranchTargetAverageCard(
+    detail: SubjectDetailUiState,
+    accentBlue: Color,
+    onTargetAverageChanged: (String, String) -> Unit
+) {
+    val strings = currentAppStrings()
+    var isEditing by remember(detail.subjectId) {
+        mutableStateOf(false)
+    }
+    var targetInput by remember(detail.subjectId) {
+        mutableStateOf(detail.targetAverageInput.orEmpty())
+    }
+    val normalizedInput = targetInput.trim().replace(',', '.')
+    val isInvalid = normalizedInput.isNotBlank() &&
+        normalizedInput.toDoubleOrNull()?.let { it !in 1.0..6.0 } != false
+    val canSave = !isInvalid
+
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .testTag("branch-target-average-card"),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                start = 18.dp,
+                top = 18.dp,
+                end = 18.dp,
+                bottom = if (isEditing) 18.dp else 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (isEditing) 12.dp else 4.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.branchTargetTitle,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (!isEditing) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                onClick = {
+                                    targetInput = detail.targetAverageInput.orEmpty()
+                                    isEditing = true
+                                },
+                                role = Role.Button
+                            )
+                            .testTag("edit-branch-target-average"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = strings.branchTargetEdit,
+                            tint = accentBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+            if (isEditing) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.branchTargetSubtitle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = targetInput,
+                        onValueChange = { input ->
+                            targetInput = input
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(76.dp)
+                            .testTag("branch-target-average-input"),
+                        placeholder = { Text(strings.branchTargetPlaceholder) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = isInvalid,
+                        supportingText = if (isInvalid) {
+                            { Text(strings.branchTargetInvalid) }
+                        } else {
+                            null
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accentBlue,
+                            unfocusedBorderColor = appCardBorderColor(),
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            focusedContainerColor = appNeutralBackground(),
+                            unfocusedContainerColor = appNeutralBackground(),
+                            errorContainerColor = appNeutralBackground(),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                targetInput = detail.targetAverageInput.orEmpty()
+                                isEditing = false
+                            }
+                        ) {
+                            Text(strings.cancelLabel, color = accentBlue)
+                        }
+                        Button(
+                            onClick = {
+                                onTargetAverageChanged(detail.subjectId, targetInput)
+                                isEditing = false
+                            },
+                            enabled = canSave,
+                            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                        ) {
+                            Text(strings.saveChanges)
+                        }
+                    }
+                }
+            } else {
+                val hasTargetAverage = detail.targetAverageInput != null
+                Text(
+                    text = detail.targetAverageInput ?: strings.branchTargetUnset,
+                    style = if (hasTargetAverage) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.titleMedium
+                    },
+                    color = if (hasTargetAverage) {
+                        accentBlue
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = if (hasTargetAverage) FontWeight.SemiBold else FontWeight.Medium
                 )
             }
         }

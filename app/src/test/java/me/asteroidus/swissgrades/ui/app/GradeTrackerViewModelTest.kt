@@ -106,6 +106,65 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun updatingSubjectTargetAverage_persistsAndExposesItInDetail() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.ITALIAN)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.openSubject(historyId)
+        viewModel.updateSubjectTargetAverage(historyId, "5,25")
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals("5.25", detail.targetAverageInput)
+        assertEquals(5.25, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
+    }
+
+    @Test
+    fun updatingSubjectTargetAverage_blankInputClearsSavedTarget() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.MUSIC,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.MUSIC),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isInBasket = false,
+                        targetAverage = 5.0
+                    )
+                ),
+                nextSubjectSequence = 3
+            )
+        )
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.openSubject("subject-2")
+        viewModel.updateSubjectTargetAverage("subject-2", "")
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(null, detail.targetAverageInput)
+        assertEquals(null, repository.load()?.subjects?.first { it.id == "subject-2" }?.targetAverage)
+    }
+
+    @Test
+    fun updatingSubjectTargetAverage_ignoresInvalidInput() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.ITALIAN)
+        viewModel.confirmPeriodSelection()
+
+        val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.updateSubjectTargetAverage(historyId, "6.5")
+
+        assertEquals(null, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
+    }
+
+    @Test
     fun addSubject_rejectsDuplicateName() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
