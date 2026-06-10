@@ -622,8 +622,11 @@ private fun BranchTargetAverageCard(
             ) {
                 Text(
                     text = strings.branchTargetTitle,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (!isEditing) {
                     TextButton(
@@ -631,18 +634,23 @@ private fun BranchTargetAverageCard(
                             targetInput = detail.targetAverageInput.orEmpty()
                             isEditing = true
                         },
+                        modifier = Modifier.width(112.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text(strings.branchTargetEdit, color = accentBlue)
+                        Text(
+                            text = strings.branchTargetEdit,
+                            color = accentBlue,
+                            maxLines = 1
+                        )
                     }
                 }
             }
-            Text(
-                text = strings.branchTargetSubtitle,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             if (isEditing) {
+                Text(
+                    text = strings.branchTargetSubtitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 OutlinedTextField(
                     value = targetInput,
                     onValueChange = { input ->
