@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -645,7 +644,7 @@ private fun BranchTargetAverageCard(
                     }
                 }
             }
-            AnimatedVisibility(visible = isEditing) {
+            if (isEditing) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
                         text = strings.branchTargetSubtitle,
@@ -710,8 +709,7 @@ private fun BranchTargetAverageCard(
                         }
                     }
                 }
-            }
-            AnimatedVisibility(visible = !isEditing) {
+            } else {
                 Text(
                     text = detail.targetAverageInput ?: strings.branchTargetUnset,
                     style = MaterialTheme.typography.headlineSmall,
