@@ -34,7 +34,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
-        run: sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager --install "platform-tools" "platforms;android-37" "build-tools;36.0.0"
 
       - name: Run JVM unit tests
         run: ./gradlew testDebugUnitTest --no-parallel
@@ -71,7 +71,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
-        run: sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager --install "platform-tools" "platforms;android-37" "build-tools;36.0.0"
 
       - name: Assemble app
         run: ./gradlew assembleDebug --no-parallel
@@ -111,7 +111,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
-        run: sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager --install "platform-tools" "platforms;android-37" "build-tools;36.0.0"
 
       - name: Run release validation
         run: ./scripts/release-check.sh
@@ -151,7 +151,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
-        run: sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-36;google_apis;x86_64"
+        run: sdkmanager --install "platform-tools" "platforms;android-37" "build-tools;36.0.0" "emulator" "system-images;android-36;google_apis;x86_64"
 
       - name: Enable KVM access for the Android emulator
         run: |

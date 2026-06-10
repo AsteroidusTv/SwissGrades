@@ -25,7 +25,7 @@ val releaseKeystorePath = providers.gradleProperty("ANDROID_KEYSTORE_PATH")
 
 android {
     namespace = "me.asteroidus.swissgrades"
-    compileSdk = 36
+    compileSdk = 37
     testBuildType = "release"
 
     defaultConfig {
