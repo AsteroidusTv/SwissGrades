@@ -134,6 +134,7 @@ data class StoredSubject(
     val isInBasket: Boolean,
     val isOptionSubject: Boolean = false,
     val optionChoice: InitialOptionChoice? = null,
+    val targetAverage: Double? = null,
     val subjectColor: SubjectColorChoice = SubjectColorChoice.BLUE,
     val subjectIcon: SubjectIconChoice = SubjectIconChoice.BOOK,
     val notes: List<StoredNote> = emptyList(),
@@ -198,6 +199,7 @@ internal fun GradeTrackerAppState.encodeToJsonString(): String {
             .put("isInBasket", subject.isInBasket)
             .put("isOptionSubject", subject.isOptionSubject)
             .put("optionChoice", subject.optionChoice?.name)
+            .put("targetAverage", subject.targetAverage)
             .put("subjectColor", subject.subjectColor.name)
             .put("subjectIcon", subject.subjectIcon.name)
 
@@ -283,6 +285,8 @@ internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAp
                     optionChoice = subjectJson.optString("optionChoice")
                         .takeIf { it.isNotBlank() }
                         ?.toEnumOrNull<InitialOptionChoice>(),
+                    targetAverage = subjectJson.optDouble("targetAverage")
+                        .takeIf { !it.isNaN() && it in 1.0..6.0 },
                     subjectColor = subjectJson.optString("subjectColor")
                         .takeIf { it.isNotBlank() }
                         ?.toEnumOrNull<SubjectColorChoice>()

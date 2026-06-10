@@ -112,6 +112,7 @@ fun BranchDetailScreen(
     onCompleteCameraCapture: (PendingCameraCaptureRequest, Boolean) -> Unit,
     onRemoveDraftAttachment: (String) -> Unit,
     onSelectedSubSubjectChanged: (String) -> Unit,
+    onTargetAverageChanged: (String, String) -> Unit,
     onAddNote: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -196,9 +197,18 @@ fun BranchDetailScreen(
             }
 
             item {
+                BranchTargetAverageCard(
+                    detail = detail,
+                    accentBlue = accentBlue,
+                    onTargetAverageChanged = onTargetAverageChanged
+                )
+            }
+
+            item {
                 TargetSimulationCard(
                     notes = visibleNotes,
-                    accentBlue = accentBlue
+                    accentBlue = accentBlue,
+                    initialTargetInput = detail.targetAverageInput
                 )
             }
 
@@ -570,6 +580,83 @@ private fun BranchDetailSummaryCard(
                     maxLines = 2
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BranchTargetAverageCard(
+    detail: SubjectDetailUiState,
+    accentBlue: Color,
+    onTargetAverageChanged: (String, String) -> Unit
+) {
+    val strings = currentAppStrings()
+    var targetInput by remember(detail.subjectId, detail.targetAverageInput) {
+        mutableStateOf(detail.targetAverageInput.orEmpty())
+    }
+    val normalizedInput = targetInput.trim().replace(',', '.')
+    val isInvalid = normalizedInput.isNotBlank() &&
+        normalizedInput.toDoubleOrNull()?.let { it !in 1.0..6.0 } != false
+
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("branch-target-average-card"),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = strings.branchTargetTitle,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = strings.branchTargetSubtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = targetInput,
+                onValueChange = { input ->
+                    targetInput = input
+                    val normalized = input.trim().replace(',', '.')
+                    if (normalized.isBlank() || normalized.toDoubleOrNull()?.let { it in 1.0..6.0 } == true) {
+                        onTargetAverageChanged(detail.subjectId, input)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(76.dp)
+                    .testTag("branch-target-average-input"),
+                placeholder = { Text(strings.branchTargetPlaceholder) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                isError = isInvalid,
+                supportingText = if (isInvalid) {
+                    { Text(strings.branchTargetInvalid) }
+                } else {
+                    null
+                },
+                shape = RoundedCornerShape(20.dp),
+                textStyle = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = accentBlue,
+                    unfocusedBorderColor = appCardBorderColor(),
+                    errorBorderColor = MaterialTheme.colorScheme.error,
+                    focusedContainerColor = appNeutralBackground(),
+                    unfocusedContainerColor = appNeutralBackground(),
+                    errorContainerColor = appNeutralBackground(),
+                    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
         }
     }
 }
