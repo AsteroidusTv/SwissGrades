@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -606,6 +608,7 @@ private fun BranchTargetAverageCard(
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
+            .animateContentSize()
             .testTag("branch-target-average-card"),
         shape = DashboardCardShape,
         border = appCardBorder(),
@@ -624,91 +627,91 @@ private fun BranchTargetAverageCard(
                     text = strings.branchTargetTitle,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.SemiBold
                 )
                 if (!isEditing) {
-                    TextButton(
+                    HeaderActionButton(
                         onClick = {
                             targetInput = detail.targetAverageInput.orEmpty()
                             isEditing = true
                         },
-                        modifier = Modifier.width(112.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.testTag("edit-branch-target-average")
                     ) {
-                        Text(
-                            text = strings.branchTargetEdit,
-                            color = accentBlue,
-                            maxLines = 1
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = strings.branchTargetEdit,
+                            tint = accentBlue
                         )
                     }
                 }
             }
-            if (isEditing) {
-                Text(
-                    text = strings.branchTargetSubtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = targetInput,
-                    onValueChange = { input ->
-                        targetInput = input
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(76.dp)
-                        .testTag("branch-target-average-input"),
-                    placeholder = { Text(strings.branchTargetPlaceholder) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    isError = isInvalid,
-                    supportingText = if (isInvalid) {
-                        { Text(strings.branchTargetInvalid) }
-                    } else {
-                        null
-                    },
-                    shape = RoundedCornerShape(20.dp),
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = accentBlue,
-                        unfocusedBorderColor = appCardBorderColor(),
-                        errorBorderColor = MaterialTheme.colorScheme.error,
-                        focusedContainerColor = appNeutralBackground(),
-                        unfocusedContainerColor = appNeutralBackground(),
-                        errorContainerColor = appNeutralBackground(),
-                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+            AnimatedVisibility(visible = isEditing) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.branchTargetSubtitle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = {
-                            targetInput = detail.targetAverageInput.orEmpty()
-                            isEditing = false
-                        }
-                    ) {
-                        Text(strings.cancelLabel, color = accentBlue)
-                    }
-                    Button(
-                        onClick = {
-                            onTargetAverageChanged(detail.subjectId, targetInput)
-                            isEditing = false
+                    OutlinedTextField(
+                        value = targetInput,
+                        onValueChange = { input ->
+                            targetInput = input
                         },
-                        enabled = canSave,
-                        colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(76.dp)
+                            .testTag("branch-target-average-input"),
+                        placeholder = { Text(strings.branchTargetPlaceholder) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = isInvalid,
+                        supportingText = if (isInvalid) {
+                            { Text(strings.branchTargetInvalid) }
+                        } else {
+                            null
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accentBlue,
+                            unfocusedBorderColor = appCardBorderColor(),
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            focusedContainerColor = appNeutralBackground(),
+                            unfocusedContainerColor = appNeutralBackground(),
+                            errorContainerColor = appNeutralBackground(),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(strings.saveChanges)
+                        TextButton(
+                            onClick = {
+                                targetInput = detail.targetAverageInput.orEmpty()
+                                isEditing = false
+                            }
+                        ) {
+                            Text(strings.cancelLabel, color = accentBlue)
+                        }
+                        Button(
+                            onClick = {
+                                onTargetAverageChanged(detail.subjectId, targetInput)
+                                isEditing = false
+                            },
+                            enabled = canSave,
+                            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                        ) {
+                            Text(strings.saveChanges)
+                        }
                     }
                 }
-            } else {
+            }
+            AnimatedVisibility(visible = !isEditing) {
                 Text(
                     text = detail.targetAverageInput ?: strings.branchTargetUnset,
                     style = MaterialTheme.typography.headlineSmall,
