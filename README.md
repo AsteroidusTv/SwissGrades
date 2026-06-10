@@ -93,8 +93,8 @@ See the full privacy policy here:
 
 ## Current release
 
-- Version name: `1.3.0`
-- Version code: `4`
+- Version name: `1.5.0`
+- Version code: `5`
 - Minimum SDK: `24`
 - Target SDK: `36`
 
