@@ -620,7 +620,7 @@ private fun BranchTargetAverageCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Text(
                     text = strings.branchTargetTitle,
@@ -710,15 +710,20 @@ private fun BranchTargetAverageCard(
                     }
                 }
             } else {
+                val hasTargetAverage = detail.targetAverageInput != null
                 Text(
                     text = detail.targetAverageInput ?: strings.branchTargetUnset,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = if (detail.targetAverageInput == null) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    style = if (hasTargetAverage) {
+                        MaterialTheme.typography.headlineSmall
                     } else {
-                        accentBlue
+                        MaterialTheme.typography.titleMedium
                     },
-                    fontWeight = FontWeight.SemiBold
+                    color = if (hasTargetAverage) {
+                        accentBlue
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = if (hasTargetAverage) FontWeight.SemiBold else FontWeight.Medium
                 )
             }
         }
