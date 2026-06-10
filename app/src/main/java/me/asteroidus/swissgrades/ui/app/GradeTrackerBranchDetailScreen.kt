@@ -614,8 +614,11 @@ private fun BranchTargetAverageCard(
         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isEditing) 12.dp else 4.dp)
+            modifier = Modifier.padding(
+                horizontal = 18.dp,
+                vertical = if (isEditing) 18.dp else 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(if (isEditing) 12.dp else 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -631,8 +634,8 @@ private fun BranchTargetAverageCard(
                 if (!isEditing) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .offset(y = 2.dp)
+                            .size(36.dp)
+                            .offset(y = 1.dp)
                             .clip(CircleShape)
                             .clickable(
                                 onClick = {
@@ -648,7 +651,7 @@ private fun BranchTargetAverageCard(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = strings.branchTargetEdit,
                             tint = accentBlue,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -723,7 +726,7 @@ private fun BranchTargetAverageCard(
                 Text(
                     text = detail.targetAverageInput ?: strings.branchTargetUnset,
                     style = if (hasTargetAverage) {
-                        MaterialTheme.typography.headlineSmall
+                        MaterialTheme.typography.titleLarge
                     } else {
                         MaterialTheme.typography.titleMedium
                     },
