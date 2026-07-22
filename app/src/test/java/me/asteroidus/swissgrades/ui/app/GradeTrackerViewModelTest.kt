@@ -547,6 +547,29 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun frenchBlockedPromotionUsesNegativeDashboardTone() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        val literatureId = viewModel.addSubjectWithBasketFlag("Literature", isInBasket = true)
+        val scienceId = viewModel.addSubjectWithBasketFlag("Science", isInBasket = true)
+        val projectsId = viewModel.addSubjectWithBasketFlag("Projects", isInBasket = true)
+        val optionId = (viewModel.uiState.value.screen as ScreenUiState.Main).optionSubject.id
+
+        viewModel.addGradeToSubject(literatureId, "3.0")
+        viewModel.addGradeToSubject(scienceId, "3.0")
+        viewModel.addGradeToSubject(projectsId, "3.0")
+        viewModel.addGradeToSubject(optionId, "3.0")
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertEquals(AppStrings.French.promotionStatusBlocked, screen.summary.promotionStatusLabel)
+        assertEquals(DashboardStatusTone.NEGATIVE, screen.summary.statusTone)
+    }
+
+    @Test
     fun unmarkedSubjectsDoNotUnlockBasketPromotion() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())

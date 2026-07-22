@@ -1715,7 +1715,7 @@ private fun String.toDashboardStatusTone(): DashboardStatusTone {
         "Promoted",
         "Promu" -> DashboardStatusTone.POSITIVE
         "Blocked",
-        "Bloque" -> DashboardStatusTone.NEGATIVE
+        "Bloqué" -> DashboardStatusTone.NEGATIVE
         else -> DashboardStatusTone.NEUTRAL
     }
 }

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: May 21, 2026
+Last updated: July 22, 2026
 
 ## Overview
 
@@ -52,6 +52,12 @@ SwissGrades does not currently provide:
 
 Your data is intended to remain on your device unless you explicitly share screenshots, exports, backups, or other files yourself.
 
+## Backups and device transfer
+
+SwissGrades provides app-managed backup/export features that you trigger manually. Those backup files can contain your grades, settings, and optional attachments, so you should store and share them carefully.
+
+SwissGrades excludes its local grade data and attachments from Android cloud backup. On Android versions that support device-to-device transfer rules, SwissGrades allows local device transfer of app data so your grades can move during a device migration. The exact transfer behavior may still depend on your Android version, device manufacturer, and system settings.
+
 ## Third-party services
 
 SwissGrades uses standard Android and open-source libraries to run the app. These libraries help with app functionality such as UI rendering and local image display.
@@ -67,7 +73,7 @@ Your data remains stored locally until you:
 - clear the app’s data
 - uninstall the app
 
-Some platform-level backups or device-specific behaviors may depend on your Android system settings.
+Manual SwissGrades backup files remain wherever you save them until you delete them. Some platform-level transfer behavior may depend on your Android system settings.
 
 ## Children and school use
 

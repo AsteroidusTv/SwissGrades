@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <include
+    <exclude
         domain="sharedpref"
-        path="grade_tracker_app_prefs.xml" />
-    <include
+        path="." />
+    <exclude
         domain="file"
-        path="attachments/" />
+        path="." />
 </full-backup-content>

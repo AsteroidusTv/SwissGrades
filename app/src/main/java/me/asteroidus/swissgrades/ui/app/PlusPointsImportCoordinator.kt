@@ -7,8 +7,12 @@ import androidx.core.net.toUri
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.text.Normalizer
 import javax.xml.parsers.DocumentBuilderFactory
+
+private const val MaxPlusPointsImportBytes = 2 * 1024 * 1024
 
 data class PreparedPlusPointsImport(
     val displayName: String,
@@ -27,7 +31,7 @@ class LocalPlusPointsImportCoordinator(
     override fun prepareImport(sourceUriString: String): PreparedPlusPointsImport {
         val sourceUri = sourceUriString.toUri()
         val displayName = resolveDisplayName(sourceUri) ?: "pluspoints-export.PlusPointsExport"
-        val xml = context.contentResolver.openInputStream(sourceUri)?.use { it.readBytes().decodeToString() }
+        val xml = context.contentResolver.openInputStream(sourceUri)?.use { it.readPlusPointsImportText() }
             ?: throw IllegalStateException("Could not open PlusPoints export.")
         return PreparedPlusPointsImport(
             displayName = displayName,
@@ -369,9 +373,9 @@ private fun normalizeKey(value: String?): String {
 }
 
 private fun parsePlistRoot(xml: String): Map<String, Any?> {
-    val factory = DocumentBuilderFactory.newInstance()
+    val factory = hardenedDocumentBuilderFactory()
     val builder = factory.newDocumentBuilder()
-    val document = builder.parse(ByteArrayInputStream(xml.toByteArray()))
+    val document = builder.parse(ByteArrayInputStream(xml.encodeToByteArray()))
     val plist = document.documentElement
     val firstElement = plist.childNodes.asElementSequence().firstOrNull()
         ?: throw IllegalStateException("Invalid plist file.")
@@ -421,4 +425,41 @@ private fun org.w3c.dom.NodeList.asElementSequence(): Sequence<Element> = sequen
         val node = item(index)
         if (node.nodeType == Node.ELEMENT_NODE) yield(node as Element)
     }
+}
+
+internal fun InputStream.readPlusPointsImportText(maxBytes: Int = MaxPlusPointsImportBytes): String {
+    require(maxBytes > 0) { "Maximum import size must be positive." }
+    val output = ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    var totalBytes = 0
+    while (true) {
+        val read = read(buffer)
+        if (read == -1) break
+        totalBytes += read
+        if (totalBytes > maxBytes) {
+            throw IllegalStateException("PlusPoints export is too large.")
+        }
+        output.write(buffer, 0, read)
+    }
+    return output.toByteArray().decodeToString()
+}
+
+private fun hardenedDocumentBuilderFactory(): DocumentBuilderFactory {
+    return DocumentBuilderFactory.newInstance().apply {
+        requireXmlFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        trySetXmlFeature("http://xml.org/sax/features/external-general-entities", false)
+        trySetXmlFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        trySetXmlFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        runCatching { isXIncludeAware = false }
+        runCatching { isExpandEntityReferences = false }
+    }
+}
+
+private fun DocumentBuilderFactory.requireXmlFeature(feature: String, enabled: Boolean) {
+    runCatching { setFeature(feature, enabled) }
+        .getOrElse { throw IllegalStateException("Secure XML parsing is unavailable.", it) }
+}
+
+private fun DocumentBuilderFactory.trySetXmlFeature(feature: String, enabled: Boolean) {
+    runCatching { setFeature(feature, enabled) }
 }

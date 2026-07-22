@@ -17,7 +17,9 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 private const val BackupManifestFileName = "manifest.json"
+private const val BackupAttachmentsDirectoryName = "attachments"
 private const val BackupFormatVersion = 1
+private val SafeBackupPathComponentRegex = Regex("[A-Za-z0-9][A-Za-z0-9._-]*")
 
 data class PreparedBackupImport(
     val displayName: String,
@@ -252,8 +254,10 @@ class LocalAppBackupCoordinator(
         unpackedDirectory: File
     ) {
         importedState.allStoredNotes().forEach { note ->
+            requireSafeBackupPathComponent(note.id, "note")
             note.attachments.forEach { attachment ->
-                val attachmentFile = File(unpackedDirectory, attachment.filePath)
+                requireSafeBackupPathComponent(attachment.id, "attachment")
+                val attachmentFile = resolveImportedAttachmentFile(unpackedDirectory, attachment.filePath)
                 if (!attachmentFile.exists() || !attachmentFile.isFile) {
                     throw IllegalStateException("Backup attachment is missing.")
                 }
@@ -266,12 +270,18 @@ class LocalAppBackupCoordinator(
         unpackedDirectory: File,
         preparedAttachmentsRoot: File
     ): GradeTrackerAppState {
+        val preparedRoot = preparedAttachmentsRoot.canonicalFile
         return importedState.mapStoredNotes { note ->
+            requireSafeBackupPathComponent(note.id, "note")
             val restoredAttachments = note.attachments.map { attachment ->
-                val importedFile = File(unpackedDirectory, attachment.filePath)
+                requireSafeBackupPathComponent(attachment.id, "attachment")
+                val importedFile = resolveImportedAttachmentFile(unpackedDirectory, attachment.filePath)
                 val extension = importedFile.extension.takeIf { it.isNotBlank() } ?: "jpg"
-                val noteDirectory = File(preparedAttachmentsRoot, "notes/${note.id}").apply { mkdirs() }
-                val restoredFile = File(noteDirectory, "${attachment.id}.$extension")
+                val noteDirectory = File(preparedRoot, "notes/${note.id}").canonicalFile
+                noteDirectory.requireInside(preparedRoot)
+                noteDirectory.mkdirs()
+                val restoredFile = File(noteDirectory, "${attachment.id}.$extension").canonicalFile
+                restoredFile.requireInside(preparedRoot)
                 importedFile.copyTo(restoredFile, overwrite = true)
                 StoredAttachment(
                     id = attachment.id,
@@ -334,13 +344,48 @@ private fun GradeTrackerAppState.withBackupAttachmentPaths(
 
 private fun collectAttachmentSources(state: GradeTrackerAppState): List<AttachmentBackupSource> {
     return state.allStoredNotes().flatMap { note ->
+        requireSafeBackupPathComponent(note.id, "note")
         note.attachments.map { attachment ->
+            requireSafeBackupPathComponent(attachment.id, "attachment")
             val extension = File(attachment.filePath).extension.takeIf { it.isNotBlank() } ?: "jpg"
             AttachmentBackupSource(
                 originalFilePath = attachment.filePath,
-                archivePath = "attachments/${note.id}/${attachment.id}.$extension"
+                archivePath = "$BackupAttachmentsDirectoryName/${note.id}/${attachment.id}.$extension"
             )
         }
+    }
+}
+
+private fun resolveImportedAttachmentFile(unpackedDirectory: File, archivePath: String): File {
+    val normalizedPath = archivePath.replace('\\', '/')
+    val segments = normalizedPath.split('/')
+    if (
+        normalizedPath.isBlank() ||
+        File(normalizedPath).isAbsolute ||
+        segments.firstOrNull() != BackupAttachmentsDirectoryName ||
+        segments.size < 3 ||
+        segments.any { it.isBlank() || it == "." || it == ".." }
+    ) {
+        throw IllegalStateException("Backup attachment path is invalid.")
+    }
+
+    val unpackedRoot = unpackedDirectory.canonicalFile
+    val attachmentsRoot = File(unpackedRoot, BackupAttachmentsDirectoryName).canonicalFile
+    val attachmentFile = File(unpackedRoot, normalizedPath).canonicalFile
+    attachmentFile.requireInside(attachmentsRoot)
+    return attachmentFile
+}
+
+private fun requireSafeBackupPathComponent(value: String, label: String) {
+    if (!SafeBackupPathComponentRegex.matches(value) || value == "." || value == "..") {
+        throw IllegalStateException("Backup $label id is invalid.")
+    }
+}
+
+private fun File.requireInside(root: File) {
+    val rootPath = root.path + File.separator
+    if (path != root.path && !path.startsWith(rootPath)) {
+        throw IllegalStateException("Backup path is invalid.")
     }
 }
 

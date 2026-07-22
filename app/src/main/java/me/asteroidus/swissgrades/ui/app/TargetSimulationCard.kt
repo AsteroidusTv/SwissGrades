@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,8 @@ import me.asteroidus.swissgrades.domain.TargetSimulationCalculator
 import me.asteroidus.swissgrades.domain.TargetSimulationGrade
 import me.asteroidus.swissgrades.domain.TargetSimulationResult
 
+private const val DefaultTargetSimulationInput = "5.0"
+
 @Composable
 internal fun TargetSimulationCard(
     notes: List<NoteUiState>,
@@ -61,8 +64,21 @@ internal fun TargetSimulationCard(
     var isExpanded by remember { mutableStateOf(false) }
     val openInteractionSource = remember { MutableInteractionSource() }
     val closeInteractionSource = remember { MutableInteractionSource() }
-    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: "5.0") }
+    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput) }
+    var lastSyncedTargetInput by remember(targetKey) {
+        mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput)
+    }
     var nextTestType by remember { mutableStateOf(NoteTypeUi.FULL) }
+    LaunchedEffect(targetKey, initialTargetInput, isExpanded) {
+        val nextSyncedInput = initialTargetInput ?: DefaultTargetSimulationInput
+        targetInput = synchronizedTargetSimulationInput(
+            currentInput = targetInput,
+            lastSyncedInput = lastSyncedTargetInput,
+            nextSyncedInput = nextSyncedInput,
+            isExpanded = isExpanded
+        )
+        lastSyncedTargetInput = nextSyncedInput
+    }
     val result = remember(notes, targetInput, nextTestType) {
         TargetSimulationCalculator.compute(
             grades = notes.map { note ->
@@ -309,5 +325,18 @@ internal fun TargetSimulationCard(
                 }
             }
         }
+    }
+}
+
+internal fun synchronizedTargetSimulationInput(
+    currentInput: String,
+    lastSyncedInput: String,
+    nextSyncedInput: String,
+    isExpanded: Boolean
+): String {
+    return if (!isExpanded || currentInput == lastSyncedInput) {
+        nextSyncedInput
+    } else {
+        currentInput
     }
 }

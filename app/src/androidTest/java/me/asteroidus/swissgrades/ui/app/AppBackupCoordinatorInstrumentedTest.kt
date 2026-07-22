@@ -158,4 +158,102 @@ class AppBackupCoordinatorInstrumentedTest {
 
         backupCoordinator.prepareImport(corruptedBackup)
     }
+
+    @Test(expected = IllegalStateException::class)
+    fun prepareImport_rejectsBackupAttachmentPathTraversal() {
+        val corruptedBackup = File(appContext.cacheDir, "path-traversal-backup.sgb")
+        val exportedState = backupStateWithAttachment(
+            attachmentPath = "attachments/note-1/../note-1/attachment-1.jpg"
+        )
+
+        writeBackupArchive(
+            file = corruptedBackup,
+            state = exportedState,
+            attachmentEntries = mapOf("attachments/note-1/attachment-1.jpg" to "attachment-content")
+        )
+
+        backupCoordinator.prepareImport(corruptedBackup)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun prepareImport_rejectsBackupWithUnsafeNoteId() {
+        val corruptedBackup = File(appContext.cacheDir, "unsafe-note-id-backup.sgb")
+        val exportedState = backupStateWithAttachment(noteId = "../outside")
+
+        writeBackupArchive(
+            file = corruptedBackup,
+            state = exportedState,
+            attachmentEntries = mapOf("attachments/note-1/attachment-1.jpg" to "attachment-content")
+        )
+
+        backupCoordinator.prepareImport(corruptedBackup)
+    }
+
+    @Test(expected = IllegalStateException::class)
+    fun prepareImport_rejectsBackupWithUnsafeAttachmentId() {
+        val corruptedBackup = File(appContext.cacheDir, "unsafe-attachment-id-backup.sgb")
+        val exportedState = backupStateWithAttachment(attachmentId = "../outside")
+
+        writeBackupArchive(
+            file = corruptedBackup,
+            state = exportedState,
+            attachmentEntries = mapOf("attachments/note-1/attachment-1.jpg" to "attachment-content")
+        )
+
+        backupCoordinator.prepareImport(corruptedBackup)
+    }
+
+    private fun backupStateWithAttachment(
+        noteId: String = "note-1",
+        attachmentId: String = "attachment-1",
+        attachmentPath: String = "attachments/note-1/attachment-1.jpg"
+    ): GradeTrackerAppState {
+        return GradeTrackerAppState(
+            selectedOption = InitialOptionChoice.SPANISH,
+            subjects = listOf(
+                StoredSubject(
+                    id = "subject-1",
+                    name = "Spanish",
+                    isInBasket = true,
+                    isOptionSubject = true,
+                    optionChoice = InitialOptionChoice.SPANISH,
+                    notes = listOf(
+                        StoredNote(
+                            id = noteId,
+                            value = 5.0,
+                            weight = AssessmentWeight.FULL,
+                            description = "",
+                            createdAtEpochMillis = 0L,
+                            attachments = listOf(
+                                StoredAttachment(
+                                    id = attachmentId,
+                                    filePath = attachmentPath
+                                )
+                            )
+                        )
+                    )
+                )
+            ),
+            nextSubjectSequence = 2,
+            nextNoteSequence = 2
+        )
+    }
+
+    private fun writeBackupArchive(
+        file: File,
+        state: GradeTrackerAppState,
+        attachmentEntries: Map<String, String> = emptyMap()
+    ) {
+        ZipOutputStream(FileOutputStream(file)).use { zipOutputStream ->
+            zipOutputStream.putNextEntry(ZipEntry("manifest.json"))
+            zipOutputStream.write("""{"version":1,"appState":${state.encodeToJsonString()}}""".toByteArray())
+            zipOutputStream.closeEntry()
+
+            attachmentEntries.forEach { (path, content) ->
+                zipOutputStream.putNextEntry(ZipEntry(path))
+                zipOutputStream.write(content.toByteArray())
+                zipOutputStream.closeEntry()
+            }
+        }
+    }
 }
