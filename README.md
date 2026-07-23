@@ -74,12 +74,6 @@ SwissGrades is currently focused on being a strong personal-use app:
 
 It is not yet a full school-management app, and it does not try to be one.
 
-## Tester feedback
-
-- Use [FEEDBACK.md](FEEDBACK.md) to triage tester feedback during release validation.
-- Use [docs/tester-feedback-template.md](docs/tester-feedback-template.md) when asking testers for reproducible reports.
-- Use [docs/post-release-triage.md](docs/post-release-triage.md) to decide whether a report should become a patch release.
-
 ## Privacy
 
 SwissGrades is currently built around local-first storage on your device.
@@ -96,7 +90,6 @@ See the full privacy policy here:
 
 - [`docs/architecture.md`](docs/architecture.md) describes state ownership, persistence, domain rules, and trust boundaries.
 - [`ROADMAP.md`](ROADMAP.md) contains active product and engineering candidates.
-- [`docs/audits/2026-07-remediation-summary.md`](docs/audits/2026-07-remediation-summary.md) records the completed security and quality pass.
 
 ## Current release
 
