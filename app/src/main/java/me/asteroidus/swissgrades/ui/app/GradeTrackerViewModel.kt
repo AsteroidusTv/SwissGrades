@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import me.asteroidus.swissgrades.domain.GradeCalculator
+import me.asteroidus.swissgrades.domain.OfficialAverageTarget
 import me.asteroidus.swissgrades.domain.PromotionEvaluator
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import me.asteroidus.swissgrades.domain.model.Branch
@@ -340,13 +341,10 @@ class GradeTrackerViewModel(
     }
 
     fun updateSubjectTargetAverage(subjectId: String, input: String) {
-        val normalizedInput = normalizeGradeInput(input)
-        val targetAverage = if (normalizedInput.isBlank()) {
+        val targetAverage = if (input.isBlank()) {
             null
         } else {
-            normalizedInput.toDoubleOrNull()
-                ?.takeIf { it in 1.0..6.0 }
-                ?: return
+            OfficialAverageTarget.parse(input) ?: return
         }
         state = state.copy(
             subjects = state.subjects.map { subject ->

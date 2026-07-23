@@ -16,6 +16,8 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Updated `PRIVACY_POLICY.md` to match backup and transfer behavior.
 - Implemented the post-audit Promotion setup assistant roadmap item.
 - Removed promotion presentation strings/models from the domain layer and replaced string-based calculability/tone decisions with structured state.
+- Restricted official average targets to whole and half-grade steps while preserving quarter-step grade and simulator results.
+- Added compatibility normalization for previously saved arbitrary-decimal targets.
 
 ## Commands Executed
 
@@ -45,12 +47,13 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - French blocked dashboard tone is covered by a ViewModel regression test.
 - Promotion setup assistant diagnostics are covered by ViewModel tests and an instrumented dashboard action smoke test.
 - Promotion dashboard localization/tone/calculability are covered by pure presenter tests, and the detached simulation presentation remains covered by JVM and instrumented tests.
+- Official target parsing, legacy normalization, persistence, and simulator rejection behavior are covered by JVM tests.
 - Existing managed-device tests pass after the UI/state changes.
 
 ## Resolved Findings
 
 - High: SEC-001, TEST-003.
-- Medium: SEC-002, SEC-003, FUNC-001, FUNC-002, UI-001, UI-002, TEST-001, TEST-002, TEST-EXEC-001.
+- Medium: SEC-002, SEC-003, FUNC-001, FUNC-002, FUNC-004, UI-001, UI-002, TEST-001, TEST-002, TEST-EXEC-001.
 
 ## Unresolved Or Deferred Findings
 
@@ -67,7 +70,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 ## Recommended Next Milestone
 
-Start a dedicated cleanup branch for TECH-001/TECH-002: move presentation/localization logic out of the ViewModel and reduce the largest Compose files in small, tested slices.
+Continue TECH-001 with one coherent extraction from the oversized ViewModel or Compose screens, then address attachment accessibility semantics under UI-003.
 
 ## Convergence Statement
 

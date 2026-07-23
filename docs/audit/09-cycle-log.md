@@ -269,3 +269,49 @@ Resolution: JDK 21 was installed under `~/.local/jdks/amazon-corretto-21.0.11.10
   - The detached simulation retains its original English copy and passed its existing JVM/instrumented tests.
   - No promotion calculation, basket role, persistence, navigation, or visible copy changed.
   - No new actionable Critical, High, or Medium finding was found in the modified scope.
+
+## Cycle 6: Enforce Official Half-Grade Targets
+
+- Started: 2026-07-23.
+- Selected finding: FUNC-004.
+- Status: resolved and verified.
+- Confirmed evidence:
+  - `TargetSimulationCalculator` accepts any target decimal in the 1.0 to 6.0 range.
+  - `GradeTrackerViewModel.updateSubjectTargetAverage()` applies the same range-only validation.
+  - The branch target editor mirrors that range-only rule.
+  - Existing persisted targets may contain quarter or arbitrary decimal values.
+- Intended boundary:
+  - One pure domain rule owns official target parsing and validation.
+  - New user input is rejected unless it is a whole or half grade.
+  - Legacy persisted values are normalized with the existing official half-grade rounding rule.
+  - Individual note values and the simulator's required-next-grade result keep quarter-step precision.
+- Compatibility risk:
+  - Tightening validation without migration would leave existing saved targets such as `5.25` invalid after upgrade.
+- Acceptance criteria:
+  - Target inputs accept `1`, `1.0`, `4.5`, `6.0`, and comma equivalents.
+  - Target inputs reject `5.25`, `5.74`, `5.99`, out-of-range values, and malformed text.
+  - Legacy target values normalize at official thresholds.
+  - The required next grade may still be `5.25`.
+  - English and French errors explain the 0.5-step requirement.
+- Required verification:
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`
+  - `./scripts/release-check.sh`
+  - `./scripts/run-managed-device-tests.sh`
+- Implementation:
+  - Added `OfficialAverageTarget` as the pure shared rule for parsing whole and half-grade targets.
+  - Applied the rule to both saved branch targets and simulator targets.
+  - Kept free-form text entry so decimal typing remains usable, but invalid targets cannot be saved or calculated.
+  - Normalized legacy persisted target values through the existing official half-grade rounding rule during deserialization.
+  - Updated English and French validation copy to state the 0.5-step requirement.
+  - Preserved quarter-step individual grades and simulator results.
+- Verification:
+  - Focused target, calculator, ViewModel, and serialization JVM tests: passed.
+  - `git diff --check`: passed.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 42 tests on `pixel2Api36`, 0 failures.
+- Re-audit:
+  - Static search found no remaining range-only target parser in application code.
+  - Valid `5.5` targets still produce quarter-step required grades such as `5.25`.
+  - Ordinary note parsing and imported grade values were not changed.
+  - No new actionable Critical, High, or Medium finding was found in the modified scope.

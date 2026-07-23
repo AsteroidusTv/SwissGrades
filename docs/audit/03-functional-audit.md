@@ -54,3 +54,20 @@ Status: initial static audit pass in progress.
 - Proposed remediation: either introduce explicit role assignment in a future product change or rename internal role concepts for the simplified basket workflow.
 - Verification method: domain tests and UI copy review after model decision.
 - Status: open, product decision required.
+
+### FUNC-004: Official Target Inputs Accept Non-Official Decimal Values
+
+- ID: FUNC-004
+- Title: official target inputs accept non-official decimal values.
+- Category: Functional correctness and input validation.
+- Severity: Medium.
+- Confidence: High.
+- Affected files or screens: saved branch average target, grade simulator target input, `TargetSimulationCalculator`.
+- Observed behavior: both target inputs accept any decimal from 1.0 to 6.0, including values such as `5.25` and `5.99`, even though the projected result is explicitly an official average rounded to half grades.
+- Expected behavior: target averages accept only official values from 1.0 to 6.0 in 0.5 steps. The calculated required next grade remains allowed to use quarter steps because individual grades support quarter values.
+- Reproduction steps: enter `5.25` in the saved branch target or simulator target field; the value is accepted and used.
+- Technical or UX impact: the UI exposes target precision that cannot exist in the official result and makes equivalent targets appear different.
+- Root cause: target parsing checks only the numeric range and does not enforce the official half-grade invariant.
+- Proposed remediation: add one shared official-target parser, validate both entry points, and normalize legacy persisted targets through the existing official half-grade rounding rule.
+- Verification method: domain parser/calculator tests, ViewModel persistence tests, serialization compatibility tests, localization checks, and managed-device regression suite.
+- Status: resolved and verified.

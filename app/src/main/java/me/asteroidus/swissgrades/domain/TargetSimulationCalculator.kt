@@ -25,11 +25,9 @@ object TargetSimulationCalculator {
         targetAverageInput: String,
         nextWeightCoefficient: Double
     ): TargetSimulationResult {
-        val targetAverage = targetAverageInput.toDecimalOrNull()
+        val targetAverage = OfficialAverageTarget.parse(targetAverageInput)
         if (
             targetAverage == null ||
-            targetAverage < MIN_GRADE ||
-            targetAverage > MAX_GRADE ||
             nextWeightCoefficient <= 0.0
         ) {
             return TargetSimulationResult.Invalid
@@ -73,10 +71,6 @@ object TargetSimulationCalculator {
 private const val MIN_GRADE = 1.0
 private const val MAX_GRADE = 6.0
 private const val OFFICIAL_HALF_POINT_THRESHOLD = 0.25
-
-private fun String.toDecimalOrNull(): Double? {
-    return trim().replace(',', '.').toDoubleOrNull()
-}
 
 private fun Double.roundUpToQuarter(): Double {
     return ceil((this * 4.0) - 1e-9) / 4.0

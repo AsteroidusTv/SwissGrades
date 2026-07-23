@@ -457,7 +457,7 @@ data class AppStrings(
             branchTargetUnset = "No target set",
             branchTargetEdit = "Edit",
             branchTargetPlaceholder = "Ex: 5.0",
-            branchTargetInvalid = "Use a target from 1.0 to 6.0.",
+            branchTargetInvalid = "Use a target from 1.0 to 6.0 in 0.5 steps.",
             targetSimulationTitle = "Grade simulator",
             targetSimulationSubtitle = "Choose a target average and see what the next test needs.",
             targetAverageLabel = "Target average",
@@ -465,7 +465,7 @@ data class AppStrings(
             requiredGradeTitle = "Needed next grade",
             targetAlreadyReached = "Already secured, even with 1.0 next.",
             targetImpossible = "Impossible with one test, even with 6.0.",
-            targetInvalid = "Enter a target from 1.0 to 6.0.",
+            targetInvalid = "Enter a target from 1.0 to 6.0 in 0.5 steps.",
             targetProjectedAverageTemplate = "Projected official average: {average}"
         )
 
@@ -632,7 +632,7 @@ data class AppStrings(
             branchTargetUnset = "Aucun objectif défini",
             branchTargetEdit = "Modifier",
             branchTargetPlaceholder = "Ex : 5,0",
-            branchTargetInvalid = "Utilise un objectif de 1,0 à 6,0.",
+            branchTargetInvalid = "Utilise un objectif de 1,0 à 6,0 par pas de 0,5.",
             targetSimulationTitle = "Simulateur de note",
             targetSimulationSubtitle = "Choisis une moyenne visée et vois ce qu'il faut au prochain test.",
             targetAverageLabel = "Moyenne visée",
@@ -640,7 +640,7 @@ data class AppStrings(
             requiredGradeTitle = "Note nécessaire",
             targetAlreadyReached = "Déjà assuré, même avec 1,0 au prochain test.",
             targetImpossible = "Impossible avec un seul test, même avec 6,0.",
-            targetInvalid = "Entre un objectif de 1,0 à 6,0.",
+            targetInvalid = "Entre un objectif de 1,0 à 6,0 par pas de 0,5.",
             targetProjectedAverageTemplate = "Moyenne officielle projetée : {average}"
         )
     }

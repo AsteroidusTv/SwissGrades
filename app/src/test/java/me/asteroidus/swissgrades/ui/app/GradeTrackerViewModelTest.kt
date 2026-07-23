@@ -116,11 +116,11 @@ class GradeTrackerViewModelTest {
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
         viewModel.openSubject(historyId)
-        viewModel.updateSubjectTargetAverage(historyId, "5,25")
+        viewModel.updateSubjectTargetAverage(historyId, "5,5")
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
-        assertEquals("5.25", detail.targetAverageInput)
-        assertEquals(5.25, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
+        assertEquals("5.5", detail.targetAverageInput)
+        assertEquals(5.5, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
     }
 
     @Test
@@ -160,9 +160,10 @@ class GradeTrackerViewModelTest {
         viewModel.confirmPeriodSelection()
 
         val historyId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
-        viewModel.updateSubjectTargetAverage(historyId, "6.5")
+        viewModel.updateSubjectTargetAverage(historyId, "5.5")
+        viewModel.updateSubjectTargetAverage(historyId, "5.25")
 
-        assertEquals(null, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
+        assertEquals(5.5, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
     }
 
     @Test

@@ -19,7 +19,7 @@ class GradeTrackerRepositorySerializationTest {
                     schoolYear = SchoolYear.YEAR_2,
                     isCounted = true,
                     isInBasket = false,
-                    targetAverage = 5.25,
+                    targetAverage = 5.5,
                     notes = listOf(
                         StoredNote(
                             id = "note-1",
@@ -56,6 +56,36 @@ class GradeTrackerRepositorySerializationTest {
         val json = JSONObject(GradeTrackerAppState().encodeToJsonString())
 
         assertEquals(1, json.getInt("schemaVersion"))
+    }
+
+    @Test
+    fun appStateSerialization_normalizesLegacyTargetsToOfficialHalfGrades() {
+        val subjects = org.json.JSONArray()
+            .put(
+                JSONObject()
+                    .put("id", "subject-1")
+                    .put("name", "History")
+                    .put("targetAverage", 5.25)
+            )
+            .put(
+                JSONObject()
+                    .put("id", "subject-2")
+                    .put("name", "Biology")
+                    .put("targetAverage", 5.74)
+            )
+            .put(
+                JSONObject()
+                    .put("id", "subject-3")
+                    .put("name", "Chemistry")
+                    .put("targetAverage", 5.75)
+            )
+        val json = JSONObject()
+            .put("subjects", subjects)
+            .toString()
+
+        val decodedTargets = decodeGradeTrackerAppState(json).subjects.map { it.targetAverage }
+
+        assertEquals(listOf(5.5, 5.5, 6.0), decodedTargets)
     }
 
     @Test

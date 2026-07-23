@@ -66,6 +66,26 @@ class TargetSimulationCalculatorTest {
     }
 
     @Test
+    fun compute_returnsInvalidForNonOfficialTargetStep() {
+        assertSame(
+            TargetSimulationResult.Invalid,
+            TargetSimulationCalculator.compute(
+                grades = emptyList(),
+                targetAverageInput = "5.25",
+                nextWeightCoefficient = 1.0
+            )
+        )
+        assertSame(
+            TargetSimulationResult.Invalid,
+            TargetSimulationCalculator.compute(
+                grades = emptyList(),
+                targetAverageInput = "5.99",
+                nextWeightCoefficient = 1.0
+            )
+        )
+    }
+
+    @Test
     fun formatGrade_keepsOneDecimalForWholeGrades() {
         assertEquals("5.0", TargetSimulationCalculator.formatGrade(5.0))
         assertEquals("5.25", TargetSimulationCalculator.formatGrade(5.25))
@@ -81,8 +101,8 @@ class TargetSimulationCalculatorTest {
         )
         assertProjectedAverage(
             grades = listOf(TargetSimulationGrade(value = 5.48, weightCoefficient = 1.0)),
-            targetAverageInput = "5.99",
-            expectedRequiredGrade = 6.0,
+            targetAverageInput = "5.5",
+            expectedRequiredGrade = 5.25,
             expectedProjectedAverage = 5.5
         )
         assertProjectedAverage(

@@ -36,6 +36,14 @@ Status: initial backlog created from confirmed findings.
 - Acceptance criteria: French blocked status maps to `DashboardStatusTone.NEGATIVE`; promoted and incomplete still map correctly.
 - Status: resolved and verified.
 
+### P3.5: Enforce Official Average Targets
+
+- Findings: FUNC-004.
+- Priority rationale: target precision must match the official half-grade result users are trying to reach.
+- Scope: validate saved and simulated targets in 0.5 steps, normalize legacy persisted targets, and preserve quarter-step required-grade results.
+- Acceptance criteria: new targets accept only values from 1.0 to 6.0 in 0.5 steps; comma input works; legacy arbitrary decimals normalize with official rounding; required next grades can still be quarter grades.
+- Status: resolved and verified.
+
 ### P4: Privacy Decision For Android Backup
 
 - Findings: SEC-003.
