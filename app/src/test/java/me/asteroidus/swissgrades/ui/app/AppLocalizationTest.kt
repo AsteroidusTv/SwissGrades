@@ -27,13 +27,19 @@ class AppLocalizationTest {
             strings.editSubjectTitle,
             strings.gradeHistoryTitle,
             strings.addGrade,
-            strings.targetSimulationTitle
+            strings.targetSimulationTitle,
+            strings.gradeImpactTitle,
+            strings.gradeImpactWithGrade,
+            strings.gradeImpactWithoutGrade,
+            strings.gradeImpactDelta,
+            strings.gradeImpactUnavailable
         )
 
         assertEquals("Choisis ton option", strings.chooseOption)
         assertEquals("Mes branches", strings.mySubjects)
         assertEquals("Paramètres", strings.optionSettingsTitle)
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
+        assertEquals("Impact actuel", strings.gradeImpactTitle)
 
         val forbiddenEnglishTerms = listOf(
             "Choose",

@@ -59,8 +59,16 @@ data class NoteDraftUiState(
     val descriptionInput: String = "",
     val errorMessage: String? = null,
     val editingNoteId: String? = null,
+    val savedGradeImpact: GradeImpactUiState? = null,
     val attachments: List<DraftAttachmentUiState> = emptyList(),
     val attachmentErrorMessage: String? = null
+)
+
+@Immutable
+data class GradeImpactUiState(
+    val withGradeAverage: Double,
+    val withoutGradeAverage: Double?,
+    val officialAverageDelta: Double?
 )
 
 @Immutable

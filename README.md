@@ -19,8 +19,8 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
   - quarter grade
 - target average simulator:
   - choose an official target average
-  - pick the next test weight
-  - see the needed next grade using official half-point rounding
+  - plan one, two, or three future grades with a shared weight
+  - see the needed grade or average using official half-point rounding
 - promotion summary with:
   - overall average
   - promotion points
@@ -28,6 +28,7 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
   - insufficiencies
 - subject detail pages with:
   - raw and official averages
+  - current impact of each saved grade
   - optional composite sub-subject selector
   - recent grade evolution
   - grade history
@@ -73,12 +74,6 @@ SwissGrades is currently focused on being a strong personal-use app:
 
 It is not yet a full school-management app, and it does not try to be one.
 
-## Tester feedback
-
-- Use [FEEDBACK.md](FEEDBACK.md) to triage tester feedback during release validation.
-- Use [docs/tester-feedback-template.md](docs/tester-feedback-template.md) when asking testers for reproducible reports.
-- Use [docs/post-release-triage.md](docs/post-release-triage.md) to decide whether a report should become a patch release.
-
 ## Privacy
 
 SwissGrades is currently built around local-first storage on your device.
@@ -90,6 +85,11 @@ SwissGrades is currently built around local-first storage on your device.
 See the full privacy policy here:
 
 - [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
+
+## Project documentation
+
+- [`docs/architecture.md`](docs/architecture.md) describes state ownership, persistence, domain rules, and trust boundaries.
+- [`ROADMAP.md`](ROADMAP.md) contains active product and engineering candidates.
 
 ## Current release
 

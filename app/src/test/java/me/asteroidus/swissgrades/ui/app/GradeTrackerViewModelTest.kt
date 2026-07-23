@@ -359,6 +359,121 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun editingGrade_exposesCurrentOfficialImpactAcrossSemesters() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isInBasket = false,
+                        notes = listOf(
+                            StoredNote(
+                                id = "note-1",
+                                value = 4.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Semester 1",
+                                createdAtEpochMillis = 1L,
+                                semester = SchoolSemester.SEMESTER_1
+                            ),
+                            StoredNote(
+                                id = "note-2",
+                                value = 6.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Semester 2",
+                                createdAtEpochMillis = 2L,
+                                semester = SchoolSemester.SEMESTER_2
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 3
+            )
+        )
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.openSubject("subject-2")
+        viewModel.requestEditNote("note-2")
+
+        val impact = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail)
+            .detail.draft.savedGradeImpact
+        assertEquals(5.0, impact?.withGradeAverage)
+        assertEquals(4.0, impact?.withoutGradeAverage)
+        assertEquals(1.0, impact?.officialAverageDelta)
+    }
+
+    @Test
+    fun editingCompositeGrade_exposesCompositeImpact() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.BIOLOGY_CHEMISTRY,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "BICH",
+                        isInBasket = true,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.BIOLOGY_CHEMISTRY,
+                        subSubjects = listOf(
+                            StoredSubSubject(
+                                id = "option-subject-1",
+                                name = "Biology",
+                                notes = listOf(
+                                    StoredNote(
+                                        id = "note-1",
+                                        value = 5.0,
+                                        weight = AssessmentWeight.FULL,
+                                        description = "Biology 1",
+                                        createdAtEpochMillis = 1L
+                                    ),
+                                    StoredNote(
+                                        id = "note-2",
+                                        value = 4.0,
+                                        weight = AssessmentWeight.FULL,
+                                        description = "Biology 2",
+                                        createdAtEpochMillis = 2L
+                                    )
+                                )
+                            ),
+                            StoredSubSubject(
+                                id = "option-subject-2",
+                                name = "Chemistry",
+                                notes = listOf(
+                                    StoredNote(
+                                        id = "note-3",
+                                        value = 4.0,
+                                        weight = AssessmentWeight.FULL,
+                                        description = "Chemistry 1",
+                                        createdAtEpochMillis = 3L
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 2,
+                nextNoteSequence = 4
+            )
+        )
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.openSubject("subject-1")
+        viewModel.requestEditNote("note-1")
+
+        val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals("option-subject-1", detail.selectedSubSubjectId)
+        assertEquals(4.5, detail.draft.savedGradeImpact?.withGradeAverage)
+        assertEquals(4.0, detail.draft.savedGradeImpact?.withoutGradeAverage)
+        assertEquals(0.5, detail.draft.savedGradeImpact?.officialAverageDelta)
+    }
+
+    @Test
     fun changingSemester_keepsBranchesAndIncludesEarlierSemesterGrades() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -433,6 +548,7 @@ class GradeTrackerViewModelTest {
 
         val detailBeforeSave = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertEquals(2, detailBeforeSave.draft.attachments.size)
+        assertNull(detailBeforeSave.draft.savedGradeImpact)
         assertTrue(repository.load()?.subjects?.first { it.id == historyId }?.notes?.isEmpty() == true)
 
         viewModel.updateDraftValue("5.0")
