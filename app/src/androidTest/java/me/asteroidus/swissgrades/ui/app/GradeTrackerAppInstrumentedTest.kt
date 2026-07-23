@@ -151,6 +151,62 @@ class GradeTrackerAppInstrumentedTest {
         assertTagDisplayed("add-subject-name")
     }
 
+    @Test
+    fun mainScreenRestoresScrollPositionAfterReturningFromSubject() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = buildList {
+                    add(
+                        StoredSubject(
+                            id = "option",
+                            name = "Option",
+                            isInBasket = false,
+                            isOptionSubject = true,
+                            optionChoice = InitialOptionChoice.SPANISH
+                        )
+                    )
+                    repeat(8) { index ->
+                        add(
+                            StoredSubject(
+                                id = "subject-${index + 1}",
+                                name = "Subject ${index + 1}",
+                                isInBasket = false
+                            )
+                        )
+                    }
+                },
+                nextSubjectSequence = 9,
+                nextNoteSequence = 1
+            )
+        )
+
+        launchApp()
+
+        scrollMainScreenUntilTag("subject-card-subject-8")
+        composeRule.onNodeWithTag("subject-card-subject-8", useUnmergedTree = true)
+            .performClick()
+        composeRule.onNodeWithTag("back-from-detail", useUnmergedTree = true)
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("subject-card-subject-8", useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
+    private fun scrollMainScreenUntilTag(tag: String) {
+        repeat(12) {
+            val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+            if (targetExists) return
+
+            composeRule.onNodeWithTag("main-screen-list", useUnmergedTree = true)
+                .performTouchInput { swipeUp() }
+            composeRule.waitForIdle()
+        }
+        waitForTag(tag)
+    }
+
     private fun launchApp() {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         composeRule.waitForIdle()
