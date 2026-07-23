@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import me.asteroidus.swissgrades.domain.GradeCalculator
+import me.asteroidus.swissgrades.domain.GradeImpact
+import me.asteroidus.swissgrades.domain.GradeImpactCalculator
 import me.asteroidus.swissgrades.domain.OfficialAverageTarget
 import me.asteroidus.swissgrades.domain.PromotionEvaluator
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
@@ -316,6 +318,10 @@ class GradeTrackerViewModel(
             selectedSemester = target.note.semester,
             descriptionInput = target.note.description,
             editingNoteId = target.note.id,
+            savedGradeImpact = state.subjects
+                .firstOrNull { it.id == screen.subjectId }
+                ?.computeGradeImpact(target.note.id, state.selectedSemester)
+                ?.toUiState(),
             attachments = target.note.attachments.map {
                 DraftAttachmentUiState(
                     id = it.id,
@@ -1451,6 +1457,43 @@ private fun DraftAttachment.toDraftAttachmentUiState(): DraftAttachmentUiState {
 
 private fun StoredSubject.toBranch(semester: SchoolSemester): Branch {
     return if (subSubjects.isEmpty()) toSimpleBranch(semester) else toCompositeBranch(semester)
+}
+
+private fun StoredSubject.computeGradeImpact(
+    noteId: String,
+    semester: SchoolSemester
+): GradeImpact? {
+    if (subSubjects.isEmpty()) {
+        val includedNotes = notes.filter { it.isIncludedIn(semester) }
+        val targetIndex = includedNotes.indexOfFirst { it.id == noteId }
+        if (targetIndex < 0) return null
+        return GradeImpactCalculator.calculateSimple(
+            grades = includedNotes.map { it.toGrade() },
+            targetIndex = targetIndex
+        )
+    }
+
+    val branch = toCompositeBranch(semester)
+    val targetSubSubjectIndex = subSubjects.indexOfFirst { subSubject ->
+        subSubject.notes.any { it.id == noteId && it.isIncludedIn(semester) }
+    }
+    if (targetSubSubjectIndex < 0) return null
+    val includedNotes = subSubjects[targetSubSubjectIndex].notes.filter { it.isIncludedIn(semester) }
+    val targetGradeIndex = includedNotes.indexOfFirst { it.id == noteId }
+    if (targetGradeIndex < 0) return null
+    return GradeImpactCalculator.calculateComposite(
+        branch = branch,
+        targetSubSubjectIndex = targetSubSubjectIndex,
+        targetGradeIndex = targetGradeIndex
+    )
+}
+
+private fun GradeImpact.toUiState(): GradeImpactUiState {
+    return GradeImpactUiState(
+        withGradeAverage = withGradeAverage,
+        withoutGradeAverage = withoutGradeAverage,
+        officialAverageDelta = officialAverageDelta
+    )
 }
 
 private fun StoredSubject.toSimpleBranch(semester: SchoolSemester): Branch.Simple {

@@ -369,3 +369,57 @@ Resolution: JDK 21 was installed under `~/.local/jdks/amazon-corretto-21.0.11.10
   - Corrected an initially over-conservative quarter-step average rule before completion; multiple quarter-step grades produce aggregate steps smaller than `0.25`.
   - Confirmed ordinary grades, saved targets, semester persistence, and promotion calculations are unchanged.
   - Confirmed multi-grade planning remains a temporary local simulation and introduces no privacy or data-migration surface.
+
+## Feature Cycle 8: Current Grade Impact
+
+- Started: 2026-07-23.
+- Roadmap item: grade impact explanations, reduced MVP.
+- Status: implemented and verified.
+- Product decision:
+  - The editor explains a saved grade's current contribution; it does not reconstruct a historical before/after event.
+  - Impact compares the branch's official average with and without the selected grade.
+  - If removing the grade makes the branch incalculable, the UI states that explicitly instead of inventing a delta.
+  - The calculation uses the active period rules, including cumulative first- and second-semester grades in semester 2.
+- Intended boundary:
+  - A pure domain calculator owns simple and composite branch impact calculations.
+  - The ViewModel locates the persisted grade and exposes only structured numeric UI state.
+  - Compose owns localized labels, formatting, colors, and accessibility semantics.
+  - Impact is a snapshot of persisted state while the edit sheet is open; unsaved draft changes do not mutate it.
+- Risks:
+  - Historical wording would be misleading because the app does not store average snapshots.
+  - Composite branches can become incalculable when one sub-subject loses its only grade.
+  - Recomputing from the draft could present unsaved values as current facts.
+- Acceptance criteria:
+  - Editing a grade shows official averages with and without it plus a signed delta when both are calculable.
+  - Simple and composite branches use their existing official rounding rules.
+  - Semester 2 impact includes semester 1 grades.
+  - An incalculable without-grade state is explicit and localized.
+  - Adding a new grade does not show an impact card.
+  - No impact data is persisted.
+- Required verification:
+  - Focused pure calculator tests.
+  - ViewModel tests for simple, cumulative semester, and composite behavior.
+  - Managed-device smoke test for the edit-sheet presentation.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`
+  - `./scripts/release-check.sh`
+  - `./scripts/run-managed-device-tests.sh`
+- Implementation:
+  - Added a pure `GradeImpactCalculator` for simple and composite branches.
+  - The calculation compares the current official average with the official average after removing the selected saved grade.
+  - The ViewModel locates the persisted grade using its id and applies the existing cumulative semester inclusion rule.
+  - Added a compact localized impact card to the grade edit sheet; the add sheet remains unchanged.
+  - When removal makes the branch incalculable, the card explains that state instead of showing a fabricated delta.
+  - Extracted the impact presentation into its own focused Compose file rather than enlarging the branch-detail screen.
+  - Added pure domain tests, ViewModel tests, localization coverage, and a managed-device editor smoke test.
+- Verification:
+  - Focused impact and ViewModel JVM tests: passed.
+  - `git diff --check`: passed.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 44 tests on `pixel2Api36`, 0 failures.
+- Re-audit:
+  - Fixed a nullable composite-state contract discovered before testing so editing remains safe while the other sub-subject is empty.
+  - Confirmed semester 2 impact includes semester 1 grades.
+  - Confirmed the card is derived only in memory and no repository schema or serialized state changed.
+  - Confirmed wording describes current contribution and makes no unsupported historical claim.
+  - No new actionable Critical, High, or Medium finding was found in the modified scope.

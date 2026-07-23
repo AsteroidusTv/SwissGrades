@@ -243,6 +243,65 @@ class GradeTrackerAppInstrumentedTest {
             .assertTextEquals("5.13")
     }
 
+    @Test
+    fun editingGradeShowsItsCurrentOfficialImpact() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        notes = listOf(
+                            storedNote(id = "note-1", value = 4.0),
+                            storedNote(id = "note-2", value = 6.0)
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 3
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("subject-card-subject-2")
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        scrollBranchDetailUntilTag("note-card-note-2")
+        composeRule.onNodeWithTag("note-card-note-2", useUnmergedTree = true)
+            .performClick()
+
+        composeRule.onNodeWithTag("grade-impact-card", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("grade-impact-with", useUnmergedTree = true)
+            .assertTextEquals("5.0")
+        composeRule.onNodeWithTag("grade-impact-without", useUnmergedTree = true)
+            .assertTextEquals("4.0")
+        composeRule.onNodeWithTag("grade-impact-delta", useUnmergedTree = true)
+            .assertTextEquals("+1.0")
+    }
+
+    private fun scrollBranchDetailUntilTag(tag: String) {
+        repeat(12) {
+            val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+            if (targetExists) return
+
+            composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
+                .performTouchInput { swipeUp() }
+            composeRule.waitForIdle()
+        }
+        waitForTag(tag)
+    }
+
     private fun scrollMainScreenUntilTag(tag: String) {
         repeat(12) {
             val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)

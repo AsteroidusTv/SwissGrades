@@ -34,16 +34,17 @@ Status: initial roadmap created. These are not remediation tasks and should not 
 ## Medium-Term
 
 - Feature: Grade impact explanations.
+- Status: reduced current-impact MVP implemented and verified; historical trend explanations remain deferred.
 - Problem addressed: users see averages/points but may not understand which grade moved the result.
 - Target user: students tracking progress over time.
 - Evidence from existing product or audit: app already stores grade history and shows a basic evolution chart.
 - Expected value: makes results more actionable.
 - Implementation complexity: Medium.
-- Dependencies: reliable grade history ordering and visual design pass.
+- Dependencies: historical explanations still require reliable grade history snapshots or explicit event semantics.
 - Risks: misleading explanations if weighting/composite rules are not described precisely.
 - Privacy implications: local-only analysis.
 - Suggested release phase: medium-term.
-- Minimum viable scope: per-branch “latest grade changed official average from X to Y” and “largest weight” note.
+- Minimum viable scope: the grade editor compares the current official average with and without the saved grade, including weight, composite, and semester rules.
 - Success metric: users can explain why an average changed during testing.
 
 - Feature: Configurable grading rules.

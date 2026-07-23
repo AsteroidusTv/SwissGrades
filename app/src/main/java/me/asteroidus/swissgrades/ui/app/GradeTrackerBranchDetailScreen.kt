@@ -1065,6 +1065,9 @@ private fun AddGradeSheetContent(
                 }
             }
         }
+        detail.draft.savedGradeImpact?.let { impact ->
+            GradeImpactCard(impact = impact)
+        }
         OutlinedTextField(
             value = detail.draft.descriptionInput,
             onValueChange = onDraftDescriptionChanged,
