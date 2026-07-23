@@ -138,6 +138,22 @@ data class AppStrings(
     val notEnoughGrades: String,
     val unlockPromotionTooMany: String,
     val unlockPromotionMissingGrades: String,
+    val promotionSetupTitle: String,
+    val promotionSetupBasketStep: String,
+    val promotionSetupOptionStep: String,
+    val promotionSetupGradesStep: String,
+    val promotionSetupReady: String,
+    val promotionSetupNeedsAction: String,
+    val promotionSetupWaitingForBasket: String,
+    val promotionSetupBasketProgressTemplate: String,
+    val promotionSetupMissingBasketOne: String,
+    val promotionSetupMissingBasketMany: String,
+    val promotionSetupTooManyBasketOne: String,
+    val promotionSetupTooManyBasketMany: String,
+    val promotionSetupMissingGradesTemplate: String,
+    val promotionSetupAddBranchAction: String,
+    val promotionSetupReviewBranchesAction: String,
+    val promotionSetupAddGradeAction: String,
     val branchPromoted: String,
     val branchInsufficient: String,
     val branchInsufficientShort: String,
@@ -216,6 +232,30 @@ data class AppStrings(
 
     fun targetProjectedAverage(average: String): String {
         return targetProjectedAverageTemplate.replace("{average}", average)
+    }
+
+    fun promotionSetupBasketProgress(count: Int): String {
+        return promotionSetupBasketProgressTemplate.replace("{count}", count.toString())
+    }
+
+    fun promotionSetupMissingBasket(count: Int): String {
+        return if (count == 1) {
+            promotionSetupMissingBasketOne
+        } else {
+            promotionSetupMissingBasketMany.replace("{count}", count.toString())
+        }
+    }
+
+    fun promotionSetupTooManyBasket(count: Int): String {
+        return if (count == 1) {
+            promotionSetupTooManyBasketOne
+        } else {
+            promotionSetupTooManyBasketMany.replace("{count}", count.toString())
+        }
+    }
+
+    fun promotionSetupMissingGrades(subjects: String): String {
+        return promotionSetupMissingGradesTemplate.replace("{subjects}", subjects)
     }
 
     fun themeModeLabel(mode: AppThemeMode): String {
@@ -383,6 +423,22 @@ data class AppStrings(
             notEnoughGrades = "Not enough grades",
             unlockPromotionTooMany = "Keep exactly three non-option subjects in the basket to unlock promotion status.",
             unlockPromotionMissingGrades = "Add grades to every basket subject and the Option branch to unlock promotion status.",
+            promotionSetupTitle = "Promotion setup",
+            promotionSetupBasketStep = "Basket branches",
+            promotionSetupOptionStep = "Option grade",
+            promotionSetupGradesStep = "Required grades",
+            promotionSetupReady = "Ready",
+            promotionSetupNeedsAction = "Needs action",
+            promotionSetupWaitingForBasket = "Choose basket first",
+            promotionSetupBasketProgressTemplate = "{count}/3 selected",
+            promotionSetupMissingBasketOne = "Select 1 more basket branch.",
+            promotionSetupMissingBasketMany = "Select {count} more basket branches.",
+            promotionSetupTooManyBasketOne = "Remove 1 branch from the basket.",
+            promotionSetupTooManyBasketMany = "Remove {count} branches from the basket.",
+            promotionSetupMissingGradesTemplate = "Add a grade to {subjects}.",
+            promotionSetupAddBranchAction = "Add a branch",
+            promotionSetupReviewBranchesAction = "Review basket",
+            promotionSetupAddGradeAction = "Add missing grade",
             branchPromoted = "Promoted",
             branchInsufficient = "Insufficient",
             branchInsufficientShort = "Insuff.",
@@ -541,6 +597,22 @@ data class AppStrings(
             notEnoughGrades = "Pas assez de notes",
             unlockPromotionTooMany = "Garde exactement trois branches hors option dans le panier pour débloquer le statut de promotion.",
             unlockPromotionMissingGrades = "Ajoute des notes à chaque branche du panier et à la branche Option pour débloquer le statut de promotion.",
+            promotionSetupTitle = "Configuration de promotion",
+            promotionSetupBasketStep = "Branches du panier",
+            promotionSetupOptionStep = "Note d'option",
+            promotionSetupGradesStep = "Notes requises",
+            promotionSetupReady = "Prêt",
+            promotionSetupNeedsAction = "À corriger",
+            promotionSetupWaitingForBasket = "Choisis d'abord le panier",
+            promotionSetupBasketProgressTemplate = "{count}/3 sélectionnées",
+            promotionSetupMissingBasketOne = "Sélectionne encore 1 branche du panier.",
+            promotionSetupMissingBasketMany = "Sélectionne encore {count} branches du panier.",
+            promotionSetupTooManyBasketOne = "Retire 1 branche du panier.",
+            promotionSetupTooManyBasketMany = "Retire {count} branches du panier.",
+            promotionSetupMissingGradesTemplate = "Ajoute une note dans {subjects}.",
+            promotionSetupAddBranchAction = "Ajouter une branche",
+            promotionSetupReviewBranchesAction = "Vérifier le panier",
+            promotionSetupAddGradeAction = "Ajouter la note manquante",
             branchPromoted = "Promu",
             branchInsufficient = "Insuffisant",
             branchInsufficientShort = "Insuff.",

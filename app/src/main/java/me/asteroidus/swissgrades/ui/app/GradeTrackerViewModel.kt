@@ -875,6 +875,11 @@ class GradeTrackerViewModel(
                 }
                 val summary = createDashboardSummary(subjectMetrics)
                 val optionStoredSubject = requireNotNull(currentYearSubjects.firstOrNull { it.isOptionSubject })
+                val promotionSetup = createPromotionSetup(
+                    currentYearSubjects = currentYearSubjects,
+                    subjectMetrics = subjectMetrics,
+                    optionSubject = optionStoredSubject
+                )
                 val optionSubject = subjectToListItem(
                     optionStoredSubject,
                     requireNotNull(subjectMetrics[optionStoredSubject.id])
@@ -888,6 +893,7 @@ class GradeTrackerViewModel(
                     selectedYear = state.selectedYear,
                     selectedSemester = state.selectedSemester,
                     summary = summary,
+                    promotionSetup = promotionSetup,
                     optionSubject = optionSubject,
                     userSubjects = userSubjects
                 )
@@ -1108,6 +1114,86 @@ class GradeTrackerViewModel(
         }
     }
 
+    private fun createPromotionSetup(
+        currentYearSubjects: List<StoredSubject>,
+        subjectMetrics: Map<String, SubjectComputedMetrics>,
+        optionSubject: StoredSubject
+    ): PromotionSetupUiState? {
+        val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
+        val basketCount = basketSubjects.size
+        val basketConfigured = basketCount == 3
+        val optionHasGrade = subjectMetrics[optionSubject.id]?.average != null
+        val basketSubjectsWithMissingGrades = if (basketConfigured) {
+            basketSubjects.filter { subjectMetrics[it.id]?.average == null }
+        } else {
+            emptyList()
+        }
+        val basketGradesReady = basketConfigured && basketSubjectsWithMissingGrades.isEmpty()
+
+        if (basketConfigured && optionHasGrade && basketGradesReady) return null
+
+        val missingRequiredGrades = buildList {
+            if (!optionHasGrade) add(optionSubject)
+            addAll(basketSubjectsWithMissingGrades)
+        }
+        val description = when {
+            basketCount < 3 -> strings.promotionSetupMissingBasket(3 - basketCount)
+            basketCount > 3 -> strings.promotionSetupTooManyBasket(basketCount - 3)
+            missingRequiredGrades.isNotEmpty() -> {
+                strings.promotionSetupMissingGrades(missingRequiredGrades.localizedSubjectList(state.language))
+            }
+            else -> strings.unlockPromotionMissingGrades
+        }
+        val action = when {
+            basketCount < 3 -> PromotionSetupAction.ADD_SUBJECT
+            else -> PromotionSetupAction.OPEN_SUBJECT
+        }
+        val actionSubjectId = when {
+            basketCount < 3 -> null
+            basketCount > 3 -> basketSubjects.drop(3).firstOrNull()?.id ?: basketSubjects.firstOrNull()?.id
+            missingRequiredGrades.isNotEmpty() -> missingRequiredGrades.first().id
+            else -> optionSubject.id
+        }
+        val actionLabel = when {
+            basketCount < 3 -> strings.promotionSetupAddBranchAction
+            basketCount > 3 -> strings.promotionSetupReviewBranchesAction
+            else -> strings.promotionSetupAddGradeAction
+        }
+
+        return PromotionSetupUiState(
+            title = strings.promotionSetupTitle,
+            description = description,
+            actionLabel = actionLabel,
+            action = action,
+            actionSubjectId = actionSubjectId,
+            items = listOf(
+                PromotionSetupChecklistItemUiState(
+                    label = strings.promotionSetupBasketStep,
+                    supportingText = strings.promotionSetupBasketProgress(basketCount),
+                    isComplete = basketConfigured
+                ),
+                PromotionSetupChecklistItemUiState(
+                    label = strings.promotionSetupOptionStep,
+                    supportingText = if (optionHasGrade) {
+                        strings.promotionSetupReady
+                    } else {
+                        optionSubject.localizedDisplayName(state.language)
+                    },
+                    isComplete = optionHasGrade
+                ),
+                PromotionSetupChecklistItemUiState(
+                    label = strings.promotionSetupGradesStep,
+                    supportingText = when {
+                        !basketConfigured -> strings.promotionSetupWaitingForBasket
+                        basketGradesReady -> strings.promotionSetupReady
+                        else -> basketSubjectsWithMissingGrades.localizedSubjectList(state.language)
+                    },
+                    isComplete = basketGradesReady
+                )
+            )
+        )
+    }
+
     private fun subjectToListItem(
         subject: StoredSubject,
         metrics: SubjectComputedMetrics
@@ -1204,6 +1290,10 @@ class GradeTrackerViewModel(
         screen.pendingPreparedPlusPointsImport = null
         screen.pendingPlusPointsTargetSemester = null
     }
+}
+
+private fun List<StoredSubject>.localizedSubjectList(language: AppLanguage): String {
+    return joinToString(separator = ", ") { subject -> subject.localizedDisplayName(language) }
 }
 
 private fun GradeTrackerAppState.withSharedSubjects(): GradeTrackerAppState {

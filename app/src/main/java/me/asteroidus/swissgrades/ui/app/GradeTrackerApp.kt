@@ -251,6 +251,12 @@ fun GradeTrackerApp(
                                 onDeleteSubject = viewModel::deleteSubject,
                                 onOpenPeriodPicker = viewModel::openPeriodPicker,
                                 onOpenSettings = viewModel::openSettings,
+                                onPromotionSetupAction = { action, subjectId ->
+                                    when (action) {
+                                        PromotionSetupAction.ADD_SUBJECT -> viewModel.showAddSubjectForm()
+                                        PromotionSetupAction.OPEN_SUBJECT -> subjectId?.let(viewModel::openSubject)
+                                    }
+                                },
                                 modifier = Modifier
                             )
 
@@ -625,6 +631,7 @@ private fun MainScreen(
     onDeleteSubject: (String) -> Unit,
     onOpenPeriodPicker: () -> Unit,
     onOpenSettings: () -> Unit,
+    onPromotionSetupAction: (PromotionSetupAction, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accentBlue = appAccentBlue()
@@ -676,6 +683,14 @@ private fun MainScreen(
         }
         item {
             SummaryCard(state.summary)
+        }
+        state.promotionSetup?.let { promotionSetup ->
+            item {
+                PromotionSetupCard(
+                    setup = promotionSetup,
+                    onAction = { onPromotionSetupAction(promotionSetup.action, promotionSetup.actionSubjectId) }
+                )
+            }
         }
         item {
             Row(
@@ -1144,6 +1159,133 @@ private fun SwipeableSubjectCard(
             onOpenSubject = onOpenSubject,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
+    }
+}
+
+@Composable
+private fun PromotionSetupCard(
+    setup: PromotionSetupUiState,
+    onAction: () -> Unit
+) {
+    val accentBlue = appAccentBlue()
+    val warningRed = appWarningColor()
+    val neutralBackground = appNeutralBackground()
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("promotion-setup-card"),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = setup.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = setup.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Button(
+                    onClick = onAction,
+                    modifier = Modifier
+                        .padding(start = 12.dp)
+                        .testTag("promotion-setup-action"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = appSoftAccentContainer(),
+                        contentColor = accentBlue
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = setup.actionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                setup.items.forEachIndexed { index, item ->
+                    PromotionSetupChecklistRow(
+                        item = item,
+                        accentColor = if (item.isComplete) accentBlue else warningRed,
+                        backgroundColor = if (item.isComplete) {
+                            appSoftAccentContainer()
+                        } else {
+                            neutralBackground
+                        },
+                        modifier = Modifier.testTag("promotion-setup-item-$index")
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromotionSetupChecklistRow(
+    item: PromotionSetupChecklistItemUiState,
+    accentColor: Color,
+    backgroundColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Card(
+            shape = CircleShape,
+            colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        ) {
+            Box(
+                modifier = Modifier.size(34.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (item.isComplete) Icons.Filled.Check else Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = item.label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = item.supportingText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

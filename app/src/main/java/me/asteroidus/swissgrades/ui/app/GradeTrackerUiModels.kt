@@ -136,6 +136,28 @@ data class DashboardSummaryUiState(
     val statusTone: DashboardStatusTone
 )
 
+@Immutable
+data class PromotionSetupUiState(
+    val title: String,
+    val description: String,
+    val actionLabel: String,
+    val action: PromotionSetupAction,
+    val actionSubjectId: String?,
+    val items: List<PromotionSetupChecklistItemUiState>
+)
+
+enum class PromotionSetupAction {
+    ADD_SUBJECT,
+    OPEN_SUBJECT
+}
+
+@Immutable
+data class PromotionSetupChecklistItemUiState(
+    val label: String,
+    val supportingText: String,
+    val isComplete: Boolean
+)
+
 enum class DashboardStatusTone {
     POSITIVE,
     NEGATIVE,
@@ -152,6 +174,7 @@ sealed interface ScreenUiState {
         val selectedYear: SchoolYear,
         val selectedSemester: SchoolSemester,
         val summary: DashboardSummaryUiState,
+        val promotionSetup: PromotionSetupUiState?,
         val optionSubject: SubjectListItemUiState,
         val userSubjects: List<SubjectListItemUiState>
     ) : ScreenUiState

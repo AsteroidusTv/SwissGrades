@@ -14,6 +14,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Added regression coverage for French blocked promotion tone.
 - Disabled Android cloud backup for local grades and attachments while preserving Android 12+ device-transfer rules.
 - Updated `PRIVACY_POLICY.md` to match backup and transfer behavior.
+- Implemented the post-audit Promotion setup assistant roadmap item.
 
 ## Commands Executed
 
@@ -27,7 +28,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 - Debug JVM unit tests: passed.
 - Release unit tests, lint, R8/minify, and release bundle checks through `release-check`: passed.
-- Managed-device Android tests: passed, 40 tests completed on `pixel2Api36`, 0 failed.
+- Managed-device Android tests: passed, 41 tests completed on `pixel2Api36`, 0 failed.
 
 ## Security And Privacy Verification
 
@@ -41,6 +42,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 - Simulator default target state is covered by unit tests for untouched sync, manual expanded input preservation, and collapsed reset.
 - French blocked dashboard tone is covered by a ViewModel regression test.
+- Promotion setup assistant diagnostics are covered by ViewModel tests and an instrumented dashboard action smoke test.
 - Existing managed-device tests pass after the UI/state changes.
 
 ## Resolved Findings
@@ -55,7 +57,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 ## Roadmap Summary
 
-- Near-term: promotion setup assistant and human-readable export.
+- Near-term: human-readable export. Promotion setup assistant is implemented.
 - Medium-term: grade impact explanations and configurable grading rules.
 - Long-term: privacy-preserving sync and timetable/reminder integrations.
 - Experimental: multi-grade what-if planning and accessibility preferences.

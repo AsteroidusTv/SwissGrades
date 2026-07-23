@@ -124,6 +124,33 @@ class GradeTrackerAppInstrumentedTest {
         assertTagDisplayed("open-settings")
     }
 
+    @Test
+    fun incompletePromotionSetupShowsAssistantAndPrimaryAction() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = true,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    )
+                ),
+                nextSubjectSequence = 2,
+                nextNoteSequence = 1
+            )
+        )
+
+        launchApp()
+
+        assertTagDisplayed("promotion-setup-card")
+        composeRule.onNodeWithTag("promotion-setup-action", useUnmergedTree = true)
+            .performClick()
+        assertTagDisplayed("add-subject-name")
+    }
+
     private fun launchApp() {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         composeRule.waitForIdle()

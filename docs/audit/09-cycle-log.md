@@ -194,3 +194,22 @@ Resolution: JDK 21 was installed under `~/.local/jdks/amazon-corretto-21.0.11.10
 
 - Pass 1: re-inspected import hardening, simulator sync, French status tone, and backup privacy changes after implementation. No new actionable Critical, High, or Medium finding was identified in those changed scopes.
 - Pass 2: reran unit, release, and managed-device validation, then rechecked unresolved/deferred findings. No new actionable Critical, High, or Medium finding was identified in the inspected scope.
+
+## Post-Audit Feature: Promotion Setup Assistant
+
+- Started: 2026-07-23.
+- Scope: implement the near-term roadmap item without changing promotion calculation rules.
+- Implementation:
+  - Added `PromotionSetupUiState` with checklist rows and context-aware action.
+  - Added dashboard card that appears only when promotion setup is incomplete.
+  - The assistant diagnoses missing basket branches, too many basket branches, and missing required grades.
+  - The action opens add-subject flow when basket branches are missing, or opens the relevant branch when grades/basket review are needed.
+  - Added English and French copy.
+  - Added ViewModel tests for missing basket branches, too many basket branches, missing required grades, and hidden assistant when promotion is calculable.
+  - Added an instrumented smoke test for card visibility and primary action.
+- Verification:
+  - `git diff --check`: passed.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 41 tests on `pixel2Api36`, 0 failed.
+- Status: implemented and verified.

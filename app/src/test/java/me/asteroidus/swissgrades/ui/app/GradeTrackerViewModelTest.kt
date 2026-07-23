@@ -3,6 +3,7 @@ package me.asteroidus.swissgrades.ui.app
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Date
@@ -544,6 +545,88 @@ class GradeTrackerViewModelTest {
         assertEquals(AppStrings.French.promotionStatusPromoted, screen.summary.promotionStatusLabel)
         assertEquals("16.0 / 16", screen.summary.basketLabel)
         assertEquals("0 / 4", screen.summary.insufficienciesLabel)
+    }
+
+    @Test
+    fun promotionSetupAssistantShowsMissingBasketBranches() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Main
+        val setup = requireNotNull(screen.promotionSetup)
+
+        assertEquals(AppStrings.French.promotionSetupMissingBasket(3), setup.description)
+        assertEquals(PromotionSetupAction.ADD_SUBJECT, setup.action)
+        assertNull(setup.actionSubjectId)
+        assertEquals("0/3 sélectionnées", setup.items.first().supportingText)
+        assertFalse(setup.items.first().isComplete)
+    }
+
+    @Test
+    fun promotionSetupAssistantShowsTooManyBasketBranches() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        listOf("Literature", "Science", "Projects", "History").forEach { name ->
+            viewModel.addSubjectWithBasketFlag(name, isInBasket = true)
+        }
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Main
+        val setup = requireNotNull(screen.promotionSetup)
+
+        assertEquals(AppStrings.French.promotionSetupTooManyBasket(1), setup.description)
+        assertEquals(PromotionSetupAction.OPEN_SUBJECT, setup.action)
+        assertEquals(screen.userSubjects.single { it.title == "History" }.id, setup.actionSubjectId)
+    }
+
+    @Test
+    fun promotionSetupAssistantShowsMissingRequiredGrades() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        viewModel.addSubjectWithBasketFlag("Literature", isInBasket = true)
+        viewModel.addSubjectWithBasketFlag("Science", isInBasket = true)
+        viewModel.addSubjectWithBasketFlag("Projects", isInBasket = true)
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Main
+        val setup = requireNotNull(screen.promotionSetup)
+
+        assertEquals(PromotionSetupAction.OPEN_SUBJECT, setup.action)
+        assertEquals(screen.optionSubject.id, setup.actionSubjectId)
+        assertEquals(AppStrings.French.promotionSetupAddGradeAction, setup.actionLabel)
+        assertTrue(setup.description.contains("Espagnol"))
+        assertTrue(setup.description.contains("Literature"))
+    }
+
+    @Test
+    fun promotionSetupAssistantHiddenWhenPromotionIsCalculable() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        val literatureId = viewModel.addSubjectWithBasketFlag("Literature", isInBasket = true)
+        val scienceId = viewModel.addSubjectWithBasketFlag("Science", isInBasket = true)
+        val projectsId = viewModel.addSubjectWithBasketFlag("Projects", isInBasket = true)
+        val optionId = (viewModel.uiState.value.screen as ScreenUiState.Main).optionSubject.id
+
+        viewModel.addGradeToSubject(literatureId, "4.0")
+        viewModel.addGradeToSubject(scienceId, "4.0")
+        viewModel.addGradeToSubject(projectsId, "4.0")
+        viewModel.addGradeToSubject(optionId, "4.0")
+
+        val screen = viewModel.uiState.value.screen as ScreenUiState.Main
+        assertNull(screen.promotionSetup)
     }
 
     @Test

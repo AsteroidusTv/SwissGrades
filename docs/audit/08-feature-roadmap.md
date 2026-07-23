@@ -5,6 +5,7 @@ Status: initial roadmap created. These are not remediation tasks and should not 
 ## Near-Term
 
 - Feature: Promotion setup assistant.
+- Status: implemented and verified after the audit remediation pass.
 - Problem addressed: users must know which three branches belong in the basket and why promotion may be locked.
 - Target user: students configuring the app for the first time or changing subjects.
 - Evidence from existing product or audit: current app requires exactly three non-option basket subjects; FUNC-003 shows the mental model is simplified but still domain-sensitive.
@@ -14,7 +15,7 @@ Status: initial roadmap created. These are not remediation tasks and should not 
 - Risks: overcomplicating the currently simple add-subject flow.
 - Privacy implications: none beyond existing local data.
 - Suggested release phase: near-term after remediation.
-- Minimum viable scope: dashboard/settings checklist that says how many basket branches are selected and which grades are still missing.
+- Minimum viable scope: dashboard checklist that says how many basket branches are selected and which grades are still missing.
 - Success metric: fewer tester reports about promotion being “not calculable” unexpectedly.
 
 - Feature: Human-readable export.
