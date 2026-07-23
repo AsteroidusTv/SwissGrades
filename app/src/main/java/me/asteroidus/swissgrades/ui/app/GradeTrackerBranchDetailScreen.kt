@@ -91,6 +91,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import me.asteroidus.swissgrades.domain.OfficialAverageTarget
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -421,7 +422,7 @@ private fun BranchDetailSummaryCard(
 ) {
     val strings = currentAppStrings()
     val isExcludedFromResults = !detail.isCounted && !detail.isOptionSubject
-    val compactStatusLabel = if (detail.statusLabel == strings.branchInsufficient) {
+    val compactStatusLabel = if (detail.statusTone == DashboardStatusTone.NEGATIVE) {
         strings.branchInsufficientShort
     } else {
         detail.statusLabel
@@ -599,9 +600,8 @@ private fun BranchTargetAverageCard(
     var targetInput by remember(detail.subjectId) {
         mutableStateOf(detail.targetAverageInput.orEmpty())
     }
-    val normalizedInput = targetInput.trim().replace(',', '.')
-    val isInvalid = normalizedInput.isNotBlank() &&
-        normalizedInput.toDoubleOrNull()?.let { it !in 1.0..6.0 } != false
+    val isInvalid = targetInput.isNotBlank() &&
+        OfficialAverageTarget.parse(targetInput) == null
     val canSave = !isInvalid
 
     OutlinedCard(

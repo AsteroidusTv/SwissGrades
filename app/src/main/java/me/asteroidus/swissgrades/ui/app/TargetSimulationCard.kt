@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +50,8 @@ import me.asteroidus.swissgrades.domain.TargetSimulationCalculator
 import me.asteroidus.swissgrades.domain.TargetSimulationGrade
 import me.asteroidus.swissgrades.domain.TargetSimulationResult
 
+private const val DefaultTargetSimulationInput = "5.0"
+
 @Composable
 internal fun TargetSimulationCard(
     notes: List<NoteUiState>,
@@ -61,9 +65,23 @@ internal fun TargetSimulationCard(
     var isExpanded by remember { mutableStateOf(false) }
     val openInteractionSource = remember { MutableInteractionSource() }
     val closeInteractionSource = remember { MutableInteractionSource() }
-    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: "5.0") }
-    var nextTestType by remember { mutableStateOf(NoteTypeUi.FULL) }
-    val result = remember(notes, targetInput, nextTestType) {
+    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput) }
+    var lastSyncedTargetInput by remember(targetKey) {
+        mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput)
+    }
+    var plannedGradeCount by remember(targetKey) { mutableStateOf(1) }
+    var plannedGradeType by remember(targetKey) { mutableStateOf(NoteTypeUi.FULL) }
+    LaunchedEffect(targetKey, initialTargetInput, isExpanded) {
+        val nextSyncedInput = initialTargetInput ?: DefaultTargetSimulationInput
+        targetInput = synchronizedTargetSimulationInput(
+            currentInput = targetInput,
+            lastSyncedInput = lastSyncedTargetInput,
+            nextSyncedInput = nextSyncedInput,
+            isExpanded = isExpanded
+        )
+        lastSyncedTargetInput = nextSyncedInput
+    }
+    val result = remember(notes, targetInput, plannedGradeType, plannedGradeCount) {
         TargetSimulationCalculator.compute(
             grades = notes.map { note ->
                 TargetSimulationGrade(
@@ -72,7 +90,8 @@ internal fun TargetSimulationCard(
                 )
             },
             targetAverageInput = targetInput,
-            nextWeightCoefficient = nextTestType.weight.coefficient
+            plannedGradeWeightCoefficient = plannedGradeType.weight.coefficient,
+            plannedGradeCount = plannedGradeCount
         )
     }
     val resultTone = when (result) {
@@ -199,7 +218,63 @@ internal fun TargetSimulationCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = strings.nextTestWeightTitle,
+                    text = strings.plannedGradeCountTitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    (1..3).forEach { count ->
+                        val isSelected = plannedGradeCount == count
+                        OutlinedCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .selectable(
+                                    selected = isSelected,
+                                    role = Role.RadioButton,
+                                    onClick = { plannedGradeCount = count }
+                                )
+                                .semantics {
+                                    contentDescription = strings.plannedGradeCount(count)
+                                }
+                                .testTag("target-planned-grade-count-$count"),
+                            shape = RoundedCornerShape(18.dp),
+                            border = BorderStroke(
+                                if (isSelected) 2.dp else 1.dp,
+                                if (isSelected) accentBlue else appCardBorderColor()
+                            ),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = if (isSelected) {
+                                    appSoftAccentContainer()
+                                } else {
+                                    appNeutralBackground()
+                                }
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 13.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = count.toString(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = strings.plannedGradeWeightTitle,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
@@ -209,9 +284,9 @@ internal fun TargetSimulationCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     NoteTypeUi.entries.forEach { type ->
-                        val isSelected = nextTestType == type
+                        val isSelected = plannedGradeType == type
                         OutlinedCard(
-                            onClick = { nextTestType = type },
+                            onClick = { plannedGradeType = type },
                             modifier = Modifier
                                 .weight(1f)
                                 .semantics {
@@ -251,6 +326,11 @@ internal fun TargetSimulationCard(
                         }
                     }
                 }
+                Text(
+                    text = strings.plannedGradeWeightHint,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Card(
@@ -266,7 +346,7 @@ internal fun TargetSimulationCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = strings.requiredGradeTitle,
+                        text = strings.requiredSimulationTitle(plannedGradeCount),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Bold
@@ -292,7 +372,8 @@ internal fun TargetSimulationCard(
                         )
                         is TargetSimulationResult.Required -> {
                             Text(
-                                text = TargetSimulationCalculator.formatGrade(result.requiredGrade),
+                                text = TargetSimulationCalculator.formatGrade(result.requiredAverage),
+                                modifier = Modifier.testTag("target-simulation-required-value"),
                                 style = MaterialTheme.typography.displaySmall,
                                 color = resultTone,
                                 fontWeight = FontWeight.Bold
@@ -309,5 +390,18 @@ internal fun TargetSimulationCard(
                 }
             }
         }
+    }
+}
+
+internal fun synchronizedTargetSimulationInput(
+    currentInput: String,
+    lastSyncedInput: String,
+    nextSyncedInput: String,
+    isExpanded: Boolean
+): String {
+    return if (!isExpanded || currentInput == lastSyncedInput) {
+        nextSyncedInput
+    } else {
+        currentInput
     }
 }

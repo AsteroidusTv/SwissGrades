@@ -3,10 +3,47 @@ package me.asteroidus.swissgrades.ui.app
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 
 class PlusPointsImportCoordinatorTest {
+
+    @Test
+    fun parsePlusPointsExport_rejectsDocumentTypeDeclarations() {
+        assertThrows(Exception::class.java) {
+            parsePlusPointsExport(
+                """
+                <!DOCTYPE plist [
+                  <!ENTITY injected SYSTEM "file:///etc/passwd">
+                ]>
+                <plist version="1.0">
+                  <dict>
+                    <key>data</key>
+                    <dict>
+                      <key>class</key>
+                      <string>Semester</string>
+                      <key>name</key>
+                      <string>&injected;</string>
+                      <key>subjects</key>
+                      <array/>
+                    </dict>
+                  </dict>
+                </plist>
+                """.trimIndent()
+            )
+        }
+    }
+
+    @Test
+    fun readPlusPointsImportText_rejectsOversizedInput() {
+        val input = ByteArrayInputStream(ByteArray(17) { 'x'.code.toByte() })
+
+        assertThrows(IllegalStateException::class.java) {
+            input.readPlusPointsImportText(maxBytes = 16)
+        }
+    }
 
     @Test
     fun parsePlusPointsExport_importsCountedZeroExamsToo() {

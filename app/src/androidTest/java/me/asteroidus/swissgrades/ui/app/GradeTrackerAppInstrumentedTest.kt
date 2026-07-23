@@ -2,7 +2,9 @@ package me.asteroidus.swissgrades.ui.app
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -122,6 +124,136 @@ class GradeTrackerAppInstrumentedTest {
 
         launchApp()
         assertTagDisplayed("open-settings")
+    }
+
+    @Test
+    fun incompletePromotionSetupShowsAssistantAndPrimaryAction() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = true,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    )
+                ),
+                nextSubjectSequence = 2,
+                nextNoteSequence = 1
+            )
+        )
+
+        launchApp()
+
+        assertTagDisplayed("promotion-setup-card")
+        composeRule.onNodeWithTag("promotion-setup-action", useUnmergedTree = true)
+            .performClick()
+        assertTagDisplayed("add-subject-name")
+    }
+
+    @Test
+    fun mainScreenRestoresScrollPositionAfterReturningFromSubject() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = buildList {
+                    add(
+                        StoredSubject(
+                            id = "option",
+                            name = "Option",
+                            isInBasket = false,
+                            isOptionSubject = true,
+                            optionChoice = InitialOptionChoice.SPANISH
+                        )
+                    )
+                    repeat(8) { index ->
+                        add(
+                            StoredSubject(
+                                id = "subject-${index + 1}",
+                                name = "Subject ${index + 1}",
+                                isInBasket = false
+                            )
+                        )
+                    }
+                },
+                nextSubjectSequence = 9,
+                nextNoteSequence = 1
+            )
+        )
+
+        launchApp()
+
+        scrollMainScreenUntilTag("subject-card-subject-8")
+        composeRule.onNodeWithTag("subject-card-subject-8", useUnmergedTree = true)
+            .performClick()
+        composeRule.onNodeWithTag("back-from-detail", useUnmergedTree = true)
+            .performClick()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("subject-card-subject-8", useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun gradeSimulatorPlansTwoFutureGrades() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        targetAverage = 5.0,
+                        notes = listOf(storedNote(id = "note-1", value = 4.0))
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 2
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("subject-card-subject-2")
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        composeRule.onNodeWithTag("show-target-simulation-card", useUnmergedTree = true)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
+            .performScrollTo()
+        composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
+            .performTouchInput { swipeUp(startY = 1_500f, endY = 1_100f) }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
+            .performTouchInput { click() }
+            .assertIsSelected()
+
+        composeRule.onNodeWithTag("target-simulation-required-value", useUnmergedTree = true)
+            .performScrollTo()
+            .assertTextEquals("5.13")
+    }
+
+    private fun scrollMainScreenUntilTag(tag: String) {
+        repeat(12) {
+            val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+            if (targetExists) return
+
+            composeRule.onNodeWithTag("main-screen-list", useUnmergedTree = true)
+                .performTouchInput { swipeUp() }
+            composeRule.waitForIdle()
+        }
+        waitForTag(tag)
     }
 
     private fun launchApp() {

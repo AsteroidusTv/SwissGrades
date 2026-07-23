@@ -2,6 +2,7 @@ package me.asteroidus.swissgrades.ui.app
 
 import android.content.Context
 import androidx.core.content.edit
+import me.asteroidus.swissgrades.domain.OfficialAverageTarget
 import org.json.JSONArray
 import org.json.JSONObject
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
@@ -286,7 +287,8 @@ internal fun decodeGradeTrackerAppState(serializedState: String): GradeTrackerAp
                         .takeIf { it.isNotBlank() }
                         ?.toEnumOrNull<InitialOptionChoice>(),
                     targetAverage = subjectJson.optDouble("targetAverage")
-                        .takeIf { !it.isNaN() && it in 1.0..6.0 },
+                        .takeIf { !it.isNaN() }
+                        ?.let(OfficialAverageTarget::normalizeLegacy),
                     subjectColor = subjectJson.optString("subjectColor")
                         .takeIf { it.isNotBlank() }
                         ?.toEnumOrNull<SubjectColorChoice>()

@@ -4,13 +4,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import me.asteroidus.swissgrades.domain.PromotionEvaluator
-import me.asteroidus.swissgrades.domain.PromotionPresentationMapper
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import me.asteroidus.swissgrades.domain.model.Branch
 import me.asteroidus.swissgrades.domain.model.Grade
 import me.asteroidus.swissgrades.domain.model.OptionType
 import me.asteroidus.swissgrades.domain.model.PromotionEvaluationInput
-import me.asteroidus.swissgrades.domain.model.PromotionPresentation
 import me.asteroidus.swissgrades.domain.model.PromotionRoleAssignment
 import me.asteroidus.swissgrades.domain.model.SubSubject
 

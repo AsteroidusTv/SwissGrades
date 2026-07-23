@@ -1,4 +1,4 @@
-package me.asteroidus.swissgrades.domain
+package me.asteroidus.swissgrades.ui.simulation
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

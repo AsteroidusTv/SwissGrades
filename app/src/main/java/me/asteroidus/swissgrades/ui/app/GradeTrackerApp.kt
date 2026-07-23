@@ -71,6 +71,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
@@ -200,6 +201,7 @@ fun GradeTrackerApp(
         AppThemeMode.LIGHT -> false
         AppThemeMode.DARK -> true
     }
+    val screenStateHolder = rememberSaveableStateHolder()
 
     BackHandler(enabled = screenSupportsInAppBack(uiState.screen)) {
         when (uiState.screen) {
@@ -236,92 +238,100 @@ fun GradeTrackerApp(
                         },
                         label = "grade-tracker-screen-transition"
                     ) { screen ->
-                        when (screen) {
-                            is ScreenUiState.Onboarding -> OnboardingScreen(
-                                selectedOption = screen.selectedOption,
-                                onOptionSelected = viewModel::selectInitialOption,
-                                onContinue = viewModel::completeOnboarding,
-                                modifier = Modifier
-                            )
+                        screenStateHolder.SaveableStateProvider(screenSaveableStateKey(screen)) {
+                            when (screen) {
+                                is ScreenUiState.Onboarding -> OnboardingScreen(
+                                    selectedOption = screen.selectedOption,
+                                    onOptionSelected = viewModel::selectInitialOption,
+                                    onContinue = viewModel::completeOnboarding,
+                                    modifier = Modifier
+                                )
 
-                            is ScreenUiState.Main -> MainScreen(
-                                state = screen,
-                                onOpenSubject = viewModel::openSubject,
-                                onShowAddSubjectForm = viewModel::showAddSubjectForm,
-                                onDeleteSubject = viewModel::deleteSubject,
-                                onOpenPeriodPicker = viewModel::openPeriodPicker,
-                                onOpenSettings = viewModel::openSettings,
-                                modifier = Modifier
-                            )
+                                is ScreenUiState.Main -> MainScreen(
+                                    state = screen,
+                                    onOpenSubject = viewModel::openSubject,
+                                    onShowAddSubjectForm = viewModel::showAddSubjectForm,
+                                    onDeleteSubject = viewModel::deleteSubject,
+                                    onOpenPeriodPicker = viewModel::openPeriodPicker,
+                                    onOpenSettings = viewModel::openSettings,
+                                    onPromotionSetupAction = { action, subjectId ->
+                                        when (action) {
+                                            PromotionSetupAction.ADD_SUBJECT -> viewModel.showAddSubjectForm()
+                                            PromotionSetupAction.OPEN_SUBJECT -> subjectId?.let(viewModel::openSubject)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                )
 
-                            is ScreenUiState.AddSubject -> AddSubjectScreen(
-                                state = screen.form,
-                                onBack = viewModel::hideAddSubjectForm,
-                                onNameChanged = viewModel::updateAddSubjectName,
-                                onCountedChanged = viewModel::updateAddSubjectCountedFlag,
-                                onBasketChanged = viewModel::updateAddSubjectBasketFlag,
-                                onColorSelected = viewModel::updateAddSubjectColor,
-                                onIconSelected = viewModel::updateAddSubjectIcon,
-                                onCreate = viewModel::addSubject,
-                                modifier = Modifier
-                            )
+                                is ScreenUiState.AddSubject -> AddSubjectScreen(
+                                    state = screen.form,
+                                    onBack = viewModel::hideAddSubjectForm,
+                                    onNameChanged = viewModel::updateAddSubjectName,
+                                    onCountedChanged = viewModel::updateAddSubjectCountedFlag,
+                                    onBasketChanged = viewModel::updateAddSubjectBasketFlag,
+                                    onColorSelected = viewModel::updateAddSubjectColor,
+                                    onIconSelected = viewModel::updateAddSubjectIcon,
+                                    onCreate = viewModel::addSubject,
+                                    modifier = Modifier
+                                )
 
-                            is ScreenUiState.BranchDetail -> BranchDetailScreen(
-                                detail = screen.detail,
-                                onBack = viewModel::backFromDetail,
-                                onEditSubject = viewModel::showEditSubjectForm,
-                                onShowAddNoteSheet = viewModel::showAddGradeSheet,
-                                onDismissAddNoteSheet = viewModel::hideAddGradeSheet,
-                                onRequestEditNote = viewModel::requestEditNote,
-                                onRequestDeleteNote = viewModel::requestDeleteNote,
-                                onDismissDeleteNoteDialog = viewModel::dismissDeleteNoteDialog,
-                                onConfirmDeleteNote = viewModel::confirmDeleteNote,
-                                onDraftValueChanged = viewModel::updateDraftValue,
-                                onDraftTypeChanged = viewModel::updateDraftType,
-                                onDraftDescriptionChanged = viewModel::updateDraftDescription,
-                                onImportDraftAttachments = viewModel::importDraftAttachments,
-                                onPrepareCameraCapture = viewModel::prepareCameraCapture,
-                                onCompleteCameraCapture = viewModel::completeCameraCapture,
-                                onRemoveDraftAttachment = viewModel::removeDraftAttachment,
-                                onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
-                                onTargetAverageChanged = viewModel::updateSubjectTargetAverage,
-                                onAddNote = viewModel::addNote,
-                                modifier = Modifier
-                            )
+                                is ScreenUiState.BranchDetail -> BranchDetailScreen(
+                                    detail = screen.detail,
+                                    onBack = viewModel::backFromDetail,
+                                    onEditSubject = viewModel::showEditSubjectForm,
+                                    onShowAddNoteSheet = viewModel::showAddGradeSheet,
+                                    onDismissAddNoteSheet = viewModel::hideAddGradeSheet,
+                                    onRequestEditNote = viewModel::requestEditNote,
+                                    onRequestDeleteNote = viewModel::requestDeleteNote,
+                                    onDismissDeleteNoteDialog = viewModel::dismissDeleteNoteDialog,
+                                    onConfirmDeleteNote = viewModel::confirmDeleteNote,
+                                    onDraftValueChanged = viewModel::updateDraftValue,
+                                    onDraftTypeChanged = viewModel::updateDraftType,
+                                    onDraftDescriptionChanged = viewModel::updateDraftDescription,
+                                    onImportDraftAttachments = viewModel::importDraftAttachments,
+                                    onPrepareCameraCapture = viewModel::prepareCameraCapture,
+                                    onCompleteCameraCapture = viewModel::completeCameraCapture,
+                                    onRemoveDraftAttachment = viewModel::removeDraftAttachment,
+                                    onSelectedSubSubjectChanged = viewModel::selectCompositeSubSubject,
+                                    onTargetAverageChanged = viewModel::updateSubjectTargetAverage,
+                                    onAddNote = viewModel::addNote,
+                                    modifier = Modifier
+                                )
 
-                            is ScreenUiState.PeriodPicker -> PeriodPickerScreen(
-                                selectedYear = screen.selectedYear,
-                                selectedSemester = screen.selectedSemester,
-                                onBack = viewModel::closePeriodPicker,
-                                onSelectYear = viewModel::updatePendingYear,
-                                onSelectSemester = viewModel::updatePendingSemester,
-                                onConfirm = viewModel::confirmPeriodSelection,
-                                modifier = Modifier
-                            )
+                                is ScreenUiState.PeriodPicker -> PeriodPickerScreen(
+                                    selectedYear = screen.selectedYear,
+                                    selectedSemester = screen.selectedSemester,
+                                    onBack = viewModel::closePeriodPicker,
+                                    onSelectYear = viewModel::updatePendingYear,
+                                    onSelectSemester = viewModel::updatePendingSemester,
+                                    onConfirm = viewModel::confirmPeriodSelection,
+                                    modifier = Modifier
+                                )
 
-                            is ScreenUiState.Settings -> SettingsScreen(
-                                settings = screen.settings,
-                                onSelectLanguage = viewModel::changeLanguage,
-                                onSelectThemeMode = viewModel::changeThemeMode,
-                                onSelectOption = viewModel::changeOption,
-                                onExportBackup = {
-                                    backupExportLauncher.launch(screen.settings.backupFileNameSuggestion)
-                                },
-                                onImportBackup = {
-                                    backupImportLauncher.launch(arrayOf("*/*", "application/octet-stream"))
-                                },
-                                onImportPlusPoints = {
-                                    plusPointsImportLauncher.launch(arrayOf("*/*", "text/xml", "application/xml"))
-                                },
-                                onDismissPendingImport = viewModel::dismissPendingBackupImport,
-                                onConfirmPendingImport = viewModel::confirmBackupImport,
-                                onDismissPendingPlusPointsImport = viewModel::dismissPendingPlusPointsImport,
-                                onSelectPendingPlusPointsSemester = viewModel::updatePendingPlusPointsTargetSemester,
-                                onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
-                                onResetApp = viewModel::resetApp,
-                                onBack = viewModel::closeSettings,
-                                modifier = Modifier
-                            )
+                                is ScreenUiState.Settings -> SettingsScreen(
+                                    settings = screen.settings,
+                                    onSelectLanguage = viewModel::changeLanguage,
+                                    onSelectThemeMode = viewModel::changeThemeMode,
+                                    onSelectOption = viewModel::changeOption,
+                                    onExportBackup = {
+                                        backupExportLauncher.launch(screen.settings.backupFileNameSuggestion)
+                                    },
+                                    onImportBackup = {
+                                        backupImportLauncher.launch(arrayOf("*/*", "application/octet-stream"))
+                                    },
+                                    onImportPlusPoints = {
+                                        plusPointsImportLauncher.launch(arrayOf("*/*", "text/xml", "application/xml"))
+                                    },
+                                    onDismissPendingImport = viewModel::dismissPendingBackupImport,
+                                    onConfirmPendingImport = viewModel::confirmBackupImport,
+                                    onDismissPendingPlusPointsImport = viewModel::dismissPendingPlusPointsImport,
+                                    onSelectPendingPlusPointsSemester = viewModel::updatePendingPlusPointsTargetSemester,
+                                    onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
+                                    onResetApp = viewModel::resetApp,
+                                    onBack = viewModel::closeSettings,
+                                    modifier = Modifier
+                                )
+                            }
                         }
                     }
                 }
@@ -368,6 +378,15 @@ private fun screenAnimationKey(screen: ScreenUiState): String {
         is ScreenUiState.AddSubject -> "add-subject"
         is ScreenUiState.Settings -> "settings"
         is ScreenUiState.BranchDetail -> "branch-detail-${screen.detail.subjectId}"
+    }
+}
+
+private fun screenSaveableStateKey(screen: ScreenUiState): String {
+    return when (screen) {
+        is ScreenUiState.Main -> {
+            "main-${screen.selectedYear.name}-${screen.selectedSemester.name}"
+        }
+        else -> screenAnimationKey(screen)
     }
 }
 
@@ -625,6 +644,7 @@ private fun MainScreen(
     onDeleteSubject: (String) -> Unit,
     onOpenPeriodPicker: () -> Unit,
     onOpenSettings: () -> Unit,
+    onPromotionSetupAction: (PromotionSetupAction, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accentBlue = appAccentBlue()
@@ -634,7 +654,9 @@ private fun MainScreen(
         state.userSubjects.firstOrNull { it.id == pendingId }
     }
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("main-screen-list"),
         contentPadding = PaddingValues(
             start = AppScreenHorizontalPadding,
             top = AppScreenTopPadding,
@@ -676,6 +698,14 @@ private fun MainScreen(
         }
         item {
             SummaryCard(state.summary)
+        }
+        state.promotionSetup?.let { promotionSetup ->
+            item {
+                PromotionSetupCard(
+                    setup = promotionSetup,
+                    onAction = { onPromotionSetupAction(promotionSetup.action, promotionSetup.actionSubjectId) }
+                )
+            }
         }
         item {
             Row(
@@ -1144,6 +1174,138 @@ private fun SwipeableSubjectCard(
             onOpenSubject = onOpenSubject,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
+    }
+}
+
+@Composable
+private fun PromotionSetupCard(
+    setup: PromotionSetupUiState,
+    onAction: () -> Unit
+) {
+    val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
+    val warningRed = appWarningColor()
+    val neutralBackground = appNeutralBackground()
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("promotion-setup-card"),
+        shape = DashboardCardShape,
+        border = appCardBorder(),
+        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = setup.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = strings.promotionSetupIntro,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = setup.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = warningRed,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                setup.items.forEachIndexed { index, item ->
+                    PromotionSetupChecklistRow(
+                        item = item,
+                        accentColor = if (item.isComplete) accentBlue else warningRed,
+                        backgroundColor = if (item.isComplete) {
+                            appSoftAccentContainer()
+                        } else {
+                            neutralBackground
+                        },
+                        modifier = Modifier.testTag("promotion-setup-item-$index")
+                    )
+                }
+            }
+
+            Button(
+                onClick = onAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("promotion-setup-action"),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSoftAccentContainer(),
+                    contentColor = accentBlue
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = setup.actionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PromotionSetupChecklistRow(
+    item: PromotionSetupChecklistItemUiState,
+    accentColor: Color,
+    backgroundColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Card(
+            shape = CircleShape,
+            colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        ) {
+            Box(
+                modifier = Modifier.size(34.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (item.isComplete) Icons.Filled.Check else Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier
+                        .size(19.dp)
+                        .offset(y = (-1).dp)
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = item.label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = item.supportingText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

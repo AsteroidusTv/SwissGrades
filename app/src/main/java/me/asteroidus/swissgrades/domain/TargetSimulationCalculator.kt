@@ -13,7 +13,7 @@ sealed interface TargetSimulationResult {
     data object AlreadyReached : TargetSimulationResult
     data object Impossible : TargetSimulationResult
     data class Required(
-        val requiredGrade: Double,
+        val requiredAverage: Double,
         val projectedOfficialAverage: Double
     ) : TargetSimulationResult
 }
@@ -23,40 +23,43 @@ object TargetSimulationCalculator {
     fun compute(
         grades: List<TargetSimulationGrade>,
         targetAverageInput: String,
-        nextWeightCoefficient: Double
+        plannedGradeWeightCoefficient: Double,
+        plannedGradeCount: Int = 1
     ): TargetSimulationResult {
-        val targetAverage = targetAverageInput.toDecimalOrNull()
+        val targetAverage = OfficialAverageTarget.parse(targetAverageInput)
         if (
             targetAverage == null ||
-            targetAverage < MIN_GRADE ||
-            targetAverage > MAX_GRADE ||
-            nextWeightCoefficient <= 0.0
+            plannedGradeWeightCoefficient <= 0.0 ||
+            plannedGradeCount !in MIN_PLANNED_GRADE_COUNT..MAX_PLANNED_GRADE_COUNT
         ) {
             return TargetSimulationResult.Invalid
         }
 
         val weightedSum = grades.sumOf { it.value * it.weightCoefficient }
         val totalWeight = grades.sumOf { it.weightCoefficient }
+        val plannedTotalWeight = plannedGradeWeightCoefficient * plannedGradeCount
         val rawAverageNeeded = (targetAverage - OFFICIAL_HALF_POINT_THRESHOLD).coerceAtLeast(MIN_GRADE)
-        val requiredRawGrade = (
-            rawAverageNeeded * (totalWeight + nextWeightCoefficient) - weightedSum
-        ) / nextWeightCoefficient
+        val requiredRawAverage = (
+            rawAverageNeeded * (totalWeight + plannedTotalWeight) - weightedSum
+        ) / plannedTotalWeight
 
-        if (requiredRawGrade <= MIN_GRADE) {
+        if (requiredRawAverage <= MIN_GRADE) {
             return TargetSimulationResult.AlreadyReached
         }
-        if (requiredRawGrade > MAX_GRADE) {
+        if (requiredRawAverage > MAX_GRADE) {
             return TargetSimulationResult.Impossible
         }
 
-        val requiredGrade = requiredRawGrade.roundUpToQuarter().coerceIn(MIN_GRADE, MAX_GRADE)
+        val requiredAverage = requiredRawAverage
+            .roundUpToAchievableAverage(plannedGradeCount)
+            .coerceIn(MIN_GRADE, MAX_GRADE)
         val projectedRawAverage = (
-            weightedSum + requiredGrade * nextWeightCoefficient
-        ) / (totalWeight + nextWeightCoefficient)
+            weightedSum + requiredAverage * plannedTotalWeight
+        ) / (totalWeight + plannedTotalWeight)
         val projectedOfficialAverage = GradeCalculator.roundToHalf(projectedRawAverage)
 
         return TargetSimulationResult.Required(
-            requiredGrade = requiredGrade,
+            requiredAverage = requiredAverage,
             projectedOfficialAverage = projectedOfficialAverage
         )
     }
@@ -72,12 +75,11 @@ object TargetSimulationCalculator {
 
 private const val MIN_GRADE = 1.0
 private const val MAX_GRADE = 6.0
+private const val MIN_PLANNED_GRADE_COUNT = 1
+private const val MAX_PLANNED_GRADE_COUNT = 3
 private const val OFFICIAL_HALF_POINT_THRESHOLD = 0.25
 
-private fun String.toDecimalOrNull(): Double? {
-    return trim().replace(',', '.').toDoubleOrNull()
-}
-
-private fun Double.roundUpToQuarter(): Double {
-    return ceil((this * 4.0) - 1e-9) / 4.0
+private fun Double.roundUpToAchievableAverage(plannedGradeCount: Int): Double {
+    val quarterStepsAcrossPlan = 4.0 * plannedGradeCount
+    return ceil((this * quarterStepsAcrossPlan) - 1e-9) / quarterStepsAcrossPlan
 }

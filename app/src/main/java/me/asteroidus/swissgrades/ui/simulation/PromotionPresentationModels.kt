@@ -1,4 +1,4 @@
-package me.asteroidus.swissgrades.domain.model
+package me.asteroidus.swissgrades.ui.simulation
 
 data class PromotionPresentation(
     val statusLabel: String,
