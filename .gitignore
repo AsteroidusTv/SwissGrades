@@ -11,3 +11,10 @@ local.properties
 .kotlin/
 hs_err_pid*.log
 replay_pid*.log
+
+# Local diagnostics and unrelated JavaScript tooling
+/git-diagnostics-*.zip
+/node_modules/
+/package.json
+/package-lock.json
+/npm-debug.log*

@@ -19,8 +19,8 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
   - quarter grade
 - target average simulator:
   - choose an official target average
-  - pick the next test weight
-  - see the needed next grade using official half-point rounding
+  - plan one, two, or three future grades with a shared weight
+  - see the needed grade or average using official half-point rounding
 - promotion summary with:
   - overall average
   - promotion points
@@ -28,6 +28,7 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
   - insufficiencies
 - subject detail pages with:
   - raw and official averages
+  - current impact of each saved grade
   - optional composite sub-subject selector
   - recent grade evolution
   - grade history
@@ -90,6 +91,12 @@ SwissGrades is currently built around local-first storage on your device.
 See the full privacy policy here:
 
 - [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
+
+## Project documentation
+
+- [`docs/architecture.md`](docs/architecture.md) describes state ownership, persistence, domain rules, and trust boundaries.
+- [`ROADMAP.md`](ROADMAP.md) contains active product and engineering candidates.
+- [`docs/audits/2026-07-remediation-summary.md`](docs/audits/2026-07-remediation-summary.md) records the completed security and quality pass.
 
 ## Current release
 
