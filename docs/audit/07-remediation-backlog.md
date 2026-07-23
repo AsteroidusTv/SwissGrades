@@ -50,7 +50,7 @@ Status: initial backlog created from confirmed findings.
 - Priority rationale: maintainability matters, but should follow correctness/security fixes.
 - Scope: continue extracting large files and resolve the legacy simulation package decision.
 - Acceptance criteria: smaller focused modules, preserved behavior, tests updated.
-- Status: deferred to a dedicated refactor cycle; too large to mix with release-hardening fixes.
+- Status: TECH-002 resolved and verified in a dedicated bounded cycle. TECH-001, TECH-003, and UI-004 remain deferred for separate coherent work.
 
 ### P6: Accessibility Polish
 

@@ -5,13 +5,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import me.asteroidus.swissgrades.domain.GradeCalculator
 import me.asteroidus.swissgrades.domain.PromotionEvaluator
-import me.asteroidus.swissgrades.domain.PromotionPresentationMapper
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import me.asteroidus.swissgrades.domain.model.Branch
 import me.asteroidus.swissgrades.domain.model.Grade
 import me.asteroidus.swissgrades.domain.model.OptionType
 import me.asteroidus.swissgrades.domain.model.PromotionEvaluationInput
-import me.asteroidus.swissgrades.domain.model.PromotionPresentation
+import me.asteroidus.swissgrades.domain.model.PromotionEvaluationResult
 import me.asteroidus.swissgrades.domain.model.PromotionRoleAssignment
 import me.asteroidus.swissgrades.domain.model.SubSubject
 import kotlinx.coroutines.Dispatchers
@@ -944,24 +943,25 @@ class GradeTrackerViewModel(
             .filter { it.isCounted || it.isOptionSubject }
             .mapNotNull { subjectMetrics[it.id]?.average }
         val overallAverage = calculableAverages.takeIf { it.isNotEmpty() }?.average()
-        val promotion = buildPromotionPresentation()
+        val promotionResult = buildPromotionEvaluationResult()
         val totalPromotionPoints = state.totalPromotionPoints(subjectMetrics)
         val basketTotal = state.currentBasketTotal(subjectMetrics)
         val insufficiencyCount = state.insufficiencyCount(subjectMetrics)
-        return if (promotion != null) {
+        return if (promotionResult != null) {
+            val promotion = PromotionDashboardPresenter.present(promotionResult, strings)
             DashboardSummaryUiState(
                 overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
                 overallAverageValue = overallAverage,
                 promotionStatusLabel = promotion.statusLabel,
                 promotionHeadline = promotion.headline,
-                isPromotionCalculable = !promotion.basketTotal.valueLabel.equals("Not available", ignoreCase = true),
+                isPromotionCalculable = promotion.isCalculable,
                 promotionPointsLabel = totalPromotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
                 promotionPointsValue = totalPromotionPoints,
                 basketLabel = basketTotal?.let { "${formatOneOrTwoDecimals(it)} / 16" } ?: strings.notEnoughGrades,
                 basketValue = basketTotal,
                 insufficienciesLabel = "$insufficiencyCount / 4",
                 insufficiencyCount = insufficiencyCount,
-                statusTone = promotion.statusLabel.toDashboardStatusTone()
+                statusTone = promotion.statusTone
             )
         } else {
             DashboardSummaryUiState(
@@ -1017,7 +1017,7 @@ class GradeTrackerViewModel(
                 secondaryAverageLabel = finalAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
                 pointsLabel = promotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
                 statusLabel = statusLabel,
-                statusTone = statusLabel.toDetailStatusTone(),
+                statusTone = roundedAverage.toBranchStatusTone(),
                 isAddGradeSheetVisible = isAddGradeSheetVisible,
                 pendingDeleteNoteTitle = pendingDeleteNoteTitle,
                 subSubjects = subject.subSubjects.map { subSubject ->
@@ -1060,14 +1060,18 @@ class GradeTrackerViewModel(
             secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
             pointsLabel = points?.let(::formatSignedOneOrTwoDecimals).orEmpty(),
             statusLabel = statusLabel,
-            statusTone = statusLabel.toDetailStatusTone(),
+            statusTone = if (isExcludedFromResults) {
+                DashboardStatusTone.NEUTRAL
+            } else {
+                officialAverage.toBranchStatusTone()
+            },
             isAddGradeSheetVisible = isAddGradeSheetVisible,
             pendingDeleteNoteTitle = pendingDeleteNoteTitle,
             draft = draft
         )
     }
 
-    private fun buildPromotionPresentation(): PromotionPresentation? {
+    private fun buildPromotionEvaluationResult(): PromotionEvaluationResult? {
         val currentYearSubjects = state.subjectsForSelectedYear()
         val option = currentYearSubjects.firstOrNull { it.isOptionSubject } ?: return null
         val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
@@ -1099,9 +1103,7 @@ class GradeTrackerViewModel(
                     )
                 }
         }
-        return PromotionPresentationMapper
-            .map(PromotionEvaluator.evaluate(PromotionEvaluationInput.create(assignments)))
-            .localized(strings)
+        return PromotionEvaluator.evaluate(PromotionEvaluationInput.create(assignments))
     }
 
     private fun promotionUnavailableHeadline(): String {
@@ -1802,16 +1804,6 @@ private fun formatSignedOneOrTwoDecimals(value: Double): String {
     return prefix + formatOneOrTwoDecimals(value)
 }
 
-private fun String.toDashboardStatusTone(): DashboardStatusTone {
-    return when (this) {
-        "Promoted",
-        "Promu" -> DashboardStatusTone.POSITIVE
-        "Blocked",
-        "Bloqué" -> DashboardStatusTone.NEGATIVE
-        else -> DashboardStatusTone.NEUTRAL
-    }
-}
-
 private fun Double?.toBranchStatusLabel(strings: AppStrings): String {
     return when {
         this == null -> strings.notEnoughGrades
@@ -1820,31 +1812,10 @@ private fun Double?.toBranchStatusLabel(strings: AppStrings): String {
     }
 }
 
-private fun String.toDetailStatusTone(): DashboardStatusTone {
-    return when (this) {
-        "Promoted",
-        "Promu" -> DashboardStatusTone.POSITIVE
-        "Insufficient",
-        "Insuffisant" -> DashboardStatusTone.NEGATIVE
-        "Not counted",
-        "Non comptée" -> DashboardStatusTone.NEUTRAL
-        else -> DashboardStatusTone.NEUTRAL
+private fun Double?.toBranchStatusTone(): DashboardStatusTone {
+    return when {
+        this == null -> DashboardStatusTone.NEUTRAL
+        this >= 4.0 -> DashboardStatusTone.POSITIVE
+        else -> DashboardStatusTone.NEGATIVE
     }
-}
-
-private fun PromotionPresentation.localized(strings: AppStrings): PromotionPresentation {
-    return copy(
-        statusLabel = when (statusLabel) {
-            "Promoted" -> strings.promotionStatusPromoted
-            "Blocked" -> strings.promotionStatusBlocked
-            "Incomplete" -> strings.promotionStatusIncomplete
-            else -> statusLabel
-        },
-        headline = when (headline) {
-            "Promotion requirements are currently satisfied." -> strings.promotionHeadlinePromoted
-            "Promotion requirements are not satisfied." -> strings.promotionHeadlineBlocked
-            "Promotion cannot be decided yet because some data is missing." -> strings.promotionHeadlineIncomplete
-            else -> headline
-        }
-    )
 }

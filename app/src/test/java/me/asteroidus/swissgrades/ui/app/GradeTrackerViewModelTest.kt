@@ -295,9 +295,35 @@ class GradeTrackerViewModelTest {
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         assertFalse(detail.isCounted)
         assertEquals(AppStrings.French.notCountedLabel, detail.statusLabel)
+        assertEquals(DashboardStatusTone.NEUTRAL, detail.statusTone)
         assertEquals("", detail.pointsLabel)
         assertEquals("3.5", detail.officialAverageLabel)
         assertEquals("3.50", detail.secondaryAverageLabel)
+    }
+
+    @Test
+    fun countedSubject_detailToneFollowsStructuredAverage() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.confirmPeriodSelection()
+
+        val subjectId = viewModel.addSubjectWithBasketFlag("History", isInBasket = false)
+        viewModel.addGradeToSubject(subjectId, "3.5")
+        viewModel.openSubject(subjectId)
+
+        val insufficientDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(AppStrings.French.branchInsufficient, insufficientDetail.statusLabel)
+        assertEquals(DashboardStatusTone.NEGATIVE, insufficientDetail.statusTone)
+
+        viewModel.backFromDetail()
+        viewModel.addGradeToSubject(subjectId, "5.0")
+        viewModel.openSubject(subjectId)
+
+        val promotedDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
+        assertEquals(AppStrings.French.branchPromoted, promotedDetail.statusLabel)
+        assertEquals(DashboardStatusTone.POSITIVE, promotedDetail.statusTone)
     }
 
     @Test

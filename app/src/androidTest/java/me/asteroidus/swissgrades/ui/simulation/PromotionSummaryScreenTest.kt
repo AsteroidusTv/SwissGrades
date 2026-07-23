@@ -14,7 +14,6 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
-import me.asteroidus.swissgrades.domain.PromotionPresentationMapper
 import me.asteroidus.swissgrades.domain.model.BranchAverageResult
 import me.asteroidus.swissgrades.domain.model.BranchAverageStatus
 import me.asteroidus.swissgrades.domain.model.PromotionBlockingReason

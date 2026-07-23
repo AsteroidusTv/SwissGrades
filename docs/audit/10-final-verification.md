@@ -15,6 +15,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Disabled Android cloud backup for local grades and attachments while preserving Android 12+ device-transfer rules.
 - Updated `PRIVACY_POLICY.md` to match backup and transfer behavior.
 - Implemented the post-audit Promotion setup assistant roadmap item.
+- Removed promotion presentation strings/models from the domain layer and replaced string-based calculability/tone decisions with structured state.
 
 ## Commands Executed
 
@@ -28,7 +29,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 - Debug JVM unit tests: passed.
 - Release unit tests, lint, R8/minify, and release bundle checks through `release-check`: passed.
-- Managed-device Android tests: passed, 41 tests completed on `pixel2Api36`, 0 failed.
+- Managed-device Android tests: passed, 42 tests completed on `pixel2Api36`, 0 failed.
 
 ## Security And Privacy Verification
 
@@ -43,6 +44,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Simulator default target state is covered by unit tests for untouched sync, manual expanded input preservation, and collapsed reset.
 - French blocked dashboard tone is covered by a ViewModel regression test.
 - Promotion setup assistant diagnostics are covered by ViewModel tests and an instrumented dashboard action smoke test.
+- Promotion dashboard localization/tone/calculability are covered by pure presenter tests, and the detached simulation presentation remains covered by JVM and instrumented tests.
 - Existing managed-device tests pass after the UI/state changes.
 
 ## Resolved Findings
@@ -52,8 +54,9 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 ## Unresolved Or Deferred Findings
 
-- TECH-001 remains deferred to a dedicated refactor cycle because it is too broad to mix with release-hardening fixes.
-- Low-severity/product-decision items remain open: TECH-002, TECH-003, FUNC-003, UI-003, UI-004, TEST-004.
+- TECH-001 remains deferred to incremental coherent extraction cycles.
+- TECH-002 is resolved and verified.
+- Low-severity/product-decision items remain open: TECH-003, FUNC-003, UI-003, UI-004, TEST-004.
 
 ## Roadmap Summary
 

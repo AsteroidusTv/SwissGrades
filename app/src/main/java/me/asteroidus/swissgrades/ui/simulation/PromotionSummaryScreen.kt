@@ -21,8 +21,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import me.asteroidus.swissgrades.domain.model.BranchAveragePresentation
-import me.asteroidus.swissgrades.domain.model.PromotionPresentation
 
 @Composable
 fun GradeTrackerApp(

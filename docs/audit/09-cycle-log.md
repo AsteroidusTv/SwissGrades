@@ -213,3 +213,59 @@ Resolution: JDK 21 was installed under `~/.local/jdks/amazon-corretto-21.0.11.10
   - `./scripts/release-check.sh`: passed.
   - `./scripts/run-managed-device-tests.sh`: passed, 41 tests on `pixel2Api36`, 0 failed.
 - Status: implemented and verified.
+
+## Cycle 5: Remove Presentation Strings From Domain Logic
+
+- Started: 2026-07-23.
+- Selected finding: TECH-002.
+- Status: resolved and verified.
+- Confirmed evidence:
+  - `PromotionPresentationMapper` emits English UI copy from the domain package.
+  - The main ViewModel compares `basketTotal.valueLabel` with `"Not available"` to determine calculability.
+  - Dashboard and branch-detail tones are derived from localized status labels.
+  - The detached `ui/simulation` package consumes the English presentation mapper directly.
+- Intended boundary:
+  - `PromotionEvaluationResult` and its typed statuses/reasons remain domain-owned.
+  - The main app maps typed promotion results to localized dashboard presentation in `ui/app`.
+  - The detached simulation package owns its existing English-only presentation mapping and models.
+  - Calculability and semantic tones derive from nullable numeric values, `PromotionStatus`, and numeric branch averages.
+- Files likely to change:
+  - `app/src/main/java/me/asteroidus/swissgrades/domain/PromotionPresentationMapper.kt`
+  - `app/src/main/java/me/asteroidus/swissgrades/domain/model/PromotionPresentationModels.kt`
+  - `app/src/main/java/me/asteroidus/swissgrades/ui/app/GradeTrackerViewModel.kt`
+  - `app/src/main/java/me/asteroidus/swissgrades/ui/app/GradeTrackerBranchDetailScreen.kt`
+  - new focused presentation files under `ui/app` and `ui/simulation`
+  - mapper, ViewModel, and simulation tests
+- Compatibility risks:
+  - The detached simulation UI must keep its existing English copy and formatting.
+  - Dashboard calculability and status tone must remain behaviorally identical.
+  - French and English status/headline localization must remain equivalent.
+- Acceptance criteria:
+  - No presentation copy or presentation models remain in the domain package.
+  - Main-app calculability does not depend on `"Not available"` or any visible string.
+  - Dashboard and branch-detail tones do not depend on localized labels.
+  - All three promotion statuses map correctly in English and French.
+  - The detached simulation package retains its existing presentation behavior.
+- Required verification:
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`
+  - `./scripts/release-check.sh`
+  - `./scripts/run-managed-device-tests.sh`
+- Implementation:
+  - Replaced the ViewModel's `PromotionPresentation` intermediate with the structured `PromotionEvaluationResult`.
+  - Added `PromotionDashboardPresenter` in `ui/app` to map `PromotionStatus` to localized status/headline copy and semantic tone.
+  - Calculability now derives from `PromotionEvaluationResult.basketTotal != null`.
+  - Branch-detail tones now derive from numeric averages and counted state.
+  - The compact insufficient label now derives from negative semantic tone rather than comparing localized copy.
+  - Moved the English-only mapper, presentation models, and mapper tests from `domain` to the detached `ui/simulation` package.
+  - Added presenter tests for every status in English and French, structured calculability, and ViewModel tests for branch-detail tones.
+- Verification:
+  - Pre-change baseline `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `git diff --check`: passed.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 42 tests on `pixel2Api36`, 0 failures.
+  - Static searches confirm presentation types/copy no longer live in `domain` and main-app behavior no longer compares `"Not available"` or localized status labels.
+- Re-audit:
+  - The detached simulation retains its original English copy and passed its existing JVM/instrumented tests.
+  - No promotion calculation, basket role, persistence, navigation, or visible copy changed.
+  - No new actionable Critical, High, or Medium finding was found in the modified scope.

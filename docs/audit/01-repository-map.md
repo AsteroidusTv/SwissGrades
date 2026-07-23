@@ -65,7 +65,7 @@ SwissGrades is a local-first student grade tracker for Swiss students. It suppor
 - `domain/GradeCalculator.kt`: weighted averages, half-point rounding, promotion points, basket sum.
 - `domain/TargetSimulationCalculator.kt`: target-average simulation for needed next grade.
 - `domain/PromotionEvaluator.kt`: promotion status, blocking rules, missing-data rules.
-- `domain/PromotionPresentationMapper.kt`: domain presentation strings, later localized in the ViewModel.
+- `ui/app/PromotionDashboardPresenter.kt`: maps typed promotion results to localized dashboard copy and semantic tone.
 - `ui/app/GradeTrackerRepository.kt`: app state model and JSON serialization.
 - `ui/app/GradeTrackerViewModel.kt`: main state mutations, navigation, persistence orchestration, domain mapping.
 - `ui/app/GradeTrackerApp.kt`: main Compose root, onboarding, dashboard, period picker, summary cards.
@@ -75,7 +75,7 @@ SwissGrades is a local-first student grade tracker for Swiss students. It suppor
 - `ui/app/PlusPointsImportCoordinator.kt`: PlusPoints plist/XML import.
 - `ui/app/GradeAttachmentStorage.kt`: attachment staging, commit, deletion.
 - `ui/app/TargetSimulationCard.kt`: expandable target grade simulator UI.
-- `ui/simulation/*`: older or secondary standalone simulation UI/state holder; not currently called by `MainActivity`.
+- `ui/simulation/*`: older or secondary standalone simulation UI/state holder, including its English-only presentation mapper; not currently called by `MainActivity`.
 
 ## Build, Test, Lint, Release Commands
 
@@ -135,14 +135,14 @@ SwissGrades is a local-first student grade tracker for Swiss students. It suppor
 - JVM domain tests:
   - `GradeCalculatorTest`
   - `PromotionEvaluatorTest`
-  - `PromotionPresentationMapperTest`
   - `TargetSimulationCalculatorTest`
 - JVM app logic tests:
   - repository serialization;
   - ViewModel behavior;
+  - localized promotion dashboard presentation;
   - PlusPoints import;
   - localization;
-  - secondary simulation state holder.
+  - secondary simulation state holder and English presentation mapping.
 - Instrumented tests:
   - app flows;
   - backup coordinator;
@@ -162,14 +162,10 @@ SwissGrades is a local-first student grade tracker for Swiss students. It suppor
 - The expected Swiss promotion model is represented by exactly three basket subjects plus option; ordering of basket subjects may imply German/French/Math roles.
 - The current app has no account, cloud sync, or server API.
 - The secondary `ui/simulation` package is not part of the current launcher flow.
-- Android backup of grades/attachments is intentional despite local-first privacy messaging.
-- PlusPoints exported XML size is assumed small enough to load into memory.
 
 ## Areas Not Yet Fully Inspected
 
 - Every Compose screen has not yet been manually executed on a device/emulator in this audit session.
-- Managed-device tests have not yet been run in this session.
 - Accessibility has not yet been verified with TalkBack or automated accessibility tooling.
 - Dependency vulnerability scanning has not yet been run; network access is restricted in the current environment.
 - Untracked `node_modules/`, `package.json`, and diagnostics zip have only been structurally inspected so far.
-

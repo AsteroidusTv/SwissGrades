@@ -1,14 +1,11 @@
-package me.asteroidus.swissgrades.domain
+package me.asteroidus.swissgrades.ui.simulation
 
 import java.util.Locale
-import me.asteroidus.swissgrades.domain.model.BranchAveragePresentation
 import me.asteroidus.swissgrades.domain.model.BranchAverageResult
 import me.asteroidus.swissgrades.domain.model.BranchAverageStatus
-import me.asteroidus.swissgrades.domain.model.MetricPresentation
 import me.asteroidus.swissgrades.domain.model.PromotionBlockingReason
 import me.asteroidus.swissgrades.domain.model.PromotionEvaluationResult
 import me.asteroidus.swissgrades.domain.model.PromotionMissingDataReason
-import me.asteroidus.swissgrades.domain.model.PromotionPresentation
 import me.asteroidus.swissgrades.domain.model.PromotionStatus
 
 object PromotionPresentationMapper {

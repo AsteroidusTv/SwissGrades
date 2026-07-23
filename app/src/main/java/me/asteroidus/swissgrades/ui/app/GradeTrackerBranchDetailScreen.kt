@@ -421,7 +421,7 @@ private fun BranchDetailSummaryCard(
 ) {
     val strings = currentAppStrings()
     val isExcludedFromResults = !detail.isCounted && !detail.isOptionSubject
-    val compactStatusLabel = if (detail.statusLabel == strings.branchInsufficient) {
+    val compactStatusLabel = if (detail.statusTone == DashboardStatusTone.NEGATIVE) {
         strings.branchInsufficientShort
     } else {
         detail.statusLabel

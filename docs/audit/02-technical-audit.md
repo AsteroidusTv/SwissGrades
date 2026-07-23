@@ -29,14 +29,25 @@ Status: initial static audit pass in progress.
 - Severity: Low.
 - Confidence: High.
 - Affected files or screens: `app/src/main/java/me/asteroidus/swissgrades/domain/PromotionPresentationMapper.kt`, `app/src/main/java/me/asteroidus/swissgrades/ui/app/GradeTrackerViewModel.kt`, secondary `ui/simulation` screens.
-- Observed behavior: `PromotionPresentationMapper` returns labels such as `Basket total`, `Not available`, and full blocking messages in English. The main ViewModel only localizes status and headline, then checks the English sentinel `Not available` for calculability.
+- Observed behavior: before remediation, `PromotionPresentationMapper` returned labels such as `Basket total`, `Not available`, and full blocking messages in English. The main ViewModel localized only status and headline, then checked the English sentinel `Not available` for calculability.
 - Expected behavior: domain should expose structured data, and UI-localized copy should be produced at the UI boundary for each active language.
 - Reproduction steps where applicable: inspect `PromotionPresentationMapper.map()` and `PromotionPresentation.localized(strings)`.
 - Technical or UX impact: localization is brittle and future changes could accidentally surface English in French or break calculability checks.
 - Root cause, when known: earlier simulation UI used English presentation strings directly; the main app later added Kotlin localization around part of the output.
 - Proposed remediation: replace string sentinel checks with structured nullable/domain values; move visible labels/messages to `AppStrings`.
 - Verification method: localization tests that assert French dashboard/promotion messages do not contain English fallback; unit tests for calculability without English literals.
-- Status: open.
+- Implemented remediation:
+  - The domain now returns only `PromotionEvaluationResult` and typed statuses/reasons.
+  - The main app uses `PromotionDashboardPresenter` to map `PromotionStatus` to localized copy and semantic tone.
+  - Calculability derives from the nullable domain `basketTotal`, not a formatted label.
+  - Branch-detail tone derives from structured averages/counting state, not localized labels.
+  - The detached simulation package owns its unchanged English presentation mapper and presentation models.
+- Verification:
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 42 tests, 0 failures.
+  - Static search found no presentation models/mapper in `domain` and no remaining `Not available`/localized-status comparisons in the main app flow.
+- Status: resolved and verified.
 
 ### TECH-003: Secondary Simulation Package Appears Detached From Main App
 
