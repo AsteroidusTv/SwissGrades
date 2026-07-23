@@ -373,6 +373,7 @@ private fun normalizeKey(value: String?): String {
 }
 
 private fun parsePlistRoot(xml: String): Map<String, Any?> {
+    rejectDocumentTypeDeclaration(xml)
     val factory = hardenedDocumentBuilderFactory()
     val builder = factory.newDocumentBuilder()
     val document = builder.parse(ByteArrayInputStream(xml.encodeToByteArray()))
@@ -381,6 +382,12 @@ private fun parsePlistRoot(xml: String): Map<String, Any?> {
         ?: throw IllegalStateException("Invalid plist file.")
     return parsePlistNode(firstElement).asStringKeyedMap()
         ?: throw IllegalStateException("Invalid plist root.")
+}
+
+private fun rejectDocumentTypeDeclaration(xml: String) {
+    if (xml.contains("<!DOCTYPE")) {
+        throw IllegalStateException("Document type declarations are not allowed.")
+    }
 }
 
 private fun parsePlistNode(node: Element): Any? {
@@ -446,18 +453,13 @@ internal fun InputStream.readPlusPointsImportText(maxBytes: Int = MaxPlusPointsI
 
 private fun hardenedDocumentBuilderFactory(): DocumentBuilderFactory {
     return DocumentBuilderFactory.newInstance().apply {
-        requireXmlFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        trySetXmlFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
         trySetXmlFeature("http://xml.org/sax/features/external-general-entities", false)
         trySetXmlFeature("http://xml.org/sax/features/external-parameter-entities", false)
         trySetXmlFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
         runCatching { isXIncludeAware = false }
         runCatching { isExpandEntityReferences = false }
     }
-}
-
-private fun DocumentBuilderFactory.requireXmlFeature(feature: String, enabled: Boolean) {
-    runCatching { setFeature(feature, enabled) }
-        .getOrElse { throw IllegalStateException("Secure XML parsing is unavailable.", it) }
 }
 
 private fun DocumentBuilderFactory.trySetXmlFeature(feature: String, enabled: Boolean) {
