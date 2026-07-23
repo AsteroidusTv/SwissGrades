@@ -18,6 +18,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Removed promotion presentation strings/models from the domain layer and replaced string-based calculability/tone decisions with structured state.
 - Restricted official average targets to whole and half-grade steps while preserving quarter-step grade and simulator results.
 - Added compatibility normalization for previously saved arbitrary-decimal targets.
+- Extended the grade simulator to plan one, two, or three equal-weight future grades without persisting speculative data.
 
 ## Commands Executed
 
@@ -31,7 +32,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 
 - Debug JVM unit tests: passed.
 - Release unit tests, lint, R8/minify, and release bundle checks through `release-check`: passed.
-- Managed-device Android tests: passed, 42 tests completed on `pixel2Api36`, 0 failed.
+- Managed-device Android tests: passed, 43 tests completed on `pixel2Api36`, 0 failed.
 
 ## Security And Privacy Verification
 
@@ -48,6 +49,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Promotion setup assistant diagnostics are covered by ViewModel tests and an instrumented dashboard action smoke test.
 - Promotion dashboard localization/tone/calculability are covered by pure presenter tests, and the detached simulation presentation remains covered by JVM and instrumented tests.
 - Official target parsing, legacy normalization, persistence, and simulator rejection behavior are covered by JVM tests.
+- Multi-grade aggregate calculations are covered by JVM tests, and the two-grade selector/result flow is covered by a managed-device smoke test.
 - Existing managed-device tests pass after the UI/state changes.
 
 ## Resolved Findings
@@ -66,7 +68,7 @@ Status: convergence criteria reached for the inspected and remediated scope.
 - Near-term: human-readable export. Promotion setup assistant is implemented.
 - Medium-term: grade impact explanations and configurable grading rules.
 - Long-term: privacy-preserving sync and timetable/reminder integrations.
-- Experimental: multi-grade what-if planning and accessibility preferences.
+- Experimental: multi-grade what-if planning is implemented; accessibility preferences remain a candidate.
 
 ## Recommended Next Milestone
 

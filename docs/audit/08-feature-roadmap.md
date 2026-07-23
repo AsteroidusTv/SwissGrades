@@ -101,6 +101,7 @@ Status: initial roadmap created. These are not remediation tasks and should not 
 - Suggested release phase: experimental after current simulator is verified.
 - Minimum viable scope: add temporary planned grades that do not affect real averages until confirmed.
 - Success metric: testers understand distinction between real and simulated grades.
+- Status: implemented and verified with a reduced first version supporting one to three equal-weight future grades.
 
 - Feature: Accessibility preferences.
 - Problem addressed: high-density dark UI and animations may not fit all users.

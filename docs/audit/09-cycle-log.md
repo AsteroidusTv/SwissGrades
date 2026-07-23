@@ -315,3 +315,57 @@ Resolution: JDK 21 was installed under `~/.local/jdks/amazon-corretto-21.0.11.10
   - Valid `5.5` targets still produce quarter-step required grades such as `5.25`.
   - Ordinary note parsing and imported grade values were not changed.
   - No new actionable Critical, High, or Medium finding was found in the modified scope.
+
+## Feature Cycle 7: Multi-Grade Planning
+
+- Started: 2026-07-23.
+- Roadmap item: experimental what-if multi-grade planning.
+- Status: implemented and verified.
+- Product decision:
+  - Users can plan one, two, or three future grades.
+  - All planned grades share the selected weight in the first version.
+  - For multiple grades, the result is the minimum average needed across the plan, not a claim that each grade must be identical.
+  - Planned values remain temporary and never alter saved grades or averages.
+- Intended boundary:
+  - `TargetSimulationCalculator` owns the count-aware calculation.
+  - Compose owns only temporary count/weight/target editor state and localized presentation.
+  - Existing saved branch targets remain the simulator default.
+- Risks:
+  - Ambiguous wording could make a user interpret the result as an exact required grade on every test.
+  - A continuous slider would make three discrete choices less precise and less accessible than explicit controls.
+  - Invalid counts or mismatched weight assumptions could produce misleading projections.
+- Acceptance criteria:
+  - Users can select exactly 1, 2, or 3 planned grades.
+  - The one-grade result remains behaviorally identical.
+  - Multiple-grade results use the combined selected weight and round upward to the smallest average achievable with quarter-step grades (`0.25 / count`).
+  - UI copy states that planned grades share the selected weight.
+  - The result title distinguishes one required grade from a multi-grade required average.
+  - Invalid counts return a structured invalid result.
+  - Simulation never persists planned grades.
+- Required verification:
+  - Focused pure calculator tests for one-, two-, and three-grade plans and invalid counts.
+  - Managed-device smoke test for selecting two future grades and observing the updated result.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`
+  - `./scripts/release-check.sh`
+  - `./scripts/run-managed-device-tests.sh`
+- Implementation:
+  - Extended `TargetSimulationCalculator` with a validated planned-grade count from one to three.
+  - Preserved the existing one-grade calculation through a default count of one.
+  - Calculated the required average using the combined weight of all planned grades.
+  - Rounded multi-grade averages to the smallest aggregate step achievable with quarter-step grades: `0.25 / plannedGradeCount`.
+  - Added accessible discrete count controls instead of a continuous slider.
+  - Added English and French copy for the plan count, shared weight assumption, and singular/multiple result titles.
+  - Kept target, count, and weight simulation values temporary; no planned grades are persisted.
+  - Added pure tests for count validation, two-grade eighth-step averages, three-grade twelfth-step averages, and unchanged one-grade behavior.
+  - Added an Android smoke test that selects two future grades and verifies the result changes from the one-grade value to `5.13`.
+- Verification:
+  - Focused calculator and localization JVM tests: passed.
+  - Focused managed-device simulator test: passed.
+  - `git diff --check`: passed.
+  - `./scripts/gradlew21.sh testDebugUnitTest --no-parallel`: passed.
+  - `./scripts/release-check.sh`: passed.
+  - `./scripts/run-managed-device-tests.sh`: passed, 43 tests on `pixel2Api36`, 0 failures.
+- Re-audit:
+  - Corrected an initially over-conservative quarter-step average rule before completion; multiple quarter-step grades produce aggregate steps smaller than `0.25`.
+  - Confirmed ordinary grades, saved targets, semester persistence, and promotion calculations are unchanged.
+  - Confirmed multi-grade planning remains a temporary local simulation and introduces no privacy or data-migration surface.

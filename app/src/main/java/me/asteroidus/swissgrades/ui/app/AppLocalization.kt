@@ -175,8 +175,12 @@ data class AppStrings(
     val targetSimulationTitle: String,
     val targetSimulationSubtitle: String,
     val targetAverageLabel: String,
-    val nextTestWeightTitle: String,
+    val plannedGradeCountTitle: String,
+    val plannedGradeCountTemplate: String,
+    val plannedGradeWeightTitle: String,
+    val plannedGradeWeightHint: String,
     val requiredGradeTitle: String,
+    val requiredAverageTitleTemplate: String,
     val targetAlreadyReached: String,
     val targetImpossible: String,
     val targetInvalid: String,
@@ -184,6 +188,18 @@ data class AppStrings(
 ) {
     fun optionDescription(optionLabel: String): String {
         return "$optionSectionDescriptionPrefix$optionLabel$optionSectionDescriptionSuffix"
+    }
+
+    fun plannedGradeCount(count: Int): String {
+        return plannedGradeCountTemplate.replace("{count}", count.toString())
+    }
+
+    fun requiredSimulationTitle(plannedGradeCount: Int): String {
+        return if (plannedGradeCount == 1) {
+            requiredGradeTitle
+        } else {
+            requiredAverageTitleTemplate.replace("{count}", plannedGradeCount.toString())
+        }
     }
 
     fun backupImportMessage(fileName: String): String {
@@ -459,12 +475,16 @@ data class AppStrings(
             branchTargetPlaceholder = "Ex: 5.0",
             branchTargetInvalid = "Use a target from 1.0 to 6.0 in 0.5 steps.",
             targetSimulationTitle = "Grade simulator",
-            targetSimulationSubtitle = "Choose a target average and see what the next test needs.",
+            targetSimulationSubtitle = "Choose a target and plan your next grades.",
             targetAverageLabel = "Target average",
-            nextTestWeightTitle = "Next test weight",
+            plannedGradeCountTitle = "Future grades",
+            plannedGradeCountTemplate = "Future grades: {count}",
+            plannedGradeWeightTitle = "Grade weight",
+            plannedGradeWeightHint = "All planned grades use this weight.",
             requiredGradeTitle = "Needed next grade",
-            targetAlreadyReached = "Already secured, even with 1.0 next.",
-            targetImpossible = "Impossible with one test, even with 6.0.",
+            requiredAverageTitleTemplate = "Average needed over {count} grades",
+            targetAlreadyReached = "Target secured, even with minimum grades.",
+            targetImpossible = "Impossible within this plan, even with 6.0 grades.",
             targetInvalid = "Enter a target from 1.0 to 6.0 in 0.5 steps.",
             targetProjectedAverageTemplate = "Projected official average: {average}"
         )
@@ -634,12 +654,16 @@ data class AppStrings(
             branchTargetPlaceholder = "Ex : 5,0",
             branchTargetInvalid = "Utilise un objectif de 1,0 à 6,0 par pas de 0,5.",
             targetSimulationTitle = "Simulateur de note",
-            targetSimulationSubtitle = "Choisis une moyenne visée et vois ce qu'il faut au prochain test.",
+            targetSimulationSubtitle = "Choisis un objectif et planifie tes prochaines notes.",
             targetAverageLabel = "Moyenne visée",
-            nextTestWeightTitle = "Poids du prochain test",
+            plannedGradeCountTitle = "Notes à venir",
+            plannedGradeCountTemplate = "Notes à venir : {count}",
+            plannedGradeWeightTitle = "Poids des notes",
+            plannedGradeWeightHint = "Toutes les notes planifiées utilisent ce poids.",
             requiredGradeTitle = "Note nécessaire",
-            targetAlreadyReached = "Déjà assuré, même avec 1,0 au prochain test.",
-            targetImpossible = "Impossible avec un seul test, même avec 6,0.",
+            requiredAverageTitleTemplate = "Moyenne nécessaire sur {count} notes",
+            targetAlreadyReached = "Objectif assuré, même avec les notes minimales.",
+            targetImpossible = "Impossible avec ce plan, même avec des notes de 6,0.",
             targetInvalid = "Entre un objectif de 1,0 à 6,0 par pas de 0,5.",
             targetProjectedAverageTemplate = "Moyenne officielle projetée : {average}"
         )

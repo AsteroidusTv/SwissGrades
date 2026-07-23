@@ -2,7 +2,9 @@ package me.asteroidus.swissgrades.ui.app
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -192,6 +194,53 @@ class GradeTrackerAppInstrumentedTest {
 
         composeRule.onNodeWithTag("subject-card-subject-8", useUnmergedTree = true)
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun gradeSimulatorPlansTwoFutureGrades() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        targetAverage = 5.0,
+                        notes = listOf(storedNote(id = "note-1", value = 4.0))
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 2
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("subject-card-subject-2")
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        composeRule.onNodeWithTag("show-target-simulation-card", useUnmergedTree = true)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
+            .performScrollTo()
+        composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
+            .performTouchInput { swipeUp(startY = 1_500f, endY = 1_100f) }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
+            .performTouchInput { click() }
+            .assertIsSelected()
+
+        composeRule.onNodeWithTag("target-simulation-required-value", useUnmergedTree = true)
+            .performScrollTo()
+            .assertTextEquals("5.13")
     }
 
     private fun scrollMainScreenUntilTag(tag: String) {

@@ -58,4 +58,12 @@ class AppLocalizationTest {
             }
         }
     }
+
+    @Test
+    fun simulationResultTitles_distinguishSingleAndMultipleGrades() {
+        assertEquals("Needed next grade", AppStrings.English.requiredSimulationTitle(1))
+        assertEquals("Average needed over 3 grades", AppStrings.English.requiredSimulationTitle(3))
+        assertEquals("Note nécessaire", AppStrings.French.requiredSimulationTitle(1))
+        assertEquals("Moyenne nécessaire sur 3 notes", AppStrings.French.requiredSimulationTitle(3))
+    }
 }
