@@ -1177,7 +1177,7 @@ class GradeTrackerViewModel(
                     supportingText = if (optionHasGrade) {
                         strings.promotionSetupReady
                     } else {
-                        optionSubject.localizedDisplayName(state.language)
+                        strings.promotionSetupMissingGrades(optionSubject.localizedDisplayName(state.language))
                     },
                     isComplete = optionHasGrade
                 ),
@@ -1186,7 +1186,9 @@ class GradeTrackerViewModel(
                     supportingText = when {
                         !basketConfigured -> strings.promotionSetupWaitingForBasket
                         basketGradesReady -> strings.promotionSetupReady
-                        else -> basketSubjectsWithMissingGrades.localizedSubjectList(state.language)
+                        else -> strings.promotionSetupMissingGrades(
+                            basketSubjectsWithMissingGrades.localizedSubjectList(state.language)
+                        )
                     },
                     isComplete = basketGradesReady
                 )

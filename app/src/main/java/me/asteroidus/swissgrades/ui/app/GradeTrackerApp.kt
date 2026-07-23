@@ -1168,6 +1168,7 @@ private fun PromotionSetupCard(
     onAction: () -> Unit
 ) {
     val accentBlue = appAccentBlue()
+    val strings = currentAppStrings()
     val warningRed = appWarningColor()
     val neutralBackground = appNeutralBackground()
     OutlinedCard(
@@ -1180,47 +1181,28 @@ private fun PromotionSetupCard(
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = setup.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = setup.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Button(
-                    onClick = onAction,
-                    modifier = Modifier
-                        .padding(start = 12.dp)
-                        .testTag("promotion-setup-action"),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = appSoftAccentContainer(),
-                        contentColor = accentBlue
-                    ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = setup.actionLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = setup.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = strings.promotionSetupIntro,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = setup.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = warningRed,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1236,6 +1218,27 @@ private fun PromotionSetupCard(
                         modifier = Modifier.testTag("promotion-setup-item-$index")
                     )
                 }
+            }
+
+            Button(
+                onClick = onAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("promotion-setup-action"),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSoftAccentContainer(),
+                    contentColor = accentBlue
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = setup.actionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -1265,7 +1268,9 @@ private fun PromotionSetupChecklistRow(
                     imageVector = if (item.isComplete) Icons.Filled.Check else Icons.Filled.WarningAmber,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier
+                        .size(19.dp)
+                        .offset(y = (-1).dp)
                 )
             }
         }
@@ -1282,7 +1287,7 @@ private fun PromotionSetupChecklistRow(
                 text = item.supportingText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }

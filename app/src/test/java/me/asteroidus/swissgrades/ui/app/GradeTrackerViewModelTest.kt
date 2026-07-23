@@ -561,7 +561,7 @@ class GradeTrackerViewModelTest {
         assertEquals(AppStrings.French.promotionSetupMissingBasket(3), setup.description)
         assertEquals(PromotionSetupAction.ADD_SUBJECT, setup.action)
         assertNull(setup.actionSubjectId)
-        assertEquals("0/3 sélectionnées", setup.items.first().supportingText)
+        assertEquals(AppStrings.French.promotionSetupBasketProgress(0), setup.items.first().supportingText)
         assertFalse(setup.items.first().isComplete)
     }
 
