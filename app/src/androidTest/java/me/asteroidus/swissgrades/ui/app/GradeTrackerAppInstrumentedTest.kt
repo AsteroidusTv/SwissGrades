@@ -123,7 +123,14 @@ class GradeTrackerAppInstrumentedTest {
         )
 
         launchApp()
-        assertTagDisplayed("open-settings")
+        scrollMainScreenUntilTag("subject-card-subject-1")
+        composeRule.onNodeWithTag("subject-card-subject-1", useUnmergedTree = true)
+            .performClick()
+        scrollBranchDetailUntilTag("select-sub-subject-option-subject-1")
+
+        assertTagDisplayed("select-sub-subject-option-subject-1")
+        assertTagAbsent("show-target-simulation-card")
+        assertTagAbsent("target-simulation-card")
     }
 
     @Test
@@ -327,13 +334,6 @@ class GradeTrackerAppInstrumentedTest {
             .commit()
     }
 
-    private fun openSubject(subjectId: String) {
-        waitForTag("subject-card-$subjectId")
-        composeRule.onNodeWithTag("subject-card-$subjectId", useUnmergedTree = true)
-            .performScrollTo()
-            .performClick()
-    }
-
     private fun storedNote(id: String, value: Double): StoredNote {
         return StoredNote(
             id = id,
@@ -349,6 +349,13 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag(tag, useUnmergedTree = true)
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+    private fun assertTagAbsent(tag: String) {
+        check(composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
+            .fetchSemanticsNodes().isEmpty()) {
+            "Expected no node with tag '$tag'."
+        }
     }
 
     private fun assertTextDisplayed(text: String) {

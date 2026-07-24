@@ -206,13 +206,15 @@ fun BranchDetailScreen(
                 )
             }
 
-            item {
-                TargetSimulationCard(
-                    notes = visibleNotes,
-                    accentBlue = accentBlue,
-                    initialTargetInput = detail.targetAverageInput,
-                    targetKey = detail.subjectId
-                )
+            if (!detail.isCompositeOption) {
+                item {
+                    TargetSimulationCard(
+                        notes = visibleNotes,
+                        accentBlue = accentBlue,
+                        initialTargetInput = detail.targetAverageInput,
+                        targetKey = detail.subjectId
+                    )
+                }
             }
 
             if (detail.isCompositeOption) {
