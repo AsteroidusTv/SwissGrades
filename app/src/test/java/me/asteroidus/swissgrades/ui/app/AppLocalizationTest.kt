@@ -82,6 +82,22 @@ class AppLocalizationTest {
     }
 
     @Test
+    fun englishLabels_useEnglishGradeAndSubjectVocabulary() {
+        val strings = AppStrings.English
+
+        assertEquals("Grades", strings.gradeHistoryTitle)
+        assertEquals("Sufficient", strings.branchPromoted)
+        assertEquals("Add a subject", strings.promotionSetupAddBranchAction)
+        assertTrue(strings.promotionSetupIntro.contains("basket subjects"))
+        assertFalse(strings.promotionSetupIntro.contains("branch"))
+    }
+
+    @Test
+    fun frenchBranchStatus_describesResultWithoutClaimingPromotion() {
+        assertEquals("Suffisant", AppStrings.French.branchPromoted)
+    }
+
+    @Test
     fun simulationResultTitles_distinguishSingleAndMultipleGrades() {
         assertEquals("Needed next grade", AppStrings.English.requiredSimulationTitle(1))
         assertEquals("Average needed over 3 grades", AppStrings.English.requiredSimulationTitle(3))

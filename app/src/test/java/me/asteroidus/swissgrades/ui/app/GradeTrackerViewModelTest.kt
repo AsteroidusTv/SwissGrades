@@ -135,7 +135,7 @@ class GradeTrackerViewModelTest {
         viewModel.updateSubjectTargetAverage(historyId, "5,5")
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
-        assertEquals("5.5", detail.targetAverageInput)
+        assertEquals("5,5", detail.targetAverageInput)
         assertEquals(5.5, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
     }
 
@@ -224,9 +224,9 @@ class GradeTrackerViewModelTest {
         viewModel.addNote()
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
-        assertEquals("5.00", detail.secondaryAverageLabel)
-        assertEquals("5.0", detail.officialAverageLabel)
-        assertEquals("+1.0", detail.pointsLabel)
+        assertEquals("5,00", detail.secondaryAverageLabel)
+        assertEquals("5,0", detail.officialAverageLabel)
+        assertEquals("+1,0", detail.pointsLabel)
         assertEquals("Essay", detail.notes.single().description)
     }
 
@@ -314,8 +314,8 @@ class GradeTrackerViewModelTest {
         assertEquals(AppStrings.French.notCountedLabel, detail.statusLabel)
         assertEquals(DashboardStatusTone.NEUTRAL, detail.statusTone)
         assertEquals("", detail.pointsLabel)
-        assertEquals("3.5", detail.officialAverageLabel)
-        assertEquals("3.50", detail.secondaryAverageLabel)
+        assertEquals("3,5", detail.officialAverageLabel)
+        assertEquals("3,50", detail.secondaryAverageLabel)
     }
 
     @Test
@@ -368,8 +368,8 @@ class GradeTrackerViewModelTest {
 
         val updatedDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         val updatedNote = updatedDetail.notes.single()
-        assertEquals("4.0", updatedDetail.officialAverageLabel)
-        assertEquals("4.00", updatedDetail.secondaryAverageLabel)
+        assertEquals("4,0", updatedDetail.officialAverageLabel)
+        assertEquals("4,00", updatedDetail.secondaryAverageLabel)
         assertEquals("Updated essay", updatedNote.description)
         assertEquals(AppStrings.French.noteTypeHalf, updatedNote.noteTypeLabel)
     }
@@ -508,7 +508,7 @@ class GradeTrackerViewModelTest {
         viewModel.confirmPeriodSelection()
 
         val main = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("5.0", main.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("5,0", main.userSubjects.single { it.title == "History" }.averageLabel)
     }
 
     @Test
@@ -538,14 +538,14 @@ class GradeTrackerViewModelTest {
         assertEquals(setOf(SchoolSemester.SEMESTER_1, SchoolSemester.SEMESTER_2), persistedSubject.notes.map { it.semester }.toSet())
         assertEquals(setOf(5.0, 3.0), persistedSubject.notes.map { it.value }.toSet())
         val secondSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("4.0", secondSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
-        assertEquals("4.0", secondSemesterMain.summary.overallAverageLabel)
+        assertEquals("4,0", secondSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("4,0", secondSemesterMain.summary.overallAverageLabel)
 
         viewModel.openPeriodPicker()
         viewModel.updatePendingSemester(SchoolSemester.SEMESTER_1)
         viewModel.confirmPeriodSelection()
         val firstSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("5.0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("5,0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
     }
 
     @Test
@@ -743,7 +743,7 @@ class GradeTrackerViewModelTest {
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
         assertEquals(AppStrings.French.promotionStatusPromoted, screen.summary.promotionStatusLabel)
-        assertEquals("16.0 / 16", screen.summary.basketLabel)
+        assertEquals("16,0 / 16", screen.summary.basketLabel)
         assertEquals("0 / 4", screen.summary.insufficienciesLabel)
     }
 

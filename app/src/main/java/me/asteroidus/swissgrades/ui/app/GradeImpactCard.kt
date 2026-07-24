@@ -17,12 +17,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import java.util.Locale
-import kotlin.math.abs
-
 @Composable
 internal fun GradeImpactCard(impact: GradeImpactUiState) {
     val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
     val delta = impact.officialAverageDelta
     OutlinedCard(
         modifier = Modifier
@@ -43,7 +41,7 @@ internal fun GradeImpactCard(impact: GradeImpactUiState) {
             )
             GradeImpactRow(
                 label = strings.gradeImpactWithGrade,
-                value = formatImpactAverage(impact.withGradeAverage),
+                value = language.formatOneOrTwoDecimals(impact.withGradeAverage),
                 valueTag = "grade-impact-with"
             )
             if (impact.withoutGradeAverage == null) {
@@ -56,12 +54,12 @@ internal fun GradeImpactCard(impact: GradeImpactUiState) {
             } else {
                 GradeImpactRow(
                     label = strings.gradeImpactWithoutGrade,
-                    value = formatImpactAverage(impact.withoutGradeAverage),
+                    value = language.formatOneOrTwoDecimals(impact.withoutGradeAverage),
                     valueTag = "grade-impact-without"
                 )
                 GradeImpactRow(
                     label = strings.gradeImpactDelta,
-                    value = formatSignedImpact(requireNotNull(delta)),
+                    value = language.formatSignedOneOrTwoDecimals(requireNotNull(delta)),
                     valueColor = when {
                         delta > 0.0 -> appAccentBlue()
                         delta < 0.0 -> appWarningColor()
@@ -102,18 +100,4 @@ private fun GradeImpactRow(
                 .testTag(valueTag)
         )
     }
-}
-
-private fun formatImpactAverage(value: Double): String {
-    return if (value % 1.0 == 0.0) {
-        "%.1f".format(Locale.US, value)
-    } else {
-        "%.2f".format(Locale.US, value).trimEnd('0')
-    }
-}
-
-private fun formatSignedImpact(value: Double): String {
-    val normalized = if (abs(value) < 1e-9) 0.0 else value
-    val prefix = if (normalized > 0.0) "+" else ""
-    return prefix + formatImpactAverage(normalized)
 }

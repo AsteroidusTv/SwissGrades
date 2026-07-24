@@ -250,7 +250,7 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("use-saved-target", useUnmergedTree = true)
             .performScrollTo()
             .performTouchInput { click() }
-        assertTagText("target-average-input", "5.0")
+        assertTagText("target-average-input", "5,0")
         composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
             .performScrollTo()
         composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
@@ -262,7 +262,7 @@ class GradeTrackerAppInstrumentedTest {
 
         composeRule.onNodeWithTag("target-simulation-required-value", useUnmergedTree = true)
             .performScrollTo()
-            .assertTextEquals("5.13")
+            .assertTextEquals("5,13")
     }
 
     @Test
@@ -304,11 +304,11 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("grade-impact-card", useUnmergedTree = true)
             .assertIsDisplayed()
         composeRule.onNodeWithTag("grade-impact-with", useUnmergedTree = true)
-            .assertTextEquals("5.0")
+            .assertTextEquals("5,0")
         composeRule.onNodeWithTag("grade-impact-without", useUnmergedTree = true)
-            .assertTextEquals("4.0")
+            .assertTextEquals("4,0")
         composeRule.onNodeWithTag("grade-impact-delta", useUnmergedTree = true)
-            .assertTextEquals("+1.0")
+            .assertTextEquals("+1,0")
     }
 
     @Test

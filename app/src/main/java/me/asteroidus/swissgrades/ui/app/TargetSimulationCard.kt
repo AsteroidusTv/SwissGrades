@@ -53,8 +53,6 @@ import me.asteroidus.swissgrades.domain.TargetSimulationCalculator
 import me.asteroidus.swissgrades.domain.TargetSimulationGrade
 import me.asteroidus.swissgrades.domain.TargetSimulationResult
 
-private const val DefaultTargetSimulationInput = "5.0"
-
 @Composable
 internal fun TargetSimulationCard(
     notes: List<NoteUiState>,
@@ -63,20 +61,24 @@ internal fun TargetSimulationCard(
     targetKey: String
 ) {
     val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
+    val defaultTargetInput = language.formatOneOrTwoDecimals(5.0)
     val focusManager = LocalFocusManager.current
     val warningRed = appWarningColor()
     val positiveGreen = appPositiveColor()
     var isExpanded by remember { mutableStateOf(false) }
     val openInteractionSource = remember { MutableInteractionSource() }
     val closeInteractionSource = remember { MutableInteractionSource() }
-    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput) }
-    var lastSyncedTargetInput by remember(targetKey) {
-        mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput)
+    var targetInput by remember(targetKey, language) {
+        mutableStateOf(initialTargetInput ?: defaultTargetInput)
+    }
+    var lastSyncedTargetInput by remember(targetKey, language) {
+        mutableStateOf(initialTargetInput ?: defaultTargetInput)
     }
     var plannedGradeCount by remember(targetKey) { mutableStateOf(1) }
     var plannedGradeType by remember(targetKey) { mutableStateOf(NoteTypeUi.FULL) }
     LaunchedEffect(targetKey, initialTargetInput, isExpanded) {
-        val nextSyncedInput = initialTargetInput ?: DefaultTargetSimulationInput
+        val nextSyncedInput = initialTargetInput ?: defaultTargetInput
         targetInput = synchronizedTargetSimulationInput(
             currentInput = targetInput,
             lastSyncedInput = lastSyncedTargetInput,
@@ -198,7 +200,7 @@ internal fun TargetSimulationCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("target-average-input"),
-                    placeholder = { Text("5.0") },
+                    placeholder = { Text(defaultTargetInput) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = result == TargetSimulationResult.Invalid,
@@ -396,7 +398,7 @@ internal fun TargetSimulationCard(
                         )
                         is TargetSimulationResult.Required -> {
                             Text(
-                                text = TargetSimulationCalculator.formatGrade(result.requiredAverage),
+                                text = language.formatOneOrTwoDecimals(result.requiredAverage),
                                 modifier = Modifier.testTag("target-simulation-required-value"),
                                 style = MaterialTheme.typography.displaySmall,
                                 color = resultTone,
@@ -404,7 +406,7 @@ internal fun TargetSimulationCard(
                             )
                             Text(
                                 text = strings.targetProjectedAverage(
-                                    TargetSimulationCalculator.formatGrade(result.projectedOfficialAverage)
+                                    language.formatOneOrTwoDecimals(result.projectedOfficialAverage)
                                 ),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
