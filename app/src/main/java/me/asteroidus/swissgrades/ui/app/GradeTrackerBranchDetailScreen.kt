@@ -744,6 +744,12 @@ private fun BranchTargetAverageCard(
                     },
                     fontWeight = if (hasTargetAverage) FontWeight.SemiBold else FontWeight.Medium
                 )
+                Text(
+                    text = strings.branchTargetScope,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("branch-target-scope")
+                )
             }
         }
     }

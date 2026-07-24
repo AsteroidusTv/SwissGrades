@@ -10,8 +10,11 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -239,6 +242,16 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("show-target-simulation-card", useUnmergedTree = true)
             .performScrollTo()
             .performClick()
+        assertTagText(
+            "temporary-target-hint",
+            "Les modifications ici ne changent pas l’objectif sauvegardé."
+        )
+        composeRule.onNodeWithTag("target-average-input", useUnmergedTree = true)
+            .performTextReplacement("6.0")
+        composeRule.onNodeWithTag("use-saved-target", useUnmergedTree = true)
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        assertTagText("target-average-input", "5.0")
         composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
             .performScrollTo()
         composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
