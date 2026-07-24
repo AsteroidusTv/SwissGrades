@@ -468,6 +468,57 @@ class GradeTrackerAppInstrumentedTest {
         assertTextDisplayed("Choisir l’emplacement")
     }
 
+    @Test
+    fun settingsGroupsTasksAndKeepsOptionChoicesCollapsedUntilRequested() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = true,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    )
+                ),
+                language = AppLanguage.FRENCH
+            )
+        )
+
+        launchApp()
+        composeRule.onNodeWithTag("open-settings", useUnmergedTree = true)
+            .performClick()
+
+        assertTextDisplayed("Préférences de l'app")
+        assertTextDisplayed("Configuration scolaire")
+        composeRule.onNodeWithText("Données et exports", useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+        assertTagAbsent("settings-option-BIOLOGY_CHEMISTRY")
+
+        composeRule.onNodeWithTag("toggle-option-choices", useUnmergedTree = true)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(
+            "settings-option-BIOLOGY_CHEMISTRY",
+            useUnmergedTree = true
+        )
+            .performScrollTo()
+            .performClick()
+
+        composeRule.onNodeWithText(
+            text = "trois années scolaires",
+            substring = true,
+            useUnmergedTree = true
+        ).fetchSemanticsNode()
+        composeRule.onNodeWithText(
+            text = "photos",
+            substring = true,
+            useUnmergedTree = true
+        ).fetchSemanticsNode()
+    }
+
     private fun scrollBranchDetailUntilTag(tag: String) {
         repeat(12) {
             val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)

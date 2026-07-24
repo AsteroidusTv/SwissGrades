@@ -2,6 +2,7 @@ package me.asteroidus.swissgrades.ui.app
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppLocalizationTest {
@@ -86,5 +87,25 @@ class AppLocalizationTest {
         assertEquals("Average needed over 3 grades", AppStrings.English.requiredSimulationTitle(3))
         assertEquals("Note nécessaire", AppStrings.French.requiredSimulationTitle(1))
         assertEquals("Moyenne nécessaire sur 3 notes", AppStrings.French.requiredSimulationTitle(3))
+    }
+
+    @Test
+    fun destructiveAndImportCopy_namesActualScope() {
+        val english = AppStrings.English
+        val french = AppStrings.French
+
+        assertTrue(english.changeOptionMessage.contains("all three school years"))
+        assertTrue(english.changeOptionMessage.contains("attached photo"))
+        assertTrue(english.resetAppMessage.contains("exported outside the app"))
+        assertTrue(french.changeOptionMessage.contains("trois années scolaires"))
+        assertTrue(french.resetAppMessage.contains("exportés hors de l'app"))
+
+        val plusPointsMessage = french.plusPointsImportMessage(
+            fileName = "semester.PlusPointsExport",
+            year = SchoolYear.YEAR_2,
+            semester = SchoolSemester.SEMESTER_2
+        )
+        assertTrue(plusPointsMessage.contains("Deuxième année · Situation cumulative S1 + S2"))
+        assertTrue(plusPointsMessage.contains("même si elle était exclue dans PlusPoints"))
     }
 }
