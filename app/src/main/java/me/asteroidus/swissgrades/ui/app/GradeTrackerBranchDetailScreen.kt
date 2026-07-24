@@ -1557,7 +1557,6 @@ private fun SwipeableNoteHistoryCard(
         NoteHistoryCard(
             note = note,
             onEdit = onRequestEdit,
-            onDelete = onRequestDelete,
             onPreviewAttachments = onPreviewAttachments,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
@@ -1568,7 +1567,6 @@ private fun SwipeableNoteHistoryCard(
 private fun NoteHistoryCard(
     note: NoteUiState,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
     onPreviewAttachments: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1608,16 +1606,6 @@ private fun NoteHistoryCard(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = strings.editGrade,
                         tint = accentBlue
-                    )
-                }
-                HeaderActionButton(
-                    onClick = onDelete,
-                    modifier = Modifier.testTag("visible-delete-note-${note.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = strings.deleteGradeLabel,
-                        tint = warningRed
                     )
                 }
             }

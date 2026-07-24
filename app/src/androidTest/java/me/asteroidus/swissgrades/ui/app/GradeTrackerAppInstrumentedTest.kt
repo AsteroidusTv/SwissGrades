@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -367,7 +368,7 @@ class GradeTrackerAppInstrumentedTest {
     }
 
     @Test
-    fun visibleCorrectionActionsAndAttachmentViewerAreReachable() {
+    fun swipeDeletionAndVisibleCorrectionActionsRemainReachable() {
         repository.save(
             GradeTrackerAppState(
                 selectedOption = InitialOptionChoice.SPANISH,
@@ -402,20 +403,23 @@ class GradeTrackerAppInstrumentedTest {
         )
 
         launchApp()
-        scrollMainScreenUntilTag("visible-delete-subject-subject-2")
-        composeRule.onNodeWithTag("visible-delete-subject-subject-2", useUnmergedTree = true)
-            .assertIsDisplayed()
-            .performClick()
+        scrollMainScreenUntilTag("swipe-subject-subject-2")
+        assertTagAbsent("visible-delete-subject-subject-2")
+        composeRule.onNodeWithTag("swipe-subject-subject-2", useUnmergedTree = true)
+            .performTouchInput { swipeRight() }
         assertTextDisplayed("Supprimer la branche ?")
         composeRule.onNodeWithText("Annuler", useUnmergedTree = true).performClick()
 
         composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
             .performClick()
-        scrollBranchDetailUntilTag("visible-delete-note-note-1")
+        scrollBranchDetailUntilTag("swipe-note-note-1")
         composeRule.onNodeWithTag("visible-edit-note-note-1", useUnmergedTree = true)
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("visible-delete-note-note-1", useUnmergedTree = true)
-            .assertIsDisplayed()
+        assertTagAbsent("visible-delete-note-note-1")
+        composeRule.onNodeWithTag("swipe-note-note-1", useUnmergedTree = true)
+            .performTouchInput { swipeRight() }
+        assertTextDisplayed("Supprimer la note ?")
+        composeRule.onNodeWithText("Annuler", useUnmergedTree = true).performClick()
         composeRule.onNodeWithTag("open-note-attachments-note-1", useUnmergedTree = true)
             .performClick()
 
