@@ -127,7 +127,7 @@ private class GradeReportPdfWriter(
             bold = true,
             letterSpacing = 1.4f
         )
-        cursorY += 4f
+        cursorY += 25f
         drawWrappedText(text.title, size = 24f, bold = true, lineHeight = 28f)
         cursorY += 5f
         drawWrappedText(
@@ -154,13 +154,13 @@ private class GradeReportPdfWriter(
     }
 
     private fun writeSummary() {
-        ensureSpace(146f)
+        ensureSpace(SummaryHeight + SummaryBottomSpacing)
         val summaryTop = cursorY
         currentCanvas().drawRoundRect(
             PageMargin,
             summaryTop,
             PageWidth - PageMargin,
-            summaryTop + 130f,
+            summaryTop + SummaryHeight,
             16f,
             16f,
             paint.apply {
@@ -168,21 +168,21 @@ private class GradeReportPdfWriter(
                 color = SummaryBackground
             }
         )
-        cursorY += 24f
+        cursorY = summaryTop + 26f
         drawSummaryRow(
             leftLabel = text.roundedAverage,
             leftValue = formatValue(report.overallAverage),
             rightLabel = text.status,
             rightValue = text.status(report.promotionStatus)
         )
-        cursorY += 18f
+        cursorY = summaryTop + 70f
         drawSummaryRow(
             leftLabel = text.promotionPoints,
             leftValue = formatSignedValue(report.promotionPoints),
             rightLabel = text.basket,
             rightValue = report.basketTotal?.let { "${formatValue(it)} / 16" } ?: text.notAvailable
         )
-        cursorY += 18f
+        cursorY = summaryTop + 114f
         drawText(
             value = text.insufficiencies,
             size = 8f,
@@ -190,13 +190,14 @@ private class GradeReportPdfWriter(
             bold = true,
             x = PageMargin + 18f
         )
+        cursorY = summaryTop + 135f
         drawText(
             value = "${report.insufficiencyCount} / 4",
             size = 14f,
             bold = true,
             x = PageMargin + 18f
         )
-        cursorY = summaryTop + 150f
+        cursorY = summaryTop + SummaryHeight + SummaryBottomSpacing
     }
 
     private fun drawSummaryRow(
@@ -218,7 +219,7 @@ private class GradeReportPdfWriter(
     private fun writeSubject(subject: GradeReportSubject) {
         ensureSpace(110f)
         drawDivider()
-        cursorY += 15f
+        cursorY += 28f
         drawWrappedText(
             value = subject.displayName(language),
             size = 18f,
@@ -482,6 +483,8 @@ private class GradeReportPdfWriter(
         const val ContentBottom = 780f
         const val ContentWidth = PageWidth - (PageMargin * 2f)
         const val SubjectIndent = 18f
+        const val SummaryHeight = 160f
+        const val SummaryBottomSpacing = 24f
         const val PrimaryText = 0xFF121722.toInt()
         const val SecondaryText = 0xFF566173.toInt()
         const val AccentBlue = 0xFF377FD5.toInt()
