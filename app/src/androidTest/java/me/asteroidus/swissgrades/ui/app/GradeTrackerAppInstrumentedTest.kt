@@ -11,11 +11,9 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -251,7 +249,7 @@ class GradeTrackerAppInstrumentedTest {
             .performTextReplacement("6.0")
         composeRule.onNodeWithTag("use-saved-target", useUnmergedTree = true)
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.OnClick)
+            .performTouchInput { click() }
         assertTagText("target-average-input", "5.0")
         composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
             .performScrollTo()
@@ -517,6 +515,38 @@ class GradeTrackerAppInstrumentedTest {
             substring = true,
             useUnmergedTree = true
         ).fetchSemanticsNode()
+    }
+
+    @Test
+    fun firstUsePeriodConfirmationRemainsDirectlyClickable() {
+        launchApp()
+
+        composeRule.onNodeWithTag(
+            "onboarding-option-${InitialOptionChoice.SPANISH.name}",
+            useUnmergedTree = true
+        )
+            .performScrollTo()
+            .performTouchInput { click() }
+            .assertIsSelected()
+        composeRule.onNodeWithTag("onboarding-continue", useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTouchInput { click() }
+        waitForTag("confirm-period-selection")
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                composeRule.onNodeWithTag(
+                    "confirm-period-selection",
+                    useUnmergedTree = true
+                ).assertIsDisplayed()
+            }.isSuccess
+        }
+        composeRule.onNodeWithTag("confirm-period-selection", useUnmergedTree = true)
+            .performTouchInput { click() }
+
+        waitForTag("main-screen-list")
+        composeRule.onNodeWithTag("main-screen-list", useUnmergedTree = true)
+            .assertIsDisplayed()
     }
 
     private fun scrollBranchDetailUntilTag(tag: String) {

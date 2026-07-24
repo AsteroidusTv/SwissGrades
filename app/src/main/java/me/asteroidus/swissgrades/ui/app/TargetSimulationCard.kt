@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -132,7 +133,7 @@ internal fun TargetSimulationCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp),
+                    .heightIn(min = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -196,7 +197,6 @@ internal fun TargetSimulationCard(
                     onValueChange = { targetInput = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(76.dp)
                         .testTag("target-average-input"),
                     placeholder = { Text("5.0") },
                     singleLine = true,

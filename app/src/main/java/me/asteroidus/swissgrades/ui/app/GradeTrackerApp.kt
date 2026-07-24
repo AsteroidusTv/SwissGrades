@@ -904,7 +904,7 @@ internal fun SemesterSwitcher(
                         color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -927,94 +927,100 @@ private fun PeriodPickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = AppScreenBottomPadding
-            ),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-period-picker")
-            )
-            Text(
-                text = strings.periodTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 16.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            Text(
-                text = strings.choosePeriodTitle,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Surface(
-                shape = RoundedCornerShape(100.dp),
-                color = appSoftAccentContainer()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                HeaderBackButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("back-from-period-picker")
+                )
                 Text(
-                    text = strings.periodLabel(selectedYear, selectedSemester),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = appAccentBlue(),
-                    fontWeight = FontWeight.SemiBold
+                    text = strings.periodTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
-        }
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            color = appCardSurface(),
-            border = appCardBorder()
-        ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = strings.choosePeriodTitle,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = appSoftAccentContainer()
+                ) {
                     Text(
-                        text = strings.schoolYearTitle,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = strings.periodLabel(selectedYear, selectedSemester),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = appAccentBlue(),
                         fontWeight = FontWeight.SemiBold
-                    )
-                    PeriodYearSelector(
-                        selectedYear = selectedYear,
-                        onSelectYear = onSelectYear
                     )
                 }
+            }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(appCardBorderColor())
-                )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = appCardSurface(),
+                border = appCardBorder()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = strings.schoolYearTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        PeriodYearSelector(
+                            selectedYear = selectedYear,
+                            onSelectYear = onSelectYear
+                        )
+                    }
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = strings.semesterTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(appCardBorderColor())
                     )
-                    PeriodSemesterSelector(
-                        selectedSemester = selectedSemester,
-                        onSelectSemester = onSelectSemester
-                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = strings.semesterTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        PeriodSemesterSelector(
+                            selectedSemester = selectedSemester,
+                            onSelectSemester = onSelectSemester
+                        )
+                    }
                 }
             }
         }
@@ -1023,7 +1029,11 @@ private fun PeriodPickerScreen(
             onClick = onConfirm,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 12.dp
+                )
                 .testTag("confirm-period-selection"),
             shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
@@ -1121,7 +1131,8 @@ private fun PeriodSemesterSelector(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
                     )
                 }
             }

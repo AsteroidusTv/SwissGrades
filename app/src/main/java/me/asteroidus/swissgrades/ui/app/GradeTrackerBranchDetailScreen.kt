@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -170,18 +171,20 @@ fun BranchDetailScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("branch-detail-list"),
-            contentPadding = PaddingValues(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = 84.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .testTag("branch-detail-list"),
+                contentPadding = PaddingValues(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item {
                 BranchDetailHeader(
                     detail = detail,
@@ -284,29 +287,33 @@ fun BranchDetailScreen(
                     )
                 }
             }
-        }
+            }
 
-        Button(
-            onClick = onShowAddNoteSheet,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = AppScreenHorizontalPadding, end = AppScreenHorizontalPadding, bottom = 12.dp)
-                .fillMaxWidth()
-                .testTag("show-add-note-sheet"),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
-        ) {
-            Row(
-                modifier = Modifier.padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onShowAddNoteSheet,
+                modifier = Modifier
+                    .padding(
+                        start = AppScreenHorizontalPadding,
+                        end = AppScreenHorizontalPadding,
+                        bottom = 12.dp
+                    )
+                    .fillMaxWidth()
+                    .testTag("show-add-note-sheet"),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
             ) {
-                Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 10.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
             }
         }
 
@@ -640,7 +647,7 @@ private fun BranchTargetAverageCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp),
+                    .heightIn(min = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -688,7 +695,6 @@ private fun BranchTargetAverageCard(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(76.dp)
                             .testTag("branch-target-average-input"),
                         placeholder = { Text(strings.branchTargetPlaceholder) },
                         singleLine = true,
