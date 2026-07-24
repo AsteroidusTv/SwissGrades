@@ -10,6 +10,13 @@ import java.util.Locale
 @Immutable
 data class AppStrings(
     val appName: String,
+    val onboardingTitle: String,
+    val onboardingIntro: String,
+    val onboardingImportTitle: String,
+    val onboardingImportBody: String,
+    val onboardingManualTitle: String,
+    val onboardingManualBody: String,
+    val onboardingImportSummaryTemplate: String,
     val chooseOption: String,
     val onboardingBody: String,
     val continueLabel: String,
@@ -257,6 +264,12 @@ data class AppStrings(
             .replace("{period}", gradeReportPeriodLabel(year, semester))
     }
 
+    fun onboardingImportSummary(subjectCount: Int, gradeCount: Int): String {
+        return onboardingImportSummaryTemplate
+            .replace("{subjects}", subjectCount.toString())
+            .replace("{grades}", gradeCount.toString())
+    }
+
     fun deleteSubjectMessage(subjectTitle: String): String {
         return deleteSubjectMessageTemplate.replace("{subject}", subjectTitle)
     }
@@ -392,6 +405,13 @@ data class AppStrings(
     companion object {
         val English = AppStrings(
             appName = "SwissGrades",
+            onboardingTitle = "Start with your grades",
+            onboardingIntro = "Choose your language, then import your existing data or set up SwissGrades manually.",
+            onboardingImportTitle = "Already use PlusPoints?",
+            onboardingImportBody = "Choose your school year and import a PlusPoints export. You can review it before anything is saved.",
+            onboardingManualTitle = "Or start without an import",
+            onboardingManualBody = "Choose your Option subject now. You can add your other subjects and grades later.",
+            onboardingImportSummaryTemplate = "{subjects} subjects · {grades} grades found",
             chooseOption = "Choose your option",
             onboardingBody = "Set up your Option subject now. You can add grades and more subjects progressively later.",
             continueLabel = "Continue",
@@ -602,6 +622,13 @@ data class AppStrings(
 
         val French = AppStrings(
             appName = "SwissGrades",
+            onboardingTitle = "Commence avec tes notes",
+            onboardingIntro = "Choisis ta langue, puis importe tes données existantes ou configure SwissGrades manuellement.",
+            onboardingImportTitle = "Tu utilises déjà PlusPoints ?",
+            onboardingImportBody = "Choisis ton année scolaire et importe un export PlusPoints. Tu pourras le vérifier avant tout enregistrement.",
+            onboardingManualTitle = "Ou commence sans import",
+            onboardingManualBody = "Choisis maintenant ta branche Option. Tu pourras ajouter tes autres branches et tes notes ensuite.",
+            onboardingImportSummaryTemplate = "{subjects} branches · {grades} notes trouvées",
             chooseOption = "Choisis ton option",
             onboardingBody = "Configure maintenant ta branche Option. Tu pourras ajouter des notes et d'autres branches ensuite.",
             continueLabel = "Continuer",

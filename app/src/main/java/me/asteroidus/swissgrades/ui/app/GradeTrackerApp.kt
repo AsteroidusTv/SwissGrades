@@ -110,6 +110,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MusicNote
@@ -200,6 +201,11 @@ fun GradeTrackerApp(
     ) { sourceUri ->
         sourceUri?.let { viewModel.preparePlusPointsImport(it.toString()) }
     }
+    val onboardingPlusPointsImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { sourceUri ->
+        sourceUri?.let { viewModel.prepareOnboardingPlusPointsImport(it.toString()) }
+    }
     val gradeReportExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destinationUri ->
@@ -250,7 +256,20 @@ fun GradeTrackerApp(
                         screenStateHolder.SaveableStateProvider(screenSaveableStateKey(screen)) {
                             when (screen) {
                                 is ScreenUiState.Onboarding -> OnboardingScreen(
-                                    selectedOption = screen.selectedOption,
+                                    state = screen,
+                                    onSelectLanguage = viewModel::changeLanguage,
+                                    onSelectImportYear = viewModel::updateOnboardingImportYear,
+                                    onImportPlusPoints = {
+                                        onboardingPlusPointsImportLauncher.launch(
+                                            arrayOf("*/*", "text/xml", "application/xml")
+                                        )
+                                    },
+                                    onDismissPendingImport =
+                                        viewModel::dismissPendingOnboardingPlusPointsImport,
+                                    onSelectPendingImportSemester =
+                                        viewModel::updatePendingOnboardingPlusPointsSemester,
+                                    onConfirmPendingImport =
+                                        viewModel::confirmOnboardingPlusPointsImport,
                                     onOptionSelected = viewModel::selectInitialOption,
                                     onContinue = viewModel::completeOnboarding,
                                     modifier = Modifier
@@ -447,7 +466,13 @@ private fun screenSupportsInAppBack(screen: ScreenUiState): Boolean {
 
 @Composable
 private fun OnboardingScreen(
-    selectedOption: InitialOptionChoice?,
+    state: ScreenUiState.Onboarding,
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onSelectImportYear: (SchoolYear) -> Unit,
+    onImportPlusPoints: () -> Unit,
+    onDismissPendingImport: () -> Unit,
+    onSelectPendingImportSemester: (SchoolSemester) -> Unit,
+    onConfirmPendingImport: () -> Unit,
     onOptionSelected: (InitialOptionChoice) -> Unit,
     onContinue: (InitialOptionChoice) -> Unit,
     modifier: Modifier = Modifier
@@ -470,9 +495,9 @@ private fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = AppScreenBottomPadding),
+                .padding(bottom = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = strings.appName,
@@ -482,23 +507,122 @@ private fun OnboardingScreen(
                 textAlign = TextAlign.Center
             )
             Text(
-                text = strings.chooseOption,
+                text = strings.onboardingTitle,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = strings.onboardingBody,
+                text = strings.onboardingIntro,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
 
+        OnboardingChoiceRow(
+            choices = AppLanguage.entries,
+            selectedChoice = state.selectedLanguage,
+            label = { language ->
+                when (language) {
+                    AppLanguage.ENGLISH -> strings.languageEnglish
+                    AppLanguage.FRENCH -> strings.languageFrench
+                }
+            },
+            onSelect = onSelectLanguage,
+            testTagPrefix = "onboarding-language"
+        )
+
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface()),
+            border = BorderStroke(1.dp, appCardBorderColor())
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FileOpen,
+                        contentDescription = null,
+                        tint = accentBlue,
+                        modifier = Modifier.size(30.dp)
+                    )
+                    Text(
+                        text = strings.onboardingImportTitle,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = strings.onboardingImportBody,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = strings.schoolYearTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                OnboardingChoiceRow(
+                    choices = SchoolYear.entries,
+                    selectedChoice = state.selectedYear,
+                    label = strings::schoolYearLabel,
+                    onSelect = onSelectImportYear,
+                    testTagPrefix = "onboarding-import-year"
+                )
+                Button(
+                    onClick = onImportPlusPoints,
+                    enabled = !state.isImportInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("onboarding-import-pluspoints"),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                ) {
+                    Text(
+                        text = if (state.isImportInProgress) {
+                            strings.fileOperationInProgress
+                        } else {
+                            strings.importPlusPointsLabel
+                        },
+                        modifier = Modifier.padding(vertical = 6.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                state.importMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = strings.onboardingManualTitle,
+            modifier = Modifier.padding(top = 16.dp),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = strings.onboardingManualBody,
+            modifier = Modifier.padding(bottom = 4.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         InitialOptionChoice.entries.forEach { choice ->
             OnboardingOptionCard(
                 choice = choice,
-                isSelected = selectedOption == choice,
+                isSelected = state.selectedOption == choice,
                 onClick = { onOptionSelected(choice) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -507,8 +631,8 @@ private fun OnboardingScreen(
         }
 
         Button(
-            onClick = { selectedOption?.let(onContinue) },
-            enabled = selectedOption != null,
+            onClick = { state.selectedOption?.let(onContinue) },
+            enabled = state.selectedOption != null,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
@@ -538,6 +662,120 @@ private fun OnboardingScreen(
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(28.dp)
+                )
+            }
+        }
+    }
+
+    state.pendingPlusPointsImportDisplayName?.let { displayName ->
+        AlertDialog(
+            onDismissRequest = onDismissPendingImport,
+            title = {
+                Text(
+                    text = strings.plusPointsImportTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = strings.onboardingImportSummary(
+                            subjectCount = state.importedSubjectCount,
+                            gradeCount = state.importedGradeCount
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${strings.schoolYearTitle}: ${strings.schoolYearLabel(state.selectedYear)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = strings.plusPointsTargetSemesterTitle,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    SemesterSwitcher(
+                        selectedSemester = state.pendingPlusPointsTargetSemester
+                            ?: SchoolSemester.SEMESTER_1,
+                        onSelectSemester = onSelectPendingImportSemester
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onConfirmPendingImport,
+                    enabled = !state.isImportInProgress,
+                    modifier = Modifier.testTag("confirm-onboarding-pluspoints-import")
+                ) {
+                    Text(strings.plusPointsImportConfirm)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissPendingImport) {
+                    Text(strings.cancelLabel)
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = appCardSurface()
+        )
+    }
+}
+
+@Composable
+private fun <T> OnboardingChoiceRow(
+    choices: List<T>,
+    selectedChoice: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    testTagPrefix: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        choices.forEach { choice ->
+            val isSelected = choice == selectedChoice
+            OutlinedCard(
+                onClick = { onSelect(choice) },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("$testTagPrefix-$choice")
+                    .semantics {
+                        selected = isSelected
+                        role = Role.RadioButton
+                    },
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = if (isSelected) {
+                        appSelectedOptionContainer()
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    if (isSelected) appSelectedOptionBorder() else appIdleOptionBorder()
+                )
+            ) {
+                Text(
+                    text = label(choice),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 14.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) appAccentBlue() else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

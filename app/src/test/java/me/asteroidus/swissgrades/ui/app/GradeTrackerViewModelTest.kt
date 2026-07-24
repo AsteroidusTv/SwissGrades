@@ -1168,6 +1168,96 @@ class GradeTrackerViewModelTest {
         assertEquals(listOf("Imported S2"), semester2Notes.map { it.description })
     }
 
+    @Test
+    fun onboardingPlusPointsImport_isOnlyPersistedAfterConfirmation() {
+        val initialState = GradeTrackerAppState(language = AppLanguage.ENGLISH)
+        val repository = InMemoryGradeTrackerRepository.also { it.save(initialState) }
+        val plusPointsCoordinator = FakePlusPointsImportCoordinator(
+            importedState = GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isInBasket = false,
+                        notes = listOf(
+                            StoredNote(
+                                id = "note-1",
+                                value = 5.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Imported",
+                                createdAtEpochMillis = 1_000L,
+                                semester = SchoolSemester.SEMESTER_2
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 2
+            ),
+            sourceSemester = SchoolSemester.SEMESTER_2
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            plusPointsImportCoordinator = plusPointsCoordinator
+        )
+
+        viewModel.updateOnboardingImportYear(SchoolYear.YEAR_3)
+        viewModel.prepareOnboardingPlusPointsImport("content://pluspoints")
+        waitUntil {
+            (viewModel.uiState.value.screen as? ScreenUiState.Onboarding)
+                ?.pendingPlusPointsImportDisplayName != null
+        }
+
+        val preview = viewModel.uiState.value.screen as ScreenUiState.Onboarding
+        assertEquals(2, preview.importedSubjectCount)
+        assertEquals(1, preview.importedGradeCount)
+        assertEquals(SchoolSemester.SEMESTER_2, preview.pendingPlusPointsTargetSemester)
+        assertEquals(initialState, repository.load())
+
+        viewModel.confirmOnboardingPlusPointsImport()
+        waitUntil { viewModel.uiState.value.screen is ScreenUiState.Main }
+
+        val persisted = requireNotNull(repository.load())
+        assertEquals(InitialOptionChoice.SPANISH, persisted.selectedOption)
+        assertEquals(SchoolYear.YEAR_3, persisted.selectedYear)
+        assertEquals(SchoolSemester.SEMESTER_2, persisted.selectedSemester)
+        assertEquals(AppLanguage.ENGLISH, persisted.language)
+        assertEquals(3, persisted.subjects.count { it.isOptionSubject })
+        val importedHistory = persisted.subjects.single { it.name == "History" }
+        assertEquals(SchoolYear.YEAR_3, importedHistory.schoolYear)
+        assertEquals(listOf("Imported"), importedHistory.notes.map { it.description })
+    }
+
+    @Test
+    fun cancellingOnboardingPlusPointsPreview_keepsInitialState() {
+        val initialState = GradeTrackerAppState()
+        val repository = InMemoryGradeTrackerRepository.also { it.save(initialState) }
+        val plusPointsCoordinator = FakePlusPointsImportCoordinator(
+            importedState = GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.MUSIC,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.MUSIC))
+            ),
+            sourceSemester = SchoolSemester.SEMESTER_1
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            plusPointsImportCoordinator = plusPointsCoordinator
+        )
+
+        viewModel.prepareOnboardingPlusPointsImport("content://pluspoints")
+        waitUntil {
+            (viewModel.uiState.value.screen as? ScreenUiState.Onboarding)
+                ?.pendingPlusPointsImportDisplayName != null
+        }
+        viewModel.dismissPendingOnboardingPlusPointsImport()
+
+        val onboarding = viewModel.uiState.value.screen as ScreenUiState.Onboarding
+        assertNull(onboarding.pendingPlusPointsImportDisplayName)
+        assertEquals(initialState, repository.load())
+    }
+
     private fun GradeTrackerViewModel.addSubjectWithBasketFlag(name: String, isInBasket: Boolean): String {
         showAddSubjectForm()
         updateAddSubjectName(name)
