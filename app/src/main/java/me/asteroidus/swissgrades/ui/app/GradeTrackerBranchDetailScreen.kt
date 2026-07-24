@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -272,7 +273,14 @@ fun BranchDetailScreen(
                     SwipeableNoteHistoryCard(
                         note = note,
                         onRequestEdit = { onRequestEditNote(note.id) },
-                        onRequestDelete = { onRequestDeleteNote(note.id) }
+                        onRequestDelete = { onRequestDeleteNote(note.id) },
+                        onPreviewAttachments = { index ->
+                            attachmentViewer = AttachmentViewerState(
+                                attachments = note.attachments,
+                                selectedIndex = index,
+                                gradeTitle = note.description.ifBlank { strings.evaluationDefaultTitle }
+                            )
+                        }
                     )
                 }
             }
@@ -321,7 +329,9 @@ fun BranchDetailScreen(
                     onPreviewAttachment = { attachments, index ->
                         attachmentViewer = AttachmentViewerState(
                             attachments = attachments,
-                            selectedIndex = index
+                            selectedIndex = index,
+                            gradeTitle = detail.draft.descriptionInput
+                                .ifBlank { strings.evaluationDefaultTitle }
                         )
                     },
                     onAddNote = onAddNote
@@ -355,6 +365,7 @@ fun BranchDetailScreen(
             AttachmentViewerDialog(
                 attachments = viewerState.attachments,
                 initialIndex = viewerState.selectedIndex,
+                gradeTitle = viewerState.gradeTitle,
                 onDismiss = { attachmentViewer = null }
             )
         }
@@ -1193,9 +1204,18 @@ private fun AddGradeSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(inlineSpacing),
                     contentPadding = PaddingValues(top = 4.dp, end = 4.dp)
                 ) {
-                    items(detail.draft.attachments, key = { it.id }) { attachment ->
+                    itemsIndexed(
+                        items = detail.draft.attachments,
+                        key = { _, attachment -> attachment.id }
+                    ) { index, attachment ->
                         DraftAttachmentChip(
                             attachment = attachment,
+                            contentDescription = strings.attachmentImageDescription(
+                                index = index + 1,
+                                count = detail.draft.attachments.size,
+                                gradeTitle = detail.draft.descriptionInput
+                                    .ifBlank { strings.evaluationDefaultTitle }
+                            ),
                             onRemove = { onRemoveDraftAttachment(attachment.id) },
                             onPreview = {
                                 onPreviewAttachment(
@@ -1254,6 +1274,7 @@ private fun AddGradeSheetContent(
 @Composable
 private fun DraftAttachmentChip(
     attachment: DraftAttachmentUiState,
+    contentDescription: String,
     onRemove: () -> Unit,
     onPreview: () -> Unit
 ) {
@@ -1273,7 +1294,7 @@ private fun DraftAttachmentChip(
         ) {
             AsyncImage(
                 model = File(attachment.filePath),
-                contentDescription = currentAppStrings().attachedPhotosTitle,
+                contentDescription = contentDescription,
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(onClick = onPreview),
@@ -1346,13 +1367,15 @@ private fun AttachmentSourceDialog(
 
 private data class AttachmentViewerState(
     val attachments: List<AttachmentUiState>,
-    val selectedIndex: Int
+    val selectedIndex: Int,
+    val gradeTitle: String
 )
 
 @Composable
 private fun AttachmentViewerDialog(
     attachments: List<AttachmentUiState>,
     initialIndex: Int,
+    gradeTitle: String,
     onDismiss: () -> Unit
 ) {
     val strings = currentAppStrings()
@@ -1422,7 +1445,11 @@ private fun AttachmentViewerDialog(
                     ) {
                         Image(
                             painter = painter,
-                            contentDescription = null,
+                            contentDescription = strings.attachmentImageDescription(
+                                index = page + 1,
+                                count = attachments.size,
+                                gradeTitle = gradeTitle
+                            ),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("attachment-viewer-image-$page"),
@@ -1468,7 +1495,8 @@ private fun AttachmentViewerDialog(
 private fun SwipeableNoteHistoryCard(
     note: NoteUiState,
     onRequestEdit: () -> Unit,
-    onRequestDelete: () -> Unit
+    onRequestDelete: () -> Unit,
+    onPreviewAttachments: (Int) -> Unit
 ) {
     val strings = currentAppStrings()
     var shouldResetSwipe by remember(note.id) { mutableStateOf(false) }
@@ -1522,7 +1550,9 @@ private fun SwipeableNoteHistoryCard(
     ) {
         NoteHistoryCard(
             note = note,
-            onClick = onRequestEdit,
+            onEdit = onRequestEdit,
+            onDelete = onRequestDelete,
+            onPreviewAttachments = onPreviewAttachments,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
     }
@@ -1531,14 +1561,16 @@ private fun SwipeableNoteHistoryCard(
 @Composable
 private fun NoteHistoryCard(
     note: NoteUiState,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onPreviewAttachments: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     val warningRed = appWarningColor()
     OutlinedCard(
-        onClick = onClick,
+        onClick = onEdit,
         modifier = modifier
             .fillMaxWidth()
             .testTag("note-card-${note.id}"),
@@ -1550,13 +1582,39 @@ private fun NoteHistoryCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = note.description.ifBlank { strings.evaluationDefaultTitle },
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = note.description.ifBlank { strings.evaluationDefaultTitle },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                HeaderActionButton(
+                    onClick = onEdit,
+                    modifier = Modifier.testTag("visible-edit-note-${note.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = strings.editGrade,
+                        tint = accentBlue
+                    )
+                }
+                HeaderActionButton(
+                    onClick = onDelete,
+                    modifier = Modifier.testTag("visible-delete-note-${note.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = strings.deleteGradeLabel,
+                        tint = warningRed
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1616,6 +1674,8 @@ private fun NoteHistoryCard(
 
                     if (note.attachments.isNotEmpty()) {
                         Card(
+                            onClick = { onPreviewAttachments(0) },
+                            modifier = Modifier.testTag("open-note-attachments-${note.id}"),
                             shape = RoundedCornerShape(999.dp),
                             colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
                         ) {

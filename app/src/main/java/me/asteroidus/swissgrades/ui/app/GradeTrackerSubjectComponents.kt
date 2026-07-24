@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MusicNote
@@ -37,6 +38,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -331,6 +333,7 @@ fun AddSubjectScreen(
 fun SubjectCard(
     subject: SubjectListItemUiState,
     onOpenSubject: (String) -> Unit,
+    onRequestDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
@@ -419,14 +422,31 @@ fun SubjectCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (subject.averageValue != null) {
-                    Text(
-                        text = subject.averageLabel,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = valueColor,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.testTag("subject-average-${subject.id}")
-                    )
+                if (subject.averageValue != null || onRequestDelete != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        if (subject.averageValue != null) {
+                            Text(
+                                text = subject.averageLabel,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = valueColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.testTag("subject-average-${subject.id}")
+                            )
+                        }
+                        onRequestDelete?.let { requestDelete ->
+                            IconButton(
+                                onClick = requestDelete,
+                                modifier = Modifier.testTag("visible-delete-subject-${subject.id}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = strings.deleteSubjectActionTemplate
+                                        .replace("{subject}", subject.title),
+                                    tint = warningRed
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

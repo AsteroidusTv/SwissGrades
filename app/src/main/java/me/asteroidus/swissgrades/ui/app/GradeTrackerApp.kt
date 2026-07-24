@@ -1189,6 +1189,7 @@ private fun SwipeableSubjectCard(
         SubjectCard(
             subject = subject,
             onOpenSubject = onOpenSubject,
+            onRequestDelete = onRequestDeleteSubject,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
     }

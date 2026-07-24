@@ -1,6 +1,7 @@
 package me.asteroidus.swissgrades.ui.app
 
 import android.content.Context
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
@@ -365,6 +366,64 @@ class GradeTrackerAppInstrumentedTest {
             "grade-destination-period",
             "Enregistrée dans : Première année · Semestre 1"
         )
+    }
+
+    @Test
+    fun visibleCorrectionActionsAndAttachmentViewerAreReachable() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        notes = listOf(
+                            storedNote(id = "note-1", value = 5.0).copy(
+                                description = "Geometry",
+                                attachments = listOf(
+                                    StoredAttachment(
+                                        id = "attachment-1",
+                                        filePath = appContext.filesDir.resolve("attachment-1.jpg").path
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 2
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("visible-delete-subject-subject-2")
+        composeRule.onNodeWithTag("visible-delete-subject-subject-2", useUnmergedTree = true)
+            .assertIsDisplayed()
+            .performClick()
+        assertTextDisplayed("Supprimer la branche ?")
+        composeRule.onNodeWithText("Annuler", useUnmergedTree = true).performClick()
+
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        scrollBranchDetailUntilTag("visible-delete-note-note-1")
+        composeRule.onNodeWithTag("visible-edit-note-note-1", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("visible-delete-note-note-1", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("open-note-attachments-note-1", useUnmergedTree = true)
+            .performClick()
+
+        composeRule.onNodeWithTag("attachment-viewer-image-0", useUnmergedTree = true)
+            .assertIsDisplayed()
+            .assertContentDescriptionEquals("Photo 1 sur 1 pour Geometry")
     }
 
     @Test

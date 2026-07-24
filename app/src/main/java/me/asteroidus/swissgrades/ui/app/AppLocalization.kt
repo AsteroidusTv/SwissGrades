@@ -125,6 +125,7 @@ data class AppStrings(
     val importAttachmentFailed: String,
     val maxAttachmentsReachedTemplate: String,
     val photoAttachmentCountTemplate: String,
+    val attachmentImageDescriptionTemplate: String,
     val deleteLabel: String,
     val cancelLabel: String,
     val closeLabel: String,
@@ -282,6 +283,13 @@ data class AppStrings(
 
     fun photoAttachmentCount(count: Int): String {
         return photoAttachmentCountTemplate.replace("{count}", count.toString())
+    }
+
+    fun attachmentImageDescription(index: Int, count: Int, gradeTitle: String): String {
+        return attachmentImageDescriptionTemplate
+            .replace("{index}", index.toString())
+            .replace("{count}", count.toString())
+            .replace("{grade}", gradeTitle)
     }
 
     fun targetProjectedAverage(average: String): String {
@@ -474,6 +482,7 @@ data class AppStrings(
             importAttachmentFailed = "Could not import this image.",
             maxAttachmentsReachedTemplate = "You can attach up to {count} images to one grade.",
             photoAttachmentCountTemplate = "{count} photos",
+            attachmentImageDescriptionTemplate = "Photo {index} of {count} for {grade}",
             deleteLabel = "Delete",
             cancelLabel = "Cancel",
             closeLabel = "Close",
@@ -676,6 +685,7 @@ data class AppStrings(
             importAttachmentFailed = "Impossible d'importer cette image.",
             maxAttachmentsReachedTemplate = "Tu peux joindre jusqu'à {count} images à une note.",
             photoAttachmentCountTemplate = "{count} photos",
+            attachmentImageDescriptionTemplate = "Photo {index} sur {count} pour {grade}",
             deleteLabel = "Supprimer",
             cancelLabel = "Annuler",
             closeLabel = "Fermer",
