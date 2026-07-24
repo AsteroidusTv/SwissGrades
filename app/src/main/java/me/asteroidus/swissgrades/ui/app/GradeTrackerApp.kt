@@ -710,10 +710,12 @@ private fun MainScreen(
                 onClick = onOpenPeriodPicker
             )
         }
-        item {
-            SummaryCard(state.summary)
-        }
-        state.promotionSetup?.let { promotionSetup ->
+        if (state.promotionSetup == null) {
+            item {
+                SummaryCard(state.summary)
+            }
+        } else {
+            val promotionSetup = state.promotionSetup
             item {
                 PromotionSetupCard(
                     setup = promotionSetup,
@@ -1349,6 +1351,21 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
             .testTag("dashboard-summary"),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = strings.overallAverageTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.testTag("overall-average-title")
+            )
+            Text(
+                text = strings.contributingSubjects(summary.contributingSubjectCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("overall-average-contributors")
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

@@ -137,6 +137,7 @@ data class SettingsUiState(
 data class DashboardSummaryUiState(
     val overallAverageLabel: String,
     val overallAverageValue: Double?,
+    val contributingSubjectCount: Int,
     val promotionStatusLabel: String,
     val promotionHeadline: String,
     val isPromotionCalculable: Boolean,

@@ -88,6 +88,8 @@ class GradeTrackerAppInstrumentedTest {
 
         launchApp()
 
+        assertTagText("overall-average-title", "Moyenne générale")
+        assertTagText("overall-average-contributors", "4 branches notées")
         assertTagText("promotion-status", "PROMU")
     }
 
@@ -155,6 +157,7 @@ class GradeTrackerAppInstrumentedTest {
         launchApp()
 
         assertTagDisplayed("promotion-setup-card")
+        assertTagAbsent("dashboard-summary")
         composeRule.onNodeWithTag("promotion-setup-action", useUnmergedTree = true)
             .performClick()
         assertTagDisplayed("add-subject-name")

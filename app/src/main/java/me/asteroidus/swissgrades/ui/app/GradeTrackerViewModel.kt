@@ -999,6 +999,7 @@ class GradeTrackerViewModel(
             DashboardSummaryUiState(
                 overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
                 overallAverageValue = overallAverage,
+                contributingSubjectCount = calculableAverages.size,
                 promotionStatusLabel = promotion.statusLabel,
                 promotionHeadline = promotion.headline,
                 isPromotionCalculable = promotion.isCalculable,
@@ -1014,6 +1015,7 @@ class GradeTrackerViewModel(
             DashboardSummaryUiState(
                 overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
                 overallAverageValue = overallAverage,
+                contributingSubjectCount = calculableAverages.size,
                 promotionStatusLabel = strings.notCalculableYet,
                 promotionHeadline = promotionUnavailableHeadline(),
                 isPromotionCalculable = false,

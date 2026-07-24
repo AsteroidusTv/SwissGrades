@@ -45,6 +45,8 @@ class AppLocalizationTest {
         assertEquals("Mes branches", strings.mySubjects)
         assertEquals("Paramètres", strings.optionSettingsTitle)
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
+        assertEquals("Moyenne générale", strings.overallAverageTitle)
+        assertEquals("4 branches notées", strings.contributingSubjects(4))
         assertEquals("Impact actuel", strings.gradeImpactTitle)
         assertEquals("Relevé de résultats PDF", strings.gradeReportSectionTitle)
         assertEquals(

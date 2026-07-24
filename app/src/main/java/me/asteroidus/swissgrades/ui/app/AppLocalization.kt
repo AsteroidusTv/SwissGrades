@@ -93,6 +93,8 @@ data class AppStrings(
     val promotionHeadlinePromoted: String,
     val promotionHeadlineBlocked: String,
     val promotionHeadlineIncomplete: String,
+    val overallAverageTitle: String,
+    val contributingSubjectsTemplate: String,
     val basketTitle: String,
     val insufficienciesTitle: String,
     val inBasketLabel: String,
@@ -255,6 +257,10 @@ data class AppStrings(
     fun evaluationCount(count: Int): String {
         val unit = if (count == 1) evaluationSingular else evaluationPlural
         return "$count $unit"
+    }
+
+    fun contributingSubjects(count: Int): String {
+        return contributingSubjectsTemplate.replace("{count}", count.toString())
     }
 
     fun noteTypeLabel(weight: AssessmentWeight): String {
@@ -423,6 +429,8 @@ data class AppStrings(
             promotionHeadlinePromoted = "Promotion requirements are currently satisfied.",
             promotionHeadlineBlocked = "Promotion requirements are not satisfied.",
             promotionHeadlineIncomplete = "Promotion cannot be decided yet because some data is missing.",
+            overallAverageTitle = "Overall average",
+            contributingSubjectsTemplate = "{count} graded subjects",
             basketTitle = "Basket",
             insufficienciesTitle = "Insufficiencies",
             inBasketLabel = "In basket",
@@ -618,6 +626,8 @@ data class AppStrings(
             promotionHeadlinePromoted = "Les conditions de promotion sont actuellement remplies.",
             promotionHeadlineBlocked = "Les conditions de promotion ne sont pas remplies.",
             promotionHeadlineIncomplete = "La promotion ne peut pas encore être décidée car certaines données manquent.",
+            overallAverageTitle = "Moyenne générale",
+            contributingSubjectsTemplate = "{count} branches notées",
             basketTitle = "Panier",
             insufficienciesTitle = "Insuffisances",
             inBasketLabel = "Dans le panier",
