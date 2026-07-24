@@ -421,8 +421,16 @@ class GradeTrackerAppInstrumentedTest {
         assertTextDisplayed("Supprimer la note ?")
         composeRule.onNodeWithText("Annuler", useUnmergedTree = true).performClick()
         composeRule.onNodeWithTag("open-note-attachments-note-1", useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
             .performClick()
 
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                composeRule.onNodeWithTag("attachment-viewer-image-0", useUnmergedTree = true)
+                    .assertIsDisplayed()
+            }.isSuccess
+        }
         composeRule.onNodeWithTag("attachment-viewer-image-0", useUnmergedTree = true)
             .assertIsDisplayed()
             .assertContentDescriptionEquals("Photo 1 sur 1 pour Geometry")

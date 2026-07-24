@@ -233,7 +233,7 @@ fun BranchDetailScreen(
                 }
             }
 
-            if (visibleNotes.isNotEmpty()) {
+            if (shouldShowEvolution(visibleNotes.size)) {
                 item {
                     EvolutionCard(
                         evolutionNotes = evolutionNotes,
@@ -884,6 +884,8 @@ private fun CompositeSubSubjectSelectorCard(
     }
 }
 
+internal fun shouldShowEvolution(noteCount: Int): Boolean = noteCount >= 2
+
 @Composable
 private fun EvolutionCard(
     evolutionNotes: List<NoteUiState>,
@@ -891,7 +893,9 @@ private fun EvolutionCard(
 ) {
     val strings = currentAppStrings()
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("evolution-card"),
         shape = DashboardCardShape,
         border = appCardBorder(),
         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
