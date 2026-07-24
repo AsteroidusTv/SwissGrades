@@ -16,12 +16,25 @@ data class AppStrings(
     val mySubjects: String,
     val addLabel: String,
     val optionSettingsTitle: String,
+    val appPreferencesGroupTitle: String,
+    val schoolSetupGroupTitle: String,
+    val dataManagementGroupTitle: String,
+    val fileOperationInProgress: String,
     val languageSectionTitle: String,
     val languageSectionDescription: String,
     val themeSectionTitle: String,
     val themeSectionDescription: String,
     val backupSectionTitle: String,
     val backupSectionDescription: String,
+    val gradeReportSectionTitle: String,
+    val gradeReportSectionDescription: String,
+    val exportGradeReportLabel: String,
+    val gradeReportExportTitle: String,
+    val gradeReportExportMessageTemplate: String,
+    val gradeReportExportConfirm: String,
+    val gradeReportExportSuccess: String,
+    val gradeReportExportFailure: String,
+    val gradeReportCumulativePeriodTemplate: String,
     val plusPointsSectionTitle: String,
     val plusPointsSectionDescription: String,
     val exportBackupLabel: String,
@@ -49,6 +62,8 @@ data class AppStrings(
     val optionSectionTitle: String,
     val optionSectionDescriptionPrefix: String,
     val optionSectionDescriptionSuffix: String,
+    val changeOptionLabel: String,
+    val hideOptionChoicesLabel: String,
     val periodTitle: String,
     val choosePeriodTitle: String,
     val schoolYearTitle: String,
@@ -58,6 +73,9 @@ data class AppStrings(
     val semesterTitle: String,
     val semester1Label: String,
     val semester2Label: String,
+    val semester2CumulativeHint: String,
+    val gradeSemesterTitle: String,
+    val savingToPeriodTemplate: String,
     val plusPointsTargetSemesterTitle: String,
     val darkModeSystem: String,
     val darkModeLight: String,
@@ -84,6 +102,8 @@ data class AppStrings(
     val promotionHeadlinePromoted: String,
     val promotionHeadlineBlocked: String,
     val promotionHeadlineIncomplete: String,
+    val overallAverageTitle: String,
+    val contributingSubjectsTemplate: String,
     val basketTitle: String,
     val insufficienciesTitle: String,
     val inBasketLabel: String,
@@ -112,6 +132,7 @@ data class AppStrings(
     val importAttachmentFailed: String,
     val maxAttachmentsReachedTemplate: String,
     val photoAttachmentCountTemplate: String,
+    val attachmentImageDescriptionTemplate: String,
     val deleteLabel: String,
     val cancelLabel: String,
     val closeLabel: String,
@@ -177,9 +198,12 @@ data class AppStrings(
     val branchTargetEdit: String,
     val branchTargetPlaceholder: String,
     val branchTargetInvalid: String,
+    val branchTargetScope: String,
     val targetSimulationTitle: String,
     val targetSimulationSubtitle: String,
-    val targetAverageLabel: String,
+    val temporaryScenarioTargetLabel: String,
+    val temporaryScenarioTargetHint: String,
+    val useSavedTargetLabel: String,
     val plannedGradeCountTitle: String,
     val plannedGradeCountTemplate: String,
     val plannedGradeWeightTitle: String,
@@ -211,8 +235,26 @@ data class AppStrings(
         return backupImportMessageTemplate.replace("{file}", fileName)
     }
 
-    fun plusPointsImportMessage(fileName: String): String {
-        return plusPointsImportMessageTemplate.replace("{file}", fileName)
+    fun gradeReportExportMessage(period: String): String {
+        return gradeReportExportMessageTemplate.replace("{period}", period)
+    }
+
+    fun gradeReportPeriodLabel(year: SchoolYear, semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_2) {
+            gradeReportCumulativePeriodTemplate.replace("{year}", schoolYearLabel(year))
+        } else {
+            periodLabel(year, semester)
+        }
+    }
+
+    fun plusPointsImportMessage(
+        fileName: String,
+        year: SchoolYear,
+        semester: SchoolSemester
+    ): String {
+        return plusPointsImportMessageTemplate
+            .replace("{file}", fileName)
+            .replace("{period}", gradeReportPeriodLabel(year, semester))
     }
 
     fun deleteSubjectMessage(subjectTitle: String): String {
@@ -236,6 +278,10 @@ data class AppStrings(
         return "$count $unit"
     }
 
+    fun contributingSubjects(count: Int): String {
+        return contributingSubjectsTemplate.replace("{count}", count.toString())
+    }
+
     fun noteTypeLabel(weight: AssessmentWeight): String {
         return when (weight) {
             AssessmentWeight.FULL -> noteTypeFull
@@ -250,6 +296,13 @@ data class AppStrings(
 
     fun photoAttachmentCount(count: Int): String {
         return photoAttachmentCountTemplate.replace("{count}", count.toString())
+    }
+
+    fun attachmentImageDescription(index: Int, count: Int, gradeTitle: String): String {
+        return attachmentImageDescriptionTemplate
+            .replace("{index}", index.toString())
+            .replace("{count}", count.toString())
+            .replace("{grade}", gradeTitle)
     }
 
     fun targetProjectedAverage(average: String): String {
@@ -302,6 +355,14 @@ data class AppStrings(
         }
     }
 
+    fun semesterAccessibilityLabel(semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_2) {
+            "${semesterLabel(semester)}. $semester2CumulativeHint"
+        } else {
+            semesterLabel(semester)
+        }
+    }
+
     fun schoolYearLabel(year: SchoolYear): String {
         return when (year) {
             SchoolYear.YEAR_1 -> schoolYear1Label
@@ -314,6 +375,20 @@ data class AppStrings(
         return "${schoolYearLabel(year)} · ${semesterLabel(semester)}"
     }
 
+    fun semesterShortLabel(semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_1) "S1" else "S2"
+    }
+
+    fun savingToPeriod(year: SchoolYear, semester: SchoolSemester): String {
+        val period = periodLabel(year, semester)
+        val detailedPeriod = if (semester == SchoolSemester.SEMESTER_2) {
+            "$period · $semester2CumulativeHint"
+        } else {
+            period
+        }
+        return savingToPeriodTemplate.replace("{period}", detailedPeriod)
+    }
+
     companion object {
         val English = AppStrings(
             appName = "SwissGrades",
@@ -323,19 +398,34 @@ data class AppStrings(
             mySubjects = "My subjects",
             addLabel = "Add",
             optionSettingsTitle = "Settings",
+            appPreferencesGroupTitle = "App preferences",
+            schoolSetupGroupTitle = "School setup",
+            dataManagementGroupTitle = "Data and exports",
+            fileOperationInProgress = "File operation in progress...",
             languageSectionTitle = "Language",
             languageSectionDescription = "Choose the display language used in the app.",
             themeSectionTitle = "Appearance",
             themeSectionDescription = "Choose whether the app follows the system, stays light, or stays dark.",
             backupSectionTitle = "Backup",
             backupSectionDescription = "Export your SwissGrades data or restore a previous SwissGrades backup.",
+            gradeReportSectionTitle = "PDF grade report",
+            gradeReportSectionDescription = "Create a readable personal summary of the currently selected period.",
+            exportGradeReportLabel = "Create PDF report",
+            gradeReportExportTitle = "Create a personal grade report?",
+            gradeReportExportMessageTemplate = "The PDF will contain your grades, weights, averages, and " +
+                "promotion summary for {period}. Photos, targets, and simulations are excluded. " +
+                "This document contains sensitive data and is not an official school report.",
+            gradeReportExportConfirm = "Choose destination",
+            gradeReportExportSuccess = "PDF report created successfully.",
+            gradeReportExportFailure = "The PDF report could not be created.",
+            gradeReportCumulativePeriodTemplate = "{year} · Cumulative situation S1 + S2",
             plusPointsSectionTitle = "PlusPoints migration",
             plusPointsSectionDescription = "Import a PlusPoints export and replace the current school data.",
             exportBackupLabel = "Export backup",
             importBackupLabel = "Import backup",
             importPlusPointsLabel = "Import PlusPoints",
             plusPointsImportTitle = "Import PlusPoints data?",
-            plusPointsImportMessageTemplate = "Import {file} from PlusPoints and replace the notes in the selected semester? Your language and theme stay unchanged. Photos attached to replaced SwissGrades grades from that semester will be removed.",
+            plusPointsImportMessageTemplate = "Import {file} into {period}? Grades already saved in that period will be replaced and their photos removed. If the export contains a different option, the app option changes for every school year. Every imported exam with a supported grade and weight is included in calculations, even if it was excluded in PlusPoints. Language, theme, and files exported outside SwissGrades remain unchanged.",
             plusPointsImportConfirm = "Import data",
             plusPointsImportSuccess = "PlusPoints data imported successfully.",
             plusPointsImportFailure = "Could not import this PlusPoints file.",
@@ -348,14 +438,16 @@ data class AppStrings(
             backupImportFailure = "Could not import this backup.",
             backupImportSuccess = "Backup imported successfully.",
             resetSectionTitle = "Reset app",
-            resetSectionDescription = "Delete all subjects, grades, photos, imports, and settings from this device.",
+            resetSectionDescription = "Delete all SwissGrades data stored inside the app on this device.",
             resetAppLabel = "Reset all app data",
             resetAppTitle = "Reset SwissGrades?",
-            resetAppMessage = "This will permanently delete all subjects, grades, photos, settings, imports, and backups stored in the app. This action cannot be undone.",
+            resetAppMessage = "This permanently deletes subjects and grades from every school year, attached photos, settings, and temporary imports stored inside SwissGrades. Backups and PDF reports previously exported outside the app stay at their saved locations. This action cannot be undone.",
             resetAppConfirm = "Reset app",
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Current option: ",
-            optionSectionDescriptionSuffix = ". Changing it updates your Option subject directly.",
+            optionSectionDescriptionSuffix = "",
+            changeOptionLabel = "Change option",
+            hideOptionChoicesLabel = "Hide options",
             periodTitle = "Period",
             choosePeriodTitle = "Choose a period",
             schoolYearTitle = "School year",
@@ -365,6 +457,9 @@ data class AppStrings(
             semesterTitle = "Semester",
             semester1Label = "Semester 1",
             semester2Label = "Semester 2",
+            semester2CumulativeHint = "Cumulative S1 + S2",
+            gradeSemesterTitle = "Grade semester",
+            savingToPeriodTemplate = "Saving to: {period}",
             plusPointsTargetSemesterTitle = "Import into semester",
             darkModeSystem = "Auto",
             darkModeLight = "Light",
@@ -391,6 +486,8 @@ data class AppStrings(
             promotionHeadlinePromoted = "Promotion requirements are currently satisfied.",
             promotionHeadlineBlocked = "Promotion requirements are not satisfied.",
             promotionHeadlineIncomplete = "Promotion cannot be decided yet because some data is missing.",
+            overallAverageTitle = "Overall average",
+            contributingSubjectsTemplate = "{count} graded subjects",
             basketTitle = "Basket",
             insufficienciesTitle = "Insufficiencies",
             inBasketLabel = "In basket",
@@ -403,7 +500,7 @@ data class AppStrings(
             subSubjectsTitle = "Sub-subjects",
             averagePrefix = "Average",
             evolutionTitle = "Evolution",
-            gradeHistoryTitle = "Notes",
+            gradeHistoryTitle = "Grades",
             evaluationSingular = "evaluation",
             evaluationPlural = "evaluations",
             gradeValueLabel = "Grade value",
@@ -419,6 +516,7 @@ data class AppStrings(
             importAttachmentFailed = "Could not import this image.",
             maxAttachmentsReachedTemplate = "You can attach up to {count} images to one grade.",
             photoAttachmentCountTemplate = "{count} photos",
+            attachmentImageDescriptionTemplate = "Photo {index} of {count} for {grade}",
             deleteLabel = "Delete",
             cancelLabel = "Cancel",
             closeLabel = "Close",
@@ -427,7 +525,7 @@ data class AppStrings(
             editSubjectAction = "Edit subject",
             selectedColorDescription = "Selected color",
             changeOptionTitle = "Change option?",
-            changeOptionMessage = "Changing your option will delete the grades currently saved in the Option subject. This action cannot be undone.",
+            changeOptionMessage = "This replaces the Option subject in all three school years and permanently deletes every grade and attached photo currently saved in those Option subjects. This action cannot be undone.",
             changeOptionConfirm = "Change option",
             deleteGradeTitle = "Delete grade?",
             deleteGradeMessageTemplate = "Remove {grade} from this subject? This action cannot be undone.",
@@ -444,25 +542,25 @@ data class AppStrings(
             notCalculableYet = "Not calculable yet",
             notEnoughGrades = "Not enough grades",
             unlockPromotionTooMany = "Keep exactly three non-option subjects in the basket to unlock promotion status.",
-            unlockPromotionMissingGrades = "Add grades to every basket subject and the Option branch to unlock promotion status.",
+            unlockPromotionMissingGrades = "Add grades to every basket subject and the Option subject to unlock promotion status.",
             promotionSetupTitle = "Set up promotion",
-            promotionSetupIntro = "Promotion needs exactly 3 basket branches. Add at least one grade in each basket branch and in your Option to unlock the result.",
-            promotionSetupBasketStep = "Basket branches",
+            promotionSetupIntro = "Promotion needs exactly 3 basket subjects. Add at least one grade in each basket subject and in your Option to unlock the result.",
+            promotionSetupBasketStep = "Basket subjects",
             promotionSetupOptionStep = "Option grade",
             promotionSetupGradesStep = "Required grades",
             promotionSetupReady = "Ready",
             promotionSetupNeedsAction = "Needs action",
             promotionSetupWaitingForBasket = "Choose basket first",
             promotionSetupBasketProgressTemplate = "{count} of 3 in basket",
-            promotionSetupMissingBasketOne = "1 basket branch is missing.",
-            promotionSetupMissingBasketMany = "{count} basket branches are missing.",
-            promotionSetupTooManyBasketOne = "1 branch must be removed from the basket.",
-            promotionSetupTooManyBasketMany = "{count} branches must be removed from the basket.",
+            promotionSetupMissingBasketOne = "1 basket subject is missing.",
+            promotionSetupMissingBasketMany = "{count} basket subjects are missing.",
+            promotionSetupTooManyBasketOne = "1 subject must be removed from the basket.",
+            promotionSetupTooManyBasketMany = "{count} subjects must be removed from the basket.",
             promotionSetupMissingGradesTemplate = "Add a grade to {subjects}.",
-            promotionSetupAddBranchAction = "Add a branch",
+            promotionSetupAddBranchAction = "Add a subject",
             promotionSetupReviewBranchesAction = "Review basket",
             promotionSetupAddGradeAction = "Add missing grade",
-            branchPromoted = "Promoted",
+            branchPromoted = "Sufficient",
             branchInsufficient = "Insufficient",
             branchInsufficientShort = "Insuff.",
             noteTypeFull = "Full grade",
@@ -484,9 +582,12 @@ data class AppStrings(
             branchTargetEdit = "Edit",
             branchTargetPlaceholder = "Ex: 5.0",
             branchTargetInvalid = "Use a target from 1.0 to 6.0 in 0.5 steps.",
+            branchTargetScope = "Saved for this subject in both semesters.",
             targetSimulationTitle = "Grade simulator",
             targetSimulationSubtitle = "Choose a target and plan your next grades.",
-            targetAverageLabel = "Target average",
+            temporaryScenarioTargetLabel = "Temporary scenario target",
+            temporaryScenarioTargetHint = "Changes here do not update the saved target.",
+            useSavedTargetLabel = "Use saved target",
             plannedGradeCountTitle = "Future grades",
             plannedGradeCountTemplate = "Future grades: {count}",
             plannedGradeWeightTitle = "Grade weight",
@@ -507,19 +608,34 @@ data class AppStrings(
             mySubjects = "Mes branches",
             addLabel = "Ajouter",
             optionSettingsTitle = "Paramètres",
+            appPreferencesGroupTitle = "Préférences de l'app",
+            schoolSetupGroupTitle = "Configuration scolaire",
+            dataManagementGroupTitle = "Données et exports",
+            fileOperationInProgress = "Opération sur un fichier en cours…",
             languageSectionTitle = "Langue",
             languageSectionDescription = "Choisis la langue d'affichage de l'application.",
             themeSectionTitle = "Apparence",
             themeSectionDescription = "Choisis si l'application suit le système, reste claire ou reste sombre.",
             backupSectionTitle = "Sauvegarde",
             backupSectionDescription = "Exporte tes données SwissGrades ou restaure une sauvegarde SwissGrades existante.",
+            gradeReportSectionTitle = "Relevé de résultats PDF",
+            gradeReportSectionDescription = "Crée un résumé personnel lisible de la période actuellement sélectionnée.",
+            exportGradeReportLabel = "Créer le relevé PDF",
+            gradeReportExportTitle = "Créer un relevé personnel ?",
+            gradeReportExportMessageTemplate = "Le PDF contiendra tes notes, leurs poids, tes moyennes et le " +
+                "résumé de promotion pour {period}. Les photos, objectifs et simulations sont exclus. " +
+                "Ce document contient des données sensibles et n’est pas un bulletin scolaire officiel.",
+            gradeReportExportConfirm = "Choisir l’emplacement",
+            gradeReportExportSuccess = "Relevé PDF créé avec succès.",
+            gradeReportExportFailure = "Le relevé PDF n’a pas pu être créé.",
+            gradeReportCumulativePeriodTemplate = "{year} · Situation cumulative S1 + S2",
             plusPointsSectionTitle = "Migration PlusPoints",
             plusPointsSectionDescription = "Importe un export PlusPoints et remplace les données scolaires actuelles.",
             exportBackupLabel = "Exporter la sauvegarde",
             importBackupLabel = "Importer une sauvegarde",
             importPlusPointsLabel = "Importer PlusPoints",
             plusPointsImportTitle = "Importer des données PlusPoints ?",
-            plusPointsImportMessageTemplate = "Importer {file} depuis PlusPoints et remplacer les notes du semestre choisi ? La langue et le thème restent inchangés. Les photos liées aux notes SwissGrades remplacées de ce semestre seront supprimées.",
+            plusPointsImportMessageTemplate = "Importer {file} dans {period} ? Les notes déjà enregistrées dans cette période seront remplacées et leurs photos supprimées. Si l'export contient une autre option, l'option de l'app changera pour les trois années scolaires. Chaque évaluation importée avec une note et un poids compatibles sera incluse dans les calculs, même si elle était exclue dans PlusPoints. La langue, le thème et les fichiers exportés hors de SwissGrades resteront inchangés.",
             plusPointsImportConfirm = "Importer les données",
             plusPointsImportSuccess = "Données PlusPoints importées avec succès.",
             plusPointsImportFailure = "Impossible d'importer ce fichier PlusPoints.",
@@ -532,14 +648,16 @@ data class AppStrings(
             backupImportFailure = "Impossible d'importer cette sauvegarde.",
             backupImportSuccess = "Sauvegarde importée avec succès.",
             resetSectionTitle = "Réinitialiser l'app",
-            resetSectionDescription = "Supprime toutes les branches, notes, photos, imports et préférences de cet appareil.",
+            resetSectionDescription = "Supprime toutes les données SwissGrades stockées dans l'app sur cet appareil.",
             resetAppLabel = "Tout réinitialiser",
             resetAppTitle = "Réinitialiser SwissGrades ?",
-            resetAppMessage = "Toutes les branches, notes, photos, préférences, imports et sauvegardes stockés dans l'app seront supprimés définitivement. Cette action est irréversible.",
+            resetAppMessage = "Les branches et notes des trois années scolaires, les photos jointes, les préférences et les imports temporaires stockés dans SwissGrades seront supprimés définitivement. Les sauvegardes et relevés PDF déjà exportés hors de l'app resteront à leur emplacement. Cette action est irréversible.",
             resetAppConfirm = "Réinitialiser",
             optionSectionTitle = "Option",
             optionSectionDescriptionPrefix = "Option actuelle : ",
-            optionSectionDescriptionSuffix = ". La changer met à jour directement ta branche Option.",
+            optionSectionDescriptionSuffix = "",
+            changeOptionLabel = "Changer d'option",
+            hideOptionChoicesLabel = "Masquer les options",
             periodTitle = "Période",
             choosePeriodTitle = "Choisir une période",
             schoolYearTitle = "Année scolaire",
@@ -549,6 +667,9 @@ data class AppStrings(
             semesterTitle = "Semestre",
             semester1Label = "Semestre 1",
             semester2Label = "Semestre 2",
+            semester2CumulativeHint = "Cumul S1 + S2",
+            gradeSemesterTitle = "Semestre de la note",
+            savingToPeriodTemplate = "Enregistrée dans : {period}",
             plusPointsTargetSemesterTitle = "Importer dans le semestre",
             darkModeSystem = "Auto",
             darkModeLight = "Clair",
@@ -575,6 +696,8 @@ data class AppStrings(
             promotionHeadlinePromoted = "Les conditions de promotion sont actuellement remplies.",
             promotionHeadlineBlocked = "Les conditions de promotion ne sont pas remplies.",
             promotionHeadlineIncomplete = "La promotion ne peut pas encore être décidée car certaines données manquent.",
+            overallAverageTitle = "Moyenne générale",
+            contributingSubjectsTemplate = "{count} branches notées",
             basketTitle = "Panier",
             insufficienciesTitle = "Insuffisances",
             inBasketLabel = "Dans le panier",
@@ -603,6 +726,7 @@ data class AppStrings(
             importAttachmentFailed = "Impossible d'importer cette image.",
             maxAttachmentsReachedTemplate = "Tu peux joindre jusqu'à {count} images à une note.",
             photoAttachmentCountTemplate = "{count} photos",
+            attachmentImageDescriptionTemplate = "Photo {index} sur {count} pour {grade}",
             deleteLabel = "Supprimer",
             cancelLabel = "Annuler",
             closeLabel = "Fermer",
@@ -611,7 +735,7 @@ data class AppStrings(
             editSubjectAction = "Modifier la branche",
             selectedColorDescription = "Couleur sélectionnée",
             changeOptionTitle = "Changer d'option ?",
-            changeOptionMessage = "Changer d'option supprimera les notes actuellement enregistrées dans la branche Option. Cette action est irréversible.",
+            changeOptionMessage = "Cette action remplace la branche Option dans les trois années scolaires et supprime définitivement toutes les notes et photos actuellement enregistrées dans ces branches Option. Cette action est irréversible.",
             changeOptionConfirm = "Changer l'option",
             deleteGradeTitle = "Supprimer la note ?",
             deleteGradeMessageTemplate = "Supprimer {grade} de cette branche ? Cette action est irréversible.",
@@ -646,7 +770,7 @@ data class AppStrings(
             promotionSetupAddBranchAction = "Ajouter une branche",
             promotionSetupReviewBranchesAction = "Vérifier le panier",
             promotionSetupAddGradeAction = "Ajouter la note manquante",
-            branchPromoted = "Promu",
+            branchPromoted = "Suffisant",
             branchInsufficient = "Insuffisant",
             branchInsufficientShort = "Insuff.",
             noteTypeFull = "Note entière",
@@ -668,9 +792,12 @@ data class AppStrings(
             branchTargetEdit = "Modifier",
             branchTargetPlaceholder = "Ex : 5,0",
             branchTargetInvalid = "Utilise un objectif de 1,0 à 6,0 par pas de 0,5.",
+            branchTargetScope = "Enregistré pour cette branche dans les deux semestres.",
             targetSimulationTitle = "Simulateur de note",
             targetSimulationSubtitle = "Choisis un objectif et planifie tes prochaines notes.",
-            targetAverageLabel = "Moyenne visée",
+            temporaryScenarioTargetLabel = "Objectif temporaire du scénario",
+            temporaryScenarioTargetHint = "Les modifications ici ne changent pas l’objectif sauvegardé.",
+            useSavedTargetLabel = "Utiliser l’objectif sauvegardé",
             plannedGradeCountTitle = "Notes à venir",
             plannedGradeCountTemplate = "Notes à venir : {count}",
             plannedGradeWeightTitle = "Poids des notes",

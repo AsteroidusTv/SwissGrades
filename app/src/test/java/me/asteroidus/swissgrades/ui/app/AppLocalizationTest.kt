@@ -2,6 +2,7 @@ package me.asteroidus.swissgrades.ui.app
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppLocalizationTest {
@@ -18,6 +19,12 @@ class AppLocalizationTest {
             strings.languageSectionTitle,
             strings.themeSectionTitle,
             strings.backupSectionTitle,
+            strings.gradeReportSectionTitle,
+            strings.exportGradeReportLabel,
+            strings.gradeReportExportTitle,
+            strings.gradeReportExportConfirm,
+            strings.gradeReportExportSuccess,
+            strings.gradeReportExportFailure,
             strings.resetSectionTitle,
             strings.periodTitle,
             strings.choosePeriodTitle,
@@ -39,7 +46,21 @@ class AppLocalizationTest {
         assertEquals("Mes branches", strings.mySubjects)
         assertEquals("Paramètres", strings.optionSettingsTitle)
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
+        assertEquals("Objectif temporaire du scénario", strings.temporaryScenarioTargetLabel)
+        assertEquals("Moyenne générale", strings.overallAverageTitle)
+        assertEquals("4 branches notées", strings.contributingSubjects(4))
+        assertEquals("Semestre 2", strings.semesterLabel(SchoolSemester.SEMESTER_2))
+        assertEquals("Cumul S1 + S2", strings.semester2CumulativeHint)
+        assertEquals(
+            "Semestre 2. Cumul S1 + S2",
+            strings.semesterAccessibilityLabel(SchoolSemester.SEMESTER_2)
+        )
         assertEquals("Impact actuel", strings.gradeImpactTitle)
+        assertEquals("Relevé de résultats PDF", strings.gradeReportSectionTitle)
+        assertEquals(
+            "Troisième année · Situation cumulative S1 + S2",
+            strings.gradeReportPeriodLabel(SchoolYear.YEAR_3, SchoolSemester.SEMESTER_2)
+        )
 
         val forbiddenEnglishTerms = listOf(
             "Choose",
@@ -66,10 +87,46 @@ class AppLocalizationTest {
     }
 
     @Test
+    fun englishLabels_useEnglishGradeAndSubjectVocabulary() {
+        val strings = AppStrings.English
+
+        assertEquals("Grades", strings.gradeHistoryTitle)
+        assertEquals("Sufficient", strings.branchPromoted)
+        assertEquals("Add a subject", strings.promotionSetupAddBranchAction)
+        assertTrue(strings.promotionSetupIntro.contains("basket subjects"))
+        assertFalse(strings.promotionSetupIntro.contains("branch"))
+    }
+
+    @Test
+    fun frenchBranchStatus_describesResultWithoutClaimingPromotion() {
+        assertEquals("Suffisant", AppStrings.French.branchPromoted)
+    }
+
+    @Test
     fun simulationResultTitles_distinguishSingleAndMultipleGrades() {
         assertEquals("Needed next grade", AppStrings.English.requiredSimulationTitle(1))
         assertEquals("Average needed over 3 grades", AppStrings.English.requiredSimulationTitle(3))
         assertEquals("Note nécessaire", AppStrings.French.requiredSimulationTitle(1))
         assertEquals("Moyenne nécessaire sur 3 notes", AppStrings.French.requiredSimulationTitle(3))
+    }
+
+    @Test
+    fun destructiveAndImportCopy_namesActualScope() {
+        val english = AppStrings.English
+        val french = AppStrings.French
+
+        assertTrue(english.changeOptionMessage.contains("all three school years"))
+        assertTrue(english.changeOptionMessage.contains("attached photo"))
+        assertTrue(english.resetAppMessage.contains("exported outside the app"))
+        assertTrue(french.changeOptionMessage.contains("trois années scolaires"))
+        assertTrue(french.resetAppMessage.contains("exportés hors de l'app"))
+
+        val plusPointsMessage = french.plusPointsImportMessage(
+            fileName = "semester.PlusPointsExport",
+            year = SchoolYear.YEAR_2,
+            semester = SchoolSemester.SEMESTER_2
+        )
+        assertTrue(plusPointsMessage.contains("Deuxième année · Situation cumulative S1 + S2"))
+        assertTrue(plusPointsMessage.contains("même si elle était exclue dans PlusPoints"))
     }
 }

@@ -25,6 +25,7 @@ class GradeTrackerViewModelTest {
 
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
         assertTrue(viewModel.uiState.value.screen is ScreenUiState.PeriodPicker)
+        assertNull(repository.load()?.selectedOption)
         viewModel.confirmPeriodSelection()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
@@ -32,6 +33,21 @@ class GradeTrackerViewModelTest {
         assertEquals(null, screen.optionSubject.subtitle)
         assertTrue(screen.optionSubject.isInBasket)
         assertTrue(screen.userSubjects.isEmpty())
+    }
+
+    @Test
+    fun backingOutOfInitialPeriodSelection_keepsOnboardingUncommitted() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.updatePendingYear(SchoolYear.YEAR_3)
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_2)
+        viewModel.closePeriodPicker()
+
+        assertTrue(viewModel.uiState.value.screen is ScreenUiState.Onboarding)
+        assertEquals(GradeTrackerAppState(), repository.load())
     }
 
     @Test
@@ -119,7 +135,7 @@ class GradeTrackerViewModelTest {
         viewModel.updateSubjectTargetAverage(historyId, "5,5")
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
-        assertEquals("5.5", detail.targetAverageInput)
+        assertEquals("5,5", detail.targetAverageInput)
         assertEquals(5.5, repository.load()?.subjects?.first { it.id == historyId }?.targetAverage)
     }
 
@@ -208,9 +224,9 @@ class GradeTrackerViewModelTest {
         viewModel.addNote()
 
         val detail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
-        assertEquals("5.00", detail.secondaryAverageLabel)
-        assertEquals("5.0", detail.officialAverageLabel)
-        assertEquals("+1.0", detail.pointsLabel)
+        assertEquals("5,00", detail.secondaryAverageLabel)
+        assertEquals("5,0", detail.officialAverageLabel)
+        assertEquals("+1,0", detail.pointsLabel)
         assertEquals("Essay", detail.notes.single().description)
     }
 
@@ -298,8 +314,8 @@ class GradeTrackerViewModelTest {
         assertEquals(AppStrings.French.notCountedLabel, detail.statusLabel)
         assertEquals(DashboardStatusTone.NEUTRAL, detail.statusTone)
         assertEquals("", detail.pointsLabel)
-        assertEquals("3.5", detail.officialAverageLabel)
-        assertEquals("3.50", detail.secondaryAverageLabel)
+        assertEquals("3,5", detail.officialAverageLabel)
+        assertEquals("3,50", detail.secondaryAverageLabel)
     }
 
     @Test
@@ -352,8 +368,8 @@ class GradeTrackerViewModelTest {
 
         val updatedDetail = (viewModel.uiState.value.screen as ScreenUiState.BranchDetail).detail
         val updatedNote = updatedDetail.notes.single()
-        assertEquals("4.0", updatedDetail.officialAverageLabel)
-        assertEquals("4.00", updatedDetail.secondaryAverageLabel)
+        assertEquals("4,0", updatedDetail.officialAverageLabel)
+        assertEquals("4,00", updatedDetail.secondaryAverageLabel)
         assertEquals("Updated essay", updatedNote.description)
         assertEquals(AppStrings.French.noteTypeHalf, updatedNote.noteTypeLabel)
     }
@@ -492,7 +508,7 @@ class GradeTrackerViewModelTest {
         viewModel.confirmPeriodSelection()
 
         val main = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("5.0", main.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("5,0", main.userSubjects.single { it.title == "History" }.averageLabel)
     }
 
     @Test
@@ -522,14 +538,55 @@ class GradeTrackerViewModelTest {
         assertEquals(setOf(SchoolSemester.SEMESTER_1, SchoolSemester.SEMESTER_2), persistedSubject.notes.map { it.semester }.toSet())
         assertEquals(setOf(5.0, 3.0), persistedSubject.notes.map { it.value }.toSet())
         val secondSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("4.0", secondSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
-        assertEquals("4.0", secondSemesterMain.summary.overallAverageLabel)
+        assertEquals("4,0", secondSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("4,0", secondSemesterMain.summary.overallAverageLabel)
 
         viewModel.openPeriodPicker()
         viewModel.updatePendingSemester(SchoolSemester.SEMESTER_1)
         viewModel.confirmPeriodSelection()
         val firstSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
-        assertEquals("5.0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+        assertEquals("5,0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+    }
+
+    @Test
+    fun editingGrade_canMoveItToAnotherSemester() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isInBasket = false,
+                        notes = listOf(
+                            StoredNote(
+                                id = "note-1",
+                                value = 5.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Essay",
+                                createdAtEpochMillis = 1L,
+                                semester = SchoolSemester.SEMESTER_1
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.openSubject("subject-2")
+        viewModel.requestEditNote("note-1")
+        viewModel.updateDraftSemester(SchoolSemester.SEMESTER_2)
+        viewModel.addNote()
+
+        val note = repository.load()?.subjects
+            ?.single { it.id == "subject-2" }
+            ?.notes
+            ?.single()
+        assertEquals(SchoolSemester.SEMESTER_2, note?.semester)
     }
 
     @Test
@@ -686,7 +743,7 @@ class GradeTrackerViewModelTest {
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
         assertEquals(AppStrings.French.promotionStatusPromoted, screen.summary.promotionStatusLabel)
-        assertEquals("16.0 / 16", screen.summary.basketLabel)
+        assertEquals("16,0 / 16", screen.summary.basketLabel)
         assertEquals("0 / 4", screen.summary.insufficienciesLabel)
     }
 
@@ -963,6 +1020,68 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun exportingGradeReport_usesCurrentSnapshotAndShowsSuccess() {
+        val repository = InMemoryGradeTrackerRepository
+        val exporter = FakeGradeReportExporter()
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.SPANISH)),
+                selectedYear = SchoolYear.YEAR_2,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                language = AppLanguage.ENGLISH
+            )
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            gradeReportExporter = exporter
+        )
+
+        viewModel.openSettings()
+        viewModel.exportGradeReport("content://grade-report")
+        waitUntil {
+            val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+            settings.gradeReportMessage == AppStrings.English.gradeReportExportSuccess
+        }
+
+        assertEquals("content://grade-report", exporter.destinationUri)
+        assertEquals(AppLanguage.ENGLISH, exporter.language)
+        assertEquals(SchoolYear.YEAR_2, exporter.report?.schoolYear)
+        assertEquals(SchoolSemester.SEMESTER_2, exporter.report?.semester)
+        val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+        assertFalse(settings.isGradeReportExportInProgress)
+        assertEquals("swissgrades-report.pdf", settings.gradeReportFileNameSuggestion)
+    }
+
+    @Test
+    fun failedGradeReportExportShowsLocalizedFailure() {
+        val repository = InMemoryGradeTrackerRepository
+        val exporter = FakeGradeReportExporter(shouldFail = true)
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.SPANISH)),
+                language = AppLanguage.FRENCH
+            )
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            gradeReportExporter = exporter
+        )
+
+        viewModel.openSettings()
+        viewModel.exportGradeReport("content://grade-report")
+        waitUntil {
+            val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+            settings.gradeReportMessage == AppStrings.French.gradeReportExportFailure
+        }
+
+        val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+        assertEquals(DashboardStatusTone.NEGATIVE, settings.gradeReportMessageTone)
+        assertFalse(settings.isGradeReportExportInProgress)
+    }
+
+    @Test
     fun changingLanguage_updatesVisibleCopyAcrossScreens() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -1154,6 +1273,31 @@ class GradeTrackerViewModelTest {
         }
 
         override fun discardPreparedImport(preparedImport: PreparedPlusPointsImport) = Unit
+    }
+
+    private class FakeGradeReportExporter(
+        private val shouldFail: Boolean = false
+    ) : GradeReportExporter {
+        var report: GradeReport? = null
+        var language: AppLanguage? = null
+        var destinationUri: String? = null
+
+        override fun suggestedFileName(
+            schoolYear: SchoolYear,
+            semester: SchoolSemester,
+            now: Date
+        ): String = "swissgrades-report.pdf"
+
+        override fun export(
+            report: GradeReport,
+            language: AppLanguage,
+            destinationUriString: String
+        ) {
+            if (shouldFail) error("PDF write failed")
+            this.report = report
+            this.language = language
+            destinationUri = destinationUriString
+        }
     }
 
     private fun waitUntil(timeoutMillis: Long = 2_000, condition: () -> Boolean) {

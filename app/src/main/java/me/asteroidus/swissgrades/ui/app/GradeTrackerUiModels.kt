@@ -14,6 +14,7 @@ data class NoteUiState(
     val id: String,
     val numericValue: Double,
     val weightCoefficient: Double,
+    val semester: SchoolSemester,
     val displayValue: String,
     val noteTypeLabel: String,
     val description: String,
@@ -76,6 +77,7 @@ data class SubjectDetailUiState(
     val subjectId: String,
     val title: String,
     val subtitle: String?,
+    val schoolYear: SchoolYear,
     val isCounted: Boolean = true,
     val isOptionSubject: Boolean = false,
     val notes: List<NoteUiState>,
@@ -116,22 +118,28 @@ data class AddSubjectFormUiState(
 @Immutable
 data class SettingsUiState(
     val selectedOption: InitialOptionChoice,
+    val selectedYear: SchoolYear,
     val selectedSemester: SchoolSemester,
     val selectedLanguage: AppLanguage,
     val selectedThemeMode: AppThemeMode,
     val backupFileNameSuggestion: String,
+    val gradeReportFileNameSuggestion: String,
     val pendingImportDisplayName: String? = null,
     val pendingPlusPointsImportDisplayName: String? = null,
     val pendingPlusPointsTargetSemester: SchoolSemester? = null,
     val backupMessage: String? = null,
     val backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
-    val isBackupInProgress: Boolean = false
+    val isBackupInProgress: Boolean = false,
+    val gradeReportMessage: String? = null,
+    val gradeReportMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+    val isGradeReportExportInProgress: Boolean = false
 )
 
 @Immutable
 data class DashboardSummaryUiState(
     val overallAverageLabel: String,
     val overallAverageValue: Double?,
+    val contributingSubjectCount: Int,
     val promotionStatusLabel: String,
     val promotionHeadline: String,
     val isPromotionCalculable: Boolean,

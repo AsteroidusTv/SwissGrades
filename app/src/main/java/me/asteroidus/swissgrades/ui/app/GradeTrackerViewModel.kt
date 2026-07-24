@@ -7,14 +7,11 @@ import me.asteroidus.swissgrades.domain.GradeCalculator
 import me.asteroidus.swissgrades.domain.GradeImpact
 import me.asteroidus.swissgrades.domain.GradeImpactCalculator
 import me.asteroidus.swissgrades.domain.OfficialAverageTarget
-import me.asteroidus.swissgrades.domain.PromotionEvaluator
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import me.asteroidus.swissgrades.domain.model.Branch
 import me.asteroidus.swissgrades.domain.model.Grade
 import me.asteroidus.swissgrades.domain.model.OptionType
-import me.asteroidus.swissgrades.domain.model.PromotionEvaluationInput
 import me.asteroidus.swissgrades.domain.model.PromotionEvaluationResult
-import me.asteroidus.swissgrades.domain.model.PromotionRoleAssignment
 import me.asteroidus.swissgrades.domain.model.SubSubject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +36,8 @@ class GradeTrackerViewModel(
     private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
     private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
     private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
-    private val resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
+    private val resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage),
+    private val gradeReportExporter: GradeReportExporter = NoOpGradeReportExporter
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
@@ -60,30 +58,13 @@ class GradeTrackerViewModel(
     }
 
     fun completeOnboarding(choice: InitialOptionChoice) {
-        var nextOptionSubjectId = 1
-        val subjects = SchoolYear.entries.map { year ->
-            createStoredOptionSubject(
-                choice = choice,
-                schoolYear = year,
-                id = "subject-${nextOptionSubjectId++}"
-            )
-        }
-        val nextSubjectSequence = subjects
-            .mapNotNull { subject -> subject.id.removePrefix("subject-").toIntOrNull() }
-            .maxOrNull()
-            ?.plus(1)
-            ?: 1
-        state = state.copy(
-            selectedOption = choice,
-            subjects = subjects,
-            nextSubjectSequence = nextSubjectSequence
-        )
         onboardingSelection = choice
         currentScreen = InternalScreen.PeriodPicker(
             selectedYear = state.selectedYear,
-            selectedSemester = state.selectedSemester
+            selectedSemester = state.selectedSemester,
+            isInitialSetup = true
         )
-        persistAndPublish()
+        publish()
     }
 
     fun openSettings() {
@@ -96,14 +77,15 @@ class GradeTrackerViewModel(
     fun openPeriodPicker() {
         currentScreen = InternalScreen.PeriodPicker(
             selectedYear = state.selectedYear,
-            selectedSemester = state.selectedSemester
+            selectedSemester = state.selectedSemester,
+            isInitialSetup = false
         )
         publish()
     }
 
     fun closePeriodPicker() {
-        if (currentScreen !is InternalScreen.PeriodPicker) return
-        currentScreen = InternalScreen.Main
+        val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
+        currentScreen = if (screen.isInitialSetup) InternalScreen.Onboarding else InternalScreen.Main
         publish()
     }
 
@@ -121,10 +103,29 @@ class GradeTrackerViewModel(
 
     fun confirmPeriodSelection() {
         val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
-        state = state.copy(
-            selectedYear = screen.selectedYear,
-            selectedSemester = screen.selectedSemester
-        )
+        state = if (screen.isInitialSetup) {
+            val choice = onboardingSelection ?: return
+            var nextOptionSubjectId = 1
+            val subjects = SchoolYear.entries.map { year ->
+                createStoredOptionSubject(
+                    choice = choice,
+                    schoolYear = year,
+                    id = "subject-${nextOptionSubjectId++}"
+                )
+            }
+            state.copy(
+                selectedOption = choice,
+                subjects = subjects,
+                nextSubjectSequence = nextOptionSubjectId,
+                selectedYear = screen.selectedYear,
+                selectedSemester = screen.selectedSemester
+            )
+        } else {
+            state.copy(
+                selectedYear = screen.selectedYear,
+                selectedSemester = screen.selectedSemester
+            )
+        }
         currentScreen = InternalScreen.Main
         persistAndPublish()
     }
@@ -313,7 +314,7 @@ class GradeTrackerViewModel(
         val target = findStoredNoteTarget(screen.subjectId, noteId) ?: return
         screen.selectedSubSubjectId = target.subSubjectId ?: screen.selectedSubSubjectId
         screen.draft = NoteDraftUiState(
-            valueInput = formatOneOrTwoDecimals(target.note.value),
+            valueInput = state.language.formatOneOrTwoDecimals(target.note.value),
             selectedType = target.note.weight.toNoteTypeUi(),
             selectedSemester = target.note.semester,
             descriptionInput = target.note.description,
@@ -366,6 +367,7 @@ class GradeTrackerViewModel(
 
     fun exportBackup(destinationUriString: String) {
         val screen = currentScreen as? InternalScreen.Settings ?: return
+        if (screen.isBackupInProgress || screen.isGradeReportExportInProgress) return
         val stateSnapshot = state
         screen.isBackupInProgress = true
         screen.backupMessage = null
@@ -387,6 +389,40 @@ class GradeTrackerViewModel(
             }
             if (currentScreen === screen) {
                 screen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun exportGradeReport(destinationUriString: String) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        if (screen.isBackupInProgress || screen.isGradeReportExportInProgress) return
+        val stateSnapshot = state
+        screen.isGradeReportExportInProgress = true
+        screen.gradeReportMessage = null
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                val report = GradeReportBuilder.build(stateSnapshot)
+                gradeReportExporter.export(
+                    report = report,
+                    language = stateSnapshot.language,
+                    destinationUriString = destinationUriString
+                )
+            }.onSuccess {
+                if (currentScreen === screen) {
+                    screen.gradeReportMessage = strings.gradeReportExportSuccess
+                    screen.gradeReportMessageTone = DashboardStatusTone.POSITIVE
+                }
+            }.onFailure {
+                if (currentScreen === screen) {
+                    screen.gradeReportMessage = strings.gradeReportExportFailure
+                    screen.gradeReportMessageTone = DashboardStatusTone.NEGATIVE
+                }
+            }
+            if (currentScreen === screen) {
+                screen.isGradeReportExportInProgress = false
             }
             publish()
         }
@@ -654,6 +690,12 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    fun updateDraftSemester(semester: SchoolSemester) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.draft = screen.draft.copy(selectedSemester = semester)
+        publish()
+    }
+
     fun updateDraftDescription(input: String) {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         screen.draft = screen.draft.copy(descriptionInput = input)
@@ -843,7 +885,8 @@ class GradeTrackerViewModel(
             attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
             backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
             plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
-            resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
+            resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage),
+            gradeReportExporter: GradeReportExporter = NoOpGradeReportExporter
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -853,7 +896,8 @@ class GradeTrackerViewModel(
                         attachmentStorage,
                         backupCoordinator,
                         plusPointsImportCoordinator,
-                        resetAppUseCase
+                        resetAppUseCase,
+                        gradeReportExporter
                     ) as T
                 }
             }
@@ -919,16 +963,24 @@ class GradeTrackerViewModel(
             is InternalScreen.Settings -> ScreenUiState.Settings(
                 settings = SettingsUiState(
                     selectedOption = requireNotNull(state.selectedOption),
+                    selectedYear = state.selectedYear,
                     selectedSemester = state.selectedSemester,
                     selectedLanguage = state.language,
                     selectedThemeMode = state.themeMode,
                     backupFileNameSuggestion = backupCoordinator.suggestedBackupFileName(),
+                    gradeReportFileNameSuggestion = gradeReportExporter.suggestedFileName(
+                        state.selectedYear,
+                        state.selectedSemester
+                    ),
                     pendingImportDisplayName = target.pendingPreparedImport?.displayName,
                     pendingPlusPointsImportDisplayName = target.pendingPreparedPlusPointsImport?.displayName,
                     pendingPlusPointsTargetSemester = target.pendingPlusPointsTargetSemester,
                     backupMessage = target.backupMessage,
                     backupMessageTone = target.backupMessageTone,
-                    isBackupInProgress = target.isBackupInProgress
+                    isBackupInProgress = target.isBackupInProgress,
+                    gradeReportMessage = target.gradeReportMessage,
+                    gradeReportMessageTone = target.gradeReportMessageTone,
+                    isGradeReportExportInProgress = target.isGradeReportExportInProgress
                 )
             )
         }
@@ -954,14 +1006,19 @@ class GradeTrackerViewModel(
         return if (promotionResult != null) {
             val promotion = PromotionDashboardPresenter.present(promotionResult, strings)
             DashboardSummaryUiState(
-                overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
+                overallAverageLabel = overallAverage?.let(state.language::formatOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 overallAverageValue = overallAverage,
+                contributingSubjectCount = calculableAverages.size,
                 promotionStatusLabel = promotion.statusLabel,
                 promotionHeadline = promotion.headline,
                 isPromotionCalculable = promotion.isCalculable,
-                promotionPointsLabel = totalPromotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
+                promotionPointsLabel = totalPromotionPoints?.let(state.language::formatSignedOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 promotionPointsValue = totalPromotionPoints,
-                basketLabel = basketTotal?.let { "${formatOneOrTwoDecimals(it)} / 16" } ?: strings.notEnoughGrades,
+                basketLabel = basketTotal?.let {
+                    "${state.language.formatOneOrTwoDecimals(it)} / 16"
+                } ?: strings.notEnoughGrades,
                 basketValue = basketTotal,
                 insufficienciesLabel = "$insufficiencyCount / 4",
                 insufficiencyCount = insufficiencyCount,
@@ -969,14 +1026,19 @@ class GradeTrackerViewModel(
             )
         } else {
             DashboardSummaryUiState(
-                overallAverageLabel = overallAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
+                overallAverageLabel = overallAverage?.let(state.language::formatOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 overallAverageValue = overallAverage,
+                contributingSubjectCount = calculableAverages.size,
                 promotionStatusLabel = strings.notCalculableYet,
                 promotionHeadline = promotionUnavailableHeadline(),
                 isPromotionCalculable = false,
-                promotionPointsLabel = totalPromotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
+                promotionPointsLabel = totalPromotionPoints?.let(state.language::formatSignedOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 promotionPointsValue = totalPromotionPoints,
-                basketLabel = basketTotal?.let { "${formatOneOrTwoDecimals(it)} / 16" } ?: strings.notEnoughGrades,
+                basketLabel = basketTotal?.let {
+                    "${state.language.formatOneOrTwoDecimals(it)} / 16"
+                } ?: strings.notEnoughGrades,
                 basketValue = basketTotal,
                 insufficienciesLabel = "$insufficiencyCount / 4",
                 insufficiencyCount = insufficiencyCount,
@@ -1012,14 +1074,18 @@ class GradeTrackerViewModel(
                 subjectId = subject.id,
                 title = subject.localizedDisplayName(state.language),
                 subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
+                schoolYear = subject.schoolYear,
                 isCounted = subject.isCounted,
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
-                targetAverageInput = subject.targetAverage?.let(::formatOneOrTwoDecimals),
-                officialAverageLabel = roundedAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
+                targetAverageInput = subject.targetAverage?.let(state.language::formatOneOrTwoDecimals),
+                officialAverageLabel = roundedAverage?.let(state.language::formatOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 secondaryAverageTitle = strings.compositeAverage,
-                secondaryAverageLabel = finalAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
-                pointsLabel = promotionPoints?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
+                secondaryAverageLabel = finalAverage?.let(state.language::formatTwoDecimals)
+                    ?: strings.emptyNotes,
+                pointsLabel = promotionPoints?.let(state.language::formatSignedOneOrTwoDecimals)
+                    ?: strings.emptyNotes,
                 statusLabel = statusLabel,
                 statusTone = roundedAverage.toBranchStatusTone(),
                 isAddGradeSheetVisible = isAddGradeSheetVisible,
@@ -1028,7 +1094,11 @@ class GradeTrackerViewModel(
                     CompositeSubSubjectDetailUiState(
                         id = subSubject.id,
                         name = state.language.optionSubSubjectLabel(subSubject.name),
-                        internalAverageLabel = subSubject.toInternalAverageLabel(strings, state.selectedSemester),
+                        internalAverageLabel = subSubject.toInternalAverageLabel(
+                            strings = strings,
+                            language = state.language,
+                            semester = state.selectedSemester
+                        ),
                         notes = subSubject.notes
                             .filter { it.isIncludedIn(state.selectedSemester) }
                             .map(::toNoteUiState)
@@ -1055,14 +1125,17 @@ class GradeTrackerViewModel(
             subjectId = subject.id,
             title = subject.localizedDisplayName(state.language),
             subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
+            schoolYear = subject.schoolYear,
             isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
-            targetAverageInput = subject.targetAverage?.let(::formatOneOrTwoDecimals),
-            officialAverageLabel = officialAverage?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
+            targetAverageInput = subject.targetAverage?.let(state.language::formatOneOrTwoDecimals),
+            officialAverageLabel = officialAverage?.let(state.language::formatOneOrTwoDecimals)
+                ?: strings.emptyNotes,
             secondaryAverageTitle = strings.rawAverage,
-            secondaryAverageLabel = rawAverage?.let(::formatTwoDecimals) ?: strings.emptyNotes,
-            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals).orEmpty(),
+            secondaryAverageLabel = rawAverage?.let(state.language::formatTwoDecimals)
+                ?: strings.emptyNotes,
+            pointsLabel = points?.let(state.language::formatSignedOneOrTwoDecimals).orEmpty(),
             statusLabel = statusLabel,
             statusTone = if (isExcludedFromResults) {
                 DashboardStatusTone.NEUTRAL
@@ -1076,38 +1149,7 @@ class GradeTrackerViewModel(
     }
 
     private fun buildPromotionEvaluationResult(): PromotionEvaluationResult? {
-        val currentYearSubjects = state.subjectsForSelectedYear()
-        val option = currentYearSubjects.firstOrNull { it.isOptionSubject } ?: return null
-        val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
-        if (basketSubjects.size != 3) return null
-
-        val firstBasketSubject = basketSubjects[0]
-        val secondBasketSubject = basketSubjects[1]
-        val thirdBasketSubject = basketSubjects[2]
-        val basketSubjectIds = setOf(
-            firstBasketSubject.id,
-            secondBasketSubject.id,
-            thirdBasketSubject.id,
-            option.id
-        )
-
-        val assignments = buildList {
-            add(PromotionRoleAssignment.German(firstBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.French(secondBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.Option(option.toBranch(state.selectedSemester)))
-            currentYearSubjects
-                .filter { it.isCounted && !it.isOptionSubject && it.id !in basketSubjectIds }
-                .forEach { subject ->
-                    add(
-                        PromotionRoleAssignment.Additional(
-                            branch = subject.toSimpleBranch(state.selectedSemester),
-                            isExplicitlyEmpty = subject.notes.none { it.isIncludedIn(state.selectedSemester) }
-                        )
-                    )
-                }
-        }
-        return PromotionEvaluator.evaluate(PromotionEvaluationInput.create(assignments))
+        return PromotionEvaluationFactory.evaluate(state)
     }
 
     private fun promotionUnavailableHeadline(): String {
@@ -1212,8 +1254,8 @@ class GradeTrackerViewModel(
             id = subject.id,
             title = subject.localizedDisplayName(state.language),
             subtitle = null,
-            averageLabel = average?.let(::formatOneOrTwoDecimals) ?: strings.emptyNotes,
-            pointsLabel = points?.let(::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
+            averageLabel = average?.let(state.language::formatOneOrTwoDecimals) ?: strings.emptyNotes,
+            pointsLabel = points?.let(state.language::formatSignedOneOrTwoDecimals) ?: strings.emptyNotes,
             averageValue = average,
             pointsValue = points,
             colorChoice = subject.subjectColor,
@@ -1278,7 +1320,8 @@ class GradeTrackerViewModel(
             id = note.id,
             numericValue = note.value,
             weightCoefficient = note.weight.coefficient,
-            displayValue = formatOneOrTwoDecimals(note.value),
+            semester = note.semester,
+            displayValue = state.language.formatOneOrTwoDecimals(note.value),
             noteTypeLabel = strings.noteTypeLabel(note.weight),
             description = note.description,
             dateLabel = note.createdAtEpochMillis.toDateLabel(),
@@ -1410,7 +1453,8 @@ private sealed interface InternalScreen {
     data object Main : InternalScreen
     data class PeriodPicker(
         var selectedYear: SchoolYear,
-        var selectedSemester: SchoolSemester
+        var selectedSemester: SchoolSemester,
+        val isInitialSetup: Boolean
     ) : InternalScreen
     data class AddSubject(
         val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(),
@@ -1430,7 +1474,10 @@ private sealed interface InternalScreen {
         var pendingPlusPointsTargetSemester: SchoolSemester? = null,
         var backupMessage: String? = null,
         var backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
-        var isBackupInProgress: Boolean = false
+        var isBackupInProgress: Boolean = false,
+        var gradeReportMessage: String? = null,
+        var gradeReportMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+        var isGradeReportExportInProgress: Boolean = false
     ) : InternalScreen
 }
 
@@ -1809,11 +1856,15 @@ private fun StoredSubject.computeMetrics(semester: SchoolSemester): SubjectCompu
     )
 }
 
-private fun StoredSubSubject.toInternalAverageLabel(strings: AppStrings, semester: SchoolSemester): String {
+private fun StoredSubSubject.toInternalAverageLabel(
+    strings: AppStrings,
+    language: AppLanguage,
+    semester: SchoolSemester
+): String {
     val average = GradeCalculator.weightedAverage(
         notes.filter { it.isIncludedIn(semester) }.map { it.toGrade() }
     )?.let(GradeCalculator::roundToHundredth)
-    return average?.let(::formatTwoDecimals) ?: strings.emptyNotes
+    return average?.let(language::formatTwoDecimals) ?: strings.emptyNotes
 }
 
 private fun StoredNote.isIncludedIn(selectedSemester: SchoolSemester): Boolean {
@@ -1830,19 +1881,6 @@ private object NoteDateFormatter {
 
     @Synchronized
     fun format(date: Date): String = formatter.format(date)
-}
-
-private fun formatOneOrTwoDecimals(value: Double): String {
-    return if (value % 1.0 == 0.0) "%.1f".format(Locale.US, value) else "%.2f".format(Locale.US, value).trimEnd('0')
-}
-
-private fun formatTwoDecimals(value: Double): String {
-    return "%.2f".format(Locale.US, value)
-}
-
-private fun formatSignedOneOrTwoDecimals(value: Double): String {
-    val prefix = if (value > 0.0) "+" else ""
-    return prefix + formatOneOrTwoDecimals(value)
 }
 
 private fun Double?.toBranchStatusLabel(strings: AppStrings): String {

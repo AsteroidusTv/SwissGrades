@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -108,6 +110,7 @@ fun BranchDetailScreen(
     onConfirmDeleteNote: () -> Unit,
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
+    onDraftSemesterChanged: (SchoolSemester) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
     onImportDraftAttachments: (List<String>) -> Unit,
     onPrepareCameraCapture: () -> PendingCameraCaptureRequest?,
@@ -168,18 +171,20 @@ fun BranchDetailScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("branch-detail-list"),
-            contentPadding = PaddingValues(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = 84.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .testTag("branch-detail-list"),
+                contentPadding = PaddingValues(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 16.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item {
                 BranchDetailHeader(
                     detail = detail,
@@ -206,13 +211,15 @@ fun BranchDetailScreen(
                 )
             }
 
-            item {
-                TargetSimulationCard(
-                    notes = visibleNotes,
-                    accentBlue = accentBlue,
-                    initialTargetInput = detail.targetAverageInput,
-                    targetKey = detail.subjectId
-                )
+            if (!detail.isCompositeOption) {
+                item {
+                    TargetSimulationCard(
+                        notes = visibleNotes,
+                        accentBlue = accentBlue,
+                        initialTargetInput = detail.targetAverageInput,
+                        targetKey = detail.subjectId
+                    )
+                }
             }
 
             if (detail.isCompositeOption) {
@@ -226,7 +233,7 @@ fun BranchDetailScreen(
                 }
             }
 
-            if (visibleNotes.isNotEmpty()) {
+            if (shouldShowEvolution(visibleNotes.size)) {
                 item {
                     EvolutionCard(
                         evolutionNotes = evolutionNotes,
@@ -269,33 +276,44 @@ fun BranchDetailScreen(
                     SwipeableNoteHistoryCard(
                         note = note,
                         onRequestEdit = { onRequestEditNote(note.id) },
-                        onRequestDelete = { onRequestDeleteNote(note.id) }
+                        onRequestDelete = { onRequestDeleteNote(note.id) },
+                        onPreviewAttachments = { index ->
+                            attachmentViewer = AttachmentViewerState(
+                                attachments = note.attachments,
+                                selectedIndex = index,
+                                gradeTitle = note.description.ifBlank { strings.evaluationDefaultTitle }
+                            )
+                        }
                     )
                 }
             }
-        }
+            }
 
-        Button(
-            onClick = onShowAddNoteSheet,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = AppScreenHorizontalPadding, end = AppScreenHorizontalPadding, bottom = 12.dp)
-                .fillMaxWidth()
-                .testTag("show-add-note-sheet"),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
-        ) {
-            Row(
-                modifier = Modifier.padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onShowAddNoteSheet,
+                modifier = Modifier
+                    .padding(
+                        start = AppScreenHorizontalPadding,
+                        end = AppScreenHorizontalPadding,
+                        bottom = 12.dp
+                    )
+                    .fillMaxWidth()
+                    .testTag("show-add-note-sheet"),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
             ) {
-                Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 10.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
             }
         }
 
@@ -311,13 +329,16 @@ fun BranchDetailScreen(
                     accentBlue = accentBlue,
                     onDraftValueChanged = onDraftValueChanged,
                     onDraftTypeChanged = onDraftTypeChanged,
+                    onDraftSemesterChanged = onDraftSemesterChanged,
                     onDraftDescriptionChanged = onDraftDescriptionChanged,
                     onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
                     onRemoveDraftAttachment = onRemoveDraftAttachment,
                     onPreviewAttachment = { attachments, index ->
                         attachmentViewer = AttachmentViewerState(
                             attachments = attachments,
-                            selectedIndex = index
+                            selectedIndex = index,
+                            gradeTitle = detail.draft.descriptionInput
+                                .ifBlank { strings.evaluationDefaultTitle }
                         )
                     },
                     onAddNote = onAddNote
@@ -351,6 +372,7 @@ fun BranchDetailScreen(
             AttachmentViewerDialog(
                 attachments = viewerState.attachments,
                 initialIndex = viewerState.selectedIndex,
+                gradeTitle = viewerState.gradeTitle,
                 onDismiss = { attachmentViewer = null }
             )
         }
@@ -625,7 +647,7 @@ private fun BranchTargetAverageCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp),
+                    .heightIn(min = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -673,7 +695,6 @@ private fun BranchTargetAverageCard(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(76.dp)
                             .testTag("branch-target-average-input"),
                         placeholder = { Text(strings.branchTargetPlaceholder) },
                         singleLine = true,
@@ -739,6 +760,12 @@ private fun BranchTargetAverageCard(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     fontWeight = if (hasTargetAverage) FontWeight.SemiBold else FontWeight.Medium
+                )
+                Text(
+                    text = strings.branchTargetScope,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("branch-target-scope")
                 )
             }
         }
@@ -857,6 +884,8 @@ private fun CompositeSubSubjectSelectorCard(
     }
 }
 
+internal fun shouldShowEvolution(noteCount: Int): Boolean = noteCount >= 2
+
 @Composable
 private fun EvolutionCard(
     evolutionNotes: List<NoteUiState>,
@@ -864,7 +893,9 @@ private fun EvolutionCard(
 ) {
     val strings = currentAppStrings()
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("evolution-card"),
         shape = DashboardCardShape,
         border = appCardBorder(),
         colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
@@ -975,6 +1006,7 @@ private fun AddGradeSheetContent(
     accentBlue: Color,
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
+    onDraftSemesterChanged: (SchoolSemester) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
     onShowAttachmentSourceDialog: () -> Unit,
     onRemoveDraftAttachment: (String) -> Unit,
@@ -1003,6 +1035,60 @@ private fun AddGradeSheetContent(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
         )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = strings.savingToPeriod(detail.schoolYear, detail.draft.selectedSemester),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("grade-destination-period")
+            )
+            Text(
+                text = strings.gradeSemesterTitle,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
+            ) {
+                SchoolSemester.entries.forEach { semester ->
+                    val isSelected = detail.draft.selectedSemester == semester
+                    OutlinedCard(
+                        onClick = { onDraftSemesterChanged(semester) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics {
+                                selected = isSelected
+                                role = Role.RadioButton
+                                contentDescription = strings.semesterAccessibilityLabel(semester)
+                            }
+                            .testTag("grade-semester-${semester.name}"),
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(
+                            if (isSelected) 2.dp else 1.dp,
+                            if (isSelected) accentBlue else appCardBorderColor()
+                        ),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = if (isSelected) appSoftAccentContainer() else appCardSurface()
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = strings.semesterShortLabel(semester),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
         OutlinedTextField(
             value = detail.draft.valueInput,
             onValueChange = onDraftValueChanged,
@@ -1128,9 +1214,18 @@ private fun AddGradeSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(inlineSpacing),
                     contentPadding = PaddingValues(top = 4.dp, end = 4.dp)
                 ) {
-                    items(detail.draft.attachments, key = { it.id }) { attachment ->
+                    itemsIndexed(
+                        items = detail.draft.attachments,
+                        key = { _, attachment -> attachment.id }
+                    ) { index, attachment ->
                         DraftAttachmentChip(
                             attachment = attachment,
+                            contentDescription = strings.attachmentImageDescription(
+                                index = index + 1,
+                                count = detail.draft.attachments.size,
+                                gradeTitle = detail.draft.descriptionInput
+                                    .ifBlank { strings.evaluationDefaultTitle }
+                            ),
                             onRemove = { onRemoveDraftAttachment(attachment.id) },
                             onPreview = {
                                 onPreviewAttachment(
@@ -1189,6 +1284,7 @@ private fun AddGradeSheetContent(
 @Composable
 private fun DraftAttachmentChip(
     attachment: DraftAttachmentUiState,
+    contentDescription: String,
     onRemove: () -> Unit,
     onPreview: () -> Unit
 ) {
@@ -1208,7 +1304,7 @@ private fun DraftAttachmentChip(
         ) {
             AsyncImage(
                 model = File(attachment.filePath),
-                contentDescription = currentAppStrings().attachedPhotosTitle,
+                contentDescription = contentDescription,
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(onClick = onPreview),
@@ -1281,13 +1377,15 @@ private fun AttachmentSourceDialog(
 
 private data class AttachmentViewerState(
     val attachments: List<AttachmentUiState>,
-    val selectedIndex: Int
+    val selectedIndex: Int,
+    val gradeTitle: String
 )
 
 @Composable
 private fun AttachmentViewerDialog(
     attachments: List<AttachmentUiState>,
     initialIndex: Int,
+    gradeTitle: String,
     onDismiss: () -> Unit
 ) {
     val strings = currentAppStrings()
@@ -1357,7 +1455,11 @@ private fun AttachmentViewerDialog(
                     ) {
                         Image(
                             painter = painter,
-                            contentDescription = null,
+                            contentDescription = strings.attachmentImageDescription(
+                                index = page + 1,
+                                count = attachments.size,
+                                gradeTitle = gradeTitle
+                            ),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("attachment-viewer-image-$page"),
@@ -1403,7 +1505,8 @@ private fun AttachmentViewerDialog(
 private fun SwipeableNoteHistoryCard(
     note: NoteUiState,
     onRequestEdit: () -> Unit,
-    onRequestDelete: () -> Unit
+    onRequestDelete: () -> Unit,
+    onPreviewAttachments: (Int) -> Unit
 ) {
     val strings = currentAppStrings()
     var shouldResetSwipe by remember(note.id) { mutableStateOf(false) }
@@ -1457,7 +1560,8 @@ private fun SwipeableNoteHistoryCard(
     ) {
         NoteHistoryCard(
             note = note,
-            onClick = onRequestEdit,
+            onEdit = onRequestEdit,
+            onPreviewAttachments = onPreviewAttachments,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
     }
@@ -1466,14 +1570,15 @@ private fun SwipeableNoteHistoryCard(
 @Composable
 private fun NoteHistoryCard(
     note: NoteUiState,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onPreviewAttachments: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
     val warningRed = appWarningColor()
     OutlinedCard(
-        onClick = onClick,
+        onClick = onEdit,
         modifier = modifier
             .fillMaxWidth()
             .testTag("note-card-${note.id}"),
@@ -1485,13 +1590,29 @@ private fun NoteHistoryCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = note.description.ifBlank { strings.evaluationDefaultTitle },
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = note.description.ifBlank { strings.evaluationDefaultTitle },
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                HeaderActionButton(
+                    onClick = onEdit,
+                    modifier = Modifier.testTag("visible-edit-note-${note.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = strings.editGrade,
+                        tint = accentBlue
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1534,8 +1655,25 @@ private fun NoteHistoryCard(
                         )
                     }
 
+                    Card(
+                        shape = RoundedCornerShape(999.dp),
+                        colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
+                    ) {
+                        Text(
+                            text = strings.semesterShortLabel(note.semester),
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .testTag("note-semester-${note.id}"),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = accentBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     if (note.attachments.isNotEmpty()) {
                         Card(
+                            onClick = { onPreviewAttachments(0) },
+                            modifier = Modifier.testTag("open-note-attachments-${note.id}"),
                             shape = RoundedCornerShape(999.dp),
                             colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
                         ) {

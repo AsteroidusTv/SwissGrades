@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -25,6 +26,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -50,8 +53,6 @@ import me.asteroidus.swissgrades.domain.TargetSimulationCalculator
 import me.asteroidus.swissgrades.domain.TargetSimulationGrade
 import me.asteroidus.swissgrades.domain.TargetSimulationResult
 
-private const val DefaultTargetSimulationInput = "5.0"
-
 @Composable
 internal fun TargetSimulationCard(
     notes: List<NoteUiState>,
@@ -60,19 +61,24 @@ internal fun TargetSimulationCard(
     targetKey: String
 ) {
     val strings = currentAppStrings()
+    val language = LocalAppLanguage.current
+    val defaultTargetInput = language.formatOneOrTwoDecimals(5.0)
+    val focusManager = LocalFocusManager.current
     val warningRed = appWarningColor()
     val positiveGreen = appPositiveColor()
     var isExpanded by remember { mutableStateOf(false) }
     val openInteractionSource = remember { MutableInteractionSource() }
     val closeInteractionSource = remember { MutableInteractionSource() }
-    var targetInput by remember(targetKey) { mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput) }
-    var lastSyncedTargetInput by remember(targetKey) {
-        mutableStateOf(initialTargetInput ?: DefaultTargetSimulationInput)
+    var targetInput by remember(targetKey, language) {
+        mutableStateOf(initialTargetInput ?: defaultTargetInput)
+    }
+    var lastSyncedTargetInput by remember(targetKey, language) {
+        mutableStateOf(initialTargetInput ?: defaultTargetInput)
     }
     var plannedGradeCount by remember(targetKey) { mutableStateOf(1) }
     var plannedGradeType by remember(targetKey) { mutableStateOf(NoteTypeUi.FULL) }
     LaunchedEffect(targetKey, initialTargetInput, isExpanded) {
-        val nextSyncedInput = initialTargetInput ?: DefaultTargetSimulationInput
+        val nextSyncedInput = initialTargetInput ?: defaultTargetInput
         targetInput = synchronizedTargetSimulationInput(
             currentInput = targetInput,
             lastSyncedInput = lastSyncedTargetInput,
@@ -129,7 +135,7 @@ internal fun TargetSimulationCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp),
+                    .heightIn(min = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -183,7 +189,7 @@ internal fun TargetSimulationCard(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = strings.targetAverageLabel,
+                    text = strings.temporaryScenarioTargetLabel,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
@@ -193,9 +199,8 @@ internal fun TargetSimulationCard(
                     onValueChange = { targetInput = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(76.dp)
                         .testTag("target-average-input"),
-                    placeholder = { Text("5.0") },
+                    placeholder = { Text(defaultTargetInput) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = result == TargetSimulationResult.Invalid,
@@ -214,6 +219,27 @@ internal fun TargetSimulationCard(
                         unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
+                Text(
+                    text = strings.temporaryScenarioTargetHint,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("temporary-target-hint")
+                )
+                if (initialTargetInput != null) {
+                    TextButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            targetInput = initialTargetInput
+                        },
+                        modifier = Modifier.testTag("use-saved-target")
+                    ) {
+                        Text(
+                            text = strings.useSavedTargetLabel,
+                            color = accentBlue,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -372,7 +398,7 @@ internal fun TargetSimulationCard(
                         )
                         is TargetSimulationResult.Required -> {
                             Text(
-                                text = TargetSimulationCalculator.formatGrade(result.requiredAverage),
+                                text = language.formatOneOrTwoDecimals(result.requiredAverage),
                                 modifier = Modifier.testTag("target-simulation-required-value"),
                                 style = MaterialTheme.typography.displaySmall,
                                 color = resultTone,
@@ -380,7 +406,7 @@ internal fun TargetSimulationCard(
                             )
                             Text(
                                 text = strings.targetProjectedAverage(
-                                    TargetSimulationCalculator.formatGrade(result.projectedOfficialAverage)
+                                    language.formatOneOrTwoDecimals(result.projectedOfficialAverage)
                                 ),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -2,6 +2,8 @@ package me.asteroidus.swissgrades.ui.app
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -67,6 +69,7 @@ internal fun ConfirmationDialog(
         text = {
             Text(
                 text = message,
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

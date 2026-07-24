@@ -156,7 +156,6 @@ fun AddSubjectScreen(
                     onValueChange = onNameChanged,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(76.dp)
                         .testTag("add-subject-name"),
                     placeholder = { Text(strings.subjectNamePlaceholder) },
                     singleLine = true,

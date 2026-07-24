@@ -18,6 +18,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
@@ -50,6 +51,7 @@ internal fun SettingsScreen(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onImportPlusPoints: () -> Unit,
+    onExportGradeReport: () -> Unit,
     onDismissPendingImport: () -> Unit,
     onConfirmPendingImport: () -> Unit,
     onDismissPendingPlusPointsImport: () -> Unit,
@@ -63,6 +65,10 @@ internal fun SettingsScreen(
     val language = LocalAppLanguage.current
     var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     var isResetConfirmationVisible by remember { mutableStateOf(false) }
+    var isGradeReportConfirmationVisible by remember { mutableStateOf(false) }
+    var isOptionChooserExpanded by remember { mutableStateOf(false) }
+    val isFileOperationInProgress =
+        settings.isBackupInProgress || settings.isGradeReportExportInProgress
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -92,6 +98,8 @@ internal fun SettingsScreen(
             )
         }
 
+        SettingsGroupHeading(strings.appPreferencesGroupTitle)
+
         SettingsChoiceSection(
             title = strings.languageSectionTitle,
             description = strings.languageSectionDescription
@@ -118,6 +126,72 @@ internal fun SettingsScreen(
             }
         }
 
+        SettingsGroupHeading(strings.schoolSetupGroupTitle)
+
+        SettingsChoiceSection(
+            title = strings.optionSectionTitle,
+            description = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption))
+        ) {
+            Button(
+                onClick = { isOptionChooserExpanded = !isOptionChooserExpanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("toggle-option-choices"),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSelectedOptionContainer(),
+                    contentColor = appAccentBlue()
+                )
+            ) {
+                Text(
+                    if (isOptionChooserExpanded) {
+                        strings.hideOptionChoicesLabel
+                    } else {
+                        strings.changeOptionLabel
+                    }
+                )
+            }
+
+            if (isOptionChooserExpanded) {
+                InitialOptionChoice.entries.forEach { choice ->
+                    OnboardingOptionCard(
+                        choice = choice,
+                        isSelected = settings.selectedOption == choice,
+                        onClick = {
+                            if (settings.selectedOption != choice) {
+                                pendingOptionChange = choice
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-option-${choice.name}")
+                    )
+                }
+            }
+        }
+
+        SettingsGroupHeading(strings.dataManagementGroupTitle)
+
+        if (isFileOperationInProgress) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings-file-operation-progress"),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 3.dp
+                )
+                Text(
+                    text = strings.fileOperationInProgress,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         SettingsChoiceSection(
             title = strings.backupSectionTitle,
             description = strings.backupSectionDescription
@@ -128,7 +202,7 @@ internal fun SettingsScreen(
             ) {
                 Button(
                     onClick = onExportBackup,
-                    enabled = !settings.isBackupInProgress,
+                    enabled = !isFileOperationInProgress,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -140,7 +214,7 @@ internal fun SettingsScreen(
                 }
                 Button(
                     onClick = onImportBackup,
-                    enabled = !settings.isBackupInProgress,
+                    enabled = !isFileOperationInProgress,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
@@ -174,12 +248,39 @@ internal fun SettingsScreen(
         }
 
         SettingsChoiceSection(
+            title = strings.gradeReportSectionTitle,
+            description = strings.gradeReportSectionDescription
+        ) {
+            Button(
+                onClick = { isGradeReportConfirmationVisible = true },
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("export-grade-report-button"),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSelectedOptionContainer(),
+                    contentColor = appAccentBlue()
+                )
+            ) {
+                Text(strings.exportGradeReportLabel, textAlign = TextAlign.Center)
+            }
+
+            settings.gradeReportMessage?.let { message ->
+                SettingsStatusMessage(
+                    message = message,
+                    tone = settings.gradeReportMessageTone
+                )
+            }
+        }
+
+        SettingsChoiceSection(
             title = strings.plusPointsSectionTitle,
             description = strings.plusPointsSectionDescription
         ) {
             Button(
                 onClick = onImportPlusPoints,
-                enabled = !settings.isBackupInProgress,
+                enabled = !isFileOperationInProgress,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -191,46 +292,13 @@ internal fun SettingsScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = strings.optionSectionTitle,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption)),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        InitialOptionChoice.entries.forEach { choice ->
-            OnboardingOptionCard(
-                choice = choice,
-                isSelected = settings.selectedOption == choice,
-                onClick = {
-                    if (settings.selectedOption != choice) {
-                        pendingOptionChange = choice
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings-option-${choice.name}")
-            )
-        }
-
         SettingsChoiceSection(
             title = strings.resetSectionTitle,
             description = strings.resetSectionDescription
         ) {
             Button(
                 onClick = { isResetConfirmationVisible = true },
-                enabled = !settings.isBackupInProgress,
+                enabled = !isFileOperationInProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("reset-app-button"),
@@ -253,6 +321,7 @@ internal fun SettingsScreen(
             onDismiss = { pendingOptionChange = null },
             onConfirm = {
                 pendingOptionChange = null
+                isOptionChooserExpanded = false
                 onSelectOption(choice)
             }
         )
@@ -267,6 +336,24 @@ internal fun SettingsScreen(
             onConfirm = {
                 isResetConfirmationVisible = false
                 onResetApp()
+            }
+        )
+    }
+
+    if (isGradeReportConfirmationVisible) {
+        ConfirmationDialog(
+            title = strings.gradeReportExportTitle,
+            message = strings.gradeReportExportMessage(
+                strings.gradeReportPeriodLabel(
+                    settings.selectedYear,
+                    settings.selectedSemester
+                )
+            ),
+            confirmLabel = strings.gradeReportExportConfirm,
+            onDismiss = { isGradeReportConfirmationVisible = false },
+            onConfirm = {
+                isGradeReportConfirmationVisible = false
+                onExportGradeReport()
             }
         )
     }
@@ -293,7 +380,14 @@ internal fun SettingsScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(strings.plusPointsImportMessage(displayName))
+                    Text(
+                        strings.plusPointsImportMessage(
+                            fileName = displayName,
+                            year = settings.selectedYear,
+                            semester = settings.pendingPlusPointsTargetSemester
+                                ?: settings.selectedSemester
+                        )
+                    )
                     Text(
                         text = strings.plusPointsTargetSemesterTitle,
                         style = MaterialTheme.typography.labelLarge,
@@ -318,6 +412,44 @@ internal fun SettingsScreen(
             },
             shape = RoundedCornerShape(24.dp),
             containerColor = appCardSurface()
+        )
+    }
+}
+
+@Composable
+private fun SettingsGroupHeading(title: String) {
+    Text(
+        text = title,
+        modifier = Modifier.padding(top = 12.dp),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = appAccentBlue()
+    )
+}
+
+@Composable
+private fun SettingsStatusMessage(
+    message: String,
+    tone: DashboardStatusTone
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = when (tone) {
+            DashboardStatusTone.POSITIVE -> appPositiveBackground()
+            DashboardStatusTone.NEGATIVE -> appWarningBackground()
+            DashboardStatusTone.NEUTRAL -> appNeutralBackground()
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = when (tone) {
+                DashboardStatusTone.POSITIVE -> appPositiveColor()
+                DashboardStatusTone.NEGATIVE -> appWarningColor()
+                DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+            }
         )
     }
 }

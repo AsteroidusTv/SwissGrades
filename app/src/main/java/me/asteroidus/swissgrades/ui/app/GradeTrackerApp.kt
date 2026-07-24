@@ -172,12 +172,16 @@ fun GradeTrackerApp(
     val plusPointsImportCoordinator = remember(context) {
         LocalPlusPointsImportCoordinator(context.applicationContext)
     }
+    val gradeReportExporter = remember(context) {
+        LocalGradeReportPdfExporter(context.applicationContext)
+    }
     val viewModel: GradeTrackerViewModel = viewModel(
         factory = GradeTrackerViewModel.factory(
             resolvedRepository,
             attachmentStorage,
             backupCoordinator,
-            plusPointsImportCoordinator
+            plusPointsImportCoordinator,
+            gradeReportExporter = gradeReportExporter
         )
     )
     val uiState by viewModel.uiState.collectAsState()
@@ -195,6 +199,11 @@ fun GradeTrackerApp(
         contract = ActivityResultContracts.OpenDocument()
     ) { sourceUri ->
         sourceUri?.let { viewModel.preparePlusPointsImport(it.toString()) }
+    }
+    val gradeReportExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { destinationUri ->
+        destinationUri?.let { viewModel.exportGradeReport(it.toString()) }
     }
     val useDarkTheme = when (uiState.themeMode) {
         AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
@@ -287,6 +296,7 @@ fun GradeTrackerApp(
                                     onConfirmDeleteNote = viewModel::confirmDeleteNote,
                                     onDraftValueChanged = viewModel::updateDraftValue,
                                     onDraftTypeChanged = viewModel::updateDraftType,
+                                    onDraftSemesterChanged = viewModel::updateDraftSemester,
                                     onDraftDescriptionChanged = viewModel::updateDraftDescription,
                                     onImportDraftAttachments = viewModel::importDraftAttachments,
                                     onPrepareCameraCapture = viewModel::prepareCameraCapture,
@@ -321,6 +331,11 @@ fun GradeTrackerApp(
                                     },
                                     onImportPlusPoints = {
                                         plusPointsImportLauncher.launch(arrayOf("*/*", "text/xml", "application/xml"))
+                                    },
+                                    onExportGradeReport = {
+                                        gradeReportExportLauncher.launch(
+                                            screen.settings.gradeReportFileNameSuggestion
+                                        )
                                     },
                                     onDismissPendingImport = viewModel::dismissPendingBackupImport,
                                     onConfirmPendingImport = viewModel::confirmBackupImport,
@@ -696,10 +711,12 @@ private fun MainScreen(
                 onClick = onOpenPeriodPicker
             )
         }
-        item {
-            SummaryCard(state.summary)
-        }
-        state.promotionSetup?.let { promotionSetup ->
+        if (state.promotionSetup == null) {
+            item {
+                SummaryCard(state.summary)
+            }
+        } else {
+            val promotionSetup = state.promotionSetup
             item {
                 PromotionSetupCard(
                     setup = promotionSetup,
@@ -824,6 +841,14 @@ private fun PeriodSummaryButton(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+                if (selectedSemester == SchoolSemester.SEMESTER_2) {
+                    Text(
+                        text = strings.semester2CumulativeHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("period-summary-cumulative-hint")
+                    )
+                }
             }
             Surface(
                 shape = CircleShape,
@@ -863,7 +888,7 @@ internal fun SemesterSwitcher(
                     .semantics {
                         selected = isSelected
                         role = Role.RadioButton
-                        contentDescription = strings.semesterLabel(semester)
+                        contentDescription = strings.semesterAccessibilityLabel(semester)
                     }
                     .testTag("semester-${semester.name}"),
                 shape = RoundedCornerShape(20.dp),
@@ -887,7 +912,7 @@ internal fun SemesterSwitcher(
                         color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -910,94 +935,110 @@ private fun PeriodPickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = AppScreenBottomPadding
-            ),
-        verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-period-picker")
-            )
-            Text(
-                text = strings.periodTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 16.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            Text(
-                text = strings.choosePeriodTitle,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Surface(
-                shape = RoundedCornerShape(100.dp),
-                color = appSoftAccentContainer()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                HeaderBackButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("back-from-period-picker")
+                )
                 Text(
-                    text = strings.periodLabel(selectedYear, selectedSemester),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = appAccentBlue(),
-                    fontWeight = FontWeight.SemiBold
+                    text = strings.periodTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
-        }
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            color = appCardSurface(),
-            border = appCardBorder()
-        ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp)
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = strings.choosePeriodTitle,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Surface(
+                    shape = RoundedCornerShape(100.dp),
+                    color = appSoftAccentContainer()
+                ) {
                     Text(
-                        text = strings.schoolYearTitle,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = strings.periodLabel(selectedYear, selectedSemester),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = appAccentBlue(),
                         fontWeight = FontWeight.SemiBold
-                    )
-                    PeriodYearSelector(
-                        selectedYear = selectedYear,
-                        onSelectYear = onSelectYear
                     )
                 }
+            }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(appCardBorderColor())
-                )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = appCardSurface(),
+                border = appCardBorder()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = strings.schoolYearTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        PeriodYearSelector(
+                            selectedYear = selectedYear,
+                            onSelectYear = onSelectYear
+                        )
+                    }
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = strings.semesterTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(appCardBorderColor())
                     )
-                    PeriodSemesterSelector(
-                        selectedSemester = selectedSemester,
-                        onSelectSemester = onSelectSemester
-                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = strings.semesterTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        PeriodSemesterSelector(
+                            selectedSemester = selectedSemester,
+                            onSelectSemester = onSelectSemester
+                        )
+                        if (selectedSemester == SchoolSemester.SEMESTER_2) {
+                            Text(
+                                text = strings.semester2CumulativeHint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .testTag("period-cumulative-hint")
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1006,7 +1047,11 @@ private fun PeriodPickerScreen(
             onClick = onConfirm,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 12.dp
+                )
                 .testTag("confirm-period-selection"),
             shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
@@ -1090,7 +1135,7 @@ private fun PeriodSemesterSelector(
                         .semantics {
                             this.selected = selected
                             role = Role.RadioButton
-                            contentDescription = strings.semesterLabel(semester)
+                            contentDescription = strings.semesterAccessibilityLabel(semester)
                         }
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (selected) appAccentBlue() else Color.Transparent)
@@ -1104,7 +1149,8 @@ private fun PeriodSemesterSelector(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
                 }
             }
@@ -1335,6 +1381,21 @@ private fun SummaryCard(summary: DashboardSummaryUiState) {
             .testTag("dashboard-summary"),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = strings.overallAverageTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.testTag("overall-average-title")
+            )
+            Text(
+                text = strings.contributingSubjects(summary.contributingSubjectCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("overall-average-contributors")
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
