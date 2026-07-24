@@ -296,6 +296,48 @@ class GradeTrackerAppInstrumentedTest {
             .assertTextEquals("+1.0")
     }
 
+    @Test
+    fun pdfReportExportExplainsCumulativeScopeBeforeOpeningFilePicker() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        schoolYear = SchoolYear.YEAR_3,
+                        isInBasket = true,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    )
+                ),
+                selectedYear = SchoolYear.YEAR_3,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                language = AppLanguage.FRENCH
+            )
+        )
+
+        launchApp()
+        composeRule.onNodeWithTag("open-settings", useUnmergedTree = true)
+            .performClick()
+        composeRule.onNodeWithTag("export-grade-report-button", useUnmergedTree = true)
+            .performScrollTo()
+            .performClick()
+
+        assertTextDisplayed("Créer un relevé personnel ?")
+        composeRule.onNodeWithText(
+            text = "Situation cumulative S1 + S2",
+            substring = true,
+            useUnmergedTree = true
+        ).fetchSemanticsNode()
+        composeRule.onNodeWithText(
+            text = "n’est pas un bulletin scolaire officiel",
+            substring = true,
+            useUnmergedTree = true
+        ).fetchSemanticsNode()
+        assertTextDisplayed("Choisir l’emplacement")
+    }
+
     private fun scrollBranchDetailUntilTag(tag: String) {
         repeat(12) {
             val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)

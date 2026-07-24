@@ -18,6 +18,12 @@ class AppLocalizationTest {
             strings.languageSectionTitle,
             strings.themeSectionTitle,
             strings.backupSectionTitle,
+            strings.gradeReportSectionTitle,
+            strings.exportGradeReportLabel,
+            strings.gradeReportExportTitle,
+            strings.gradeReportExportConfirm,
+            strings.gradeReportExportSuccess,
+            strings.gradeReportExportFailure,
             strings.resetSectionTitle,
             strings.periodTitle,
             strings.choosePeriodTitle,
@@ -40,6 +46,11 @@ class AppLocalizationTest {
         assertEquals("Paramètres", strings.optionSettingsTitle)
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
         assertEquals("Impact actuel", strings.gradeImpactTitle)
+        assertEquals("Relevé de résultats PDF", strings.gradeReportSectionTitle)
+        assertEquals(
+            "Troisième année · Situation cumulative S1 + S2",
+            strings.gradeReportPeriodLabel(SchoolYear.YEAR_3, SchoolSemester.SEMESTER_2)
+        )
 
         val forbiddenEnglishTerms = listOf(
             "Choose",

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: July 22, 2026
+Last updated: July 24, 2026
 
 ## Overview
 
@@ -56,6 +56,8 @@ Your data is intended to remain on your device unless you explicitly share scree
 
 SwissGrades provides app-managed backup/export features that you trigger manually. Those backup files can contain your grades, settings, and optional attachments, so you should store and share them carefully.
 
+SwissGrades can also create a personal PDF grade report when you explicitly request one and choose its destination. A PDF report contains grade details, weights, calculated averages, and promotion information for the selected period. It does not contain exam photo attachments, saved targets, or simulator results. The PDF is a personal summary, not an official school report.
+
 SwissGrades excludes its local grade data and attachments from Android cloud backup. On Android versions that support device-to-device transfer rules, SwissGrades allows local device transfer of app data so your grades can move during a device migration. The exact transfer behavior may still depend on your Android version, device manufacturer, and system settings.
 
 ## Third-party services
@@ -73,7 +75,7 @@ Your data remains stored locally until you:
 - clear the app’s data
 - uninstall the app
 
-Manual SwissGrades backup files remain wherever you save them until you delete them. Some platform-level transfer behavior may depend on your Android system settings.
+Manual SwissGrades backup files and PDF reports remain wherever you save them until you delete them. Some platform-level transfer behavior may depend on your Android system settings.
 
 ## Children and school use
 

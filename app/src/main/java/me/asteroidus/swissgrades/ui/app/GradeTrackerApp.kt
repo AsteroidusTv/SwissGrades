@@ -172,12 +172,16 @@ fun GradeTrackerApp(
     val plusPointsImportCoordinator = remember(context) {
         LocalPlusPointsImportCoordinator(context.applicationContext)
     }
+    val gradeReportExporter = remember(context) {
+        LocalGradeReportPdfExporter(context.applicationContext)
+    }
     val viewModel: GradeTrackerViewModel = viewModel(
         factory = GradeTrackerViewModel.factory(
             resolvedRepository,
             attachmentStorage,
             backupCoordinator,
-            plusPointsImportCoordinator
+            plusPointsImportCoordinator,
+            gradeReportExporter = gradeReportExporter
         )
     )
     val uiState by viewModel.uiState.collectAsState()
@@ -195,6 +199,11 @@ fun GradeTrackerApp(
         contract = ActivityResultContracts.OpenDocument()
     ) { sourceUri ->
         sourceUri?.let { viewModel.preparePlusPointsImport(it.toString()) }
+    }
+    val gradeReportExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { destinationUri ->
+        destinationUri?.let { viewModel.exportGradeReport(it.toString()) }
     }
     val useDarkTheme = when (uiState.themeMode) {
         AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
@@ -321,6 +330,11 @@ fun GradeTrackerApp(
                                     },
                                     onImportPlusPoints = {
                                         plusPointsImportLauncher.launch(arrayOf("*/*", "text/xml", "application/xml"))
+                                    },
+                                    onExportGradeReport = {
+                                        gradeReportExportLauncher.launch(
+                                            screen.settings.gradeReportFileNameSuggestion
+                                        )
                                     },
                                     onDismissPendingImport = viewModel::dismissPendingBackupImport,
                                     onConfirmPendingImport = viewModel::confirmBackupImport,

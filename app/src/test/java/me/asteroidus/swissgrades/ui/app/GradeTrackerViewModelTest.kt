@@ -963,6 +963,68 @@ class GradeTrackerViewModelTest {
     }
 
     @Test
+    fun exportingGradeReport_usesCurrentSnapshotAndShowsSuccess() {
+        val repository = InMemoryGradeTrackerRepository
+        val exporter = FakeGradeReportExporter()
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.SPANISH)),
+                selectedYear = SchoolYear.YEAR_2,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                language = AppLanguage.ENGLISH
+            )
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            gradeReportExporter = exporter
+        )
+
+        viewModel.openSettings()
+        viewModel.exportGradeReport("content://grade-report")
+        waitUntil {
+            val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+            settings.gradeReportMessage == AppStrings.English.gradeReportExportSuccess
+        }
+
+        assertEquals("content://grade-report", exporter.destinationUri)
+        assertEquals(AppLanguage.ENGLISH, exporter.language)
+        assertEquals(SchoolYear.YEAR_2, exporter.report?.schoolYear)
+        assertEquals(SchoolSemester.SEMESTER_2, exporter.report?.semester)
+        val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+        assertFalse(settings.isGradeReportExportInProgress)
+        assertEquals("swissgrades-report.pdf", settings.gradeReportFileNameSuggestion)
+    }
+
+    @Test
+    fun failedGradeReportExportShowsLocalizedFailure() {
+        val repository = InMemoryGradeTrackerRepository
+        val exporter = FakeGradeReportExporter(shouldFail = true)
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(testStoredOptionSubject(InitialOptionChoice.SPANISH)),
+                language = AppLanguage.FRENCH
+            )
+        )
+        val viewModel = GradeTrackerViewModel(
+            repository = repository,
+            gradeReportExporter = exporter
+        )
+
+        viewModel.openSettings()
+        viewModel.exportGradeReport("content://grade-report")
+        waitUntil {
+            val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+            settings.gradeReportMessage == AppStrings.French.gradeReportExportFailure
+        }
+
+        val settings = (viewModel.uiState.value.screen as ScreenUiState.Settings).settings
+        assertEquals(DashboardStatusTone.NEGATIVE, settings.gradeReportMessageTone)
+        assertFalse(settings.isGradeReportExportInProgress)
+    }
+
+    @Test
     fun changingLanguage_updatesVisibleCopyAcrossScreens() {
         val repository = InMemoryGradeTrackerRepository
         repository.save(GradeTrackerAppState())
@@ -1154,6 +1216,31 @@ class GradeTrackerViewModelTest {
         }
 
         override fun discardPreparedImport(preparedImport: PreparedPlusPointsImport) = Unit
+    }
+
+    private class FakeGradeReportExporter(
+        private val shouldFail: Boolean = false
+    ) : GradeReportExporter {
+        var report: GradeReport? = null
+        var language: AppLanguage? = null
+        var destinationUri: String? = null
+
+        override fun suggestedFileName(
+            schoolYear: SchoolYear,
+            semester: SchoolSemester,
+            now: Date
+        ): String = "swissgrades-report.pdf"
+
+        override fun export(
+            report: GradeReport,
+            language: AppLanguage,
+            destinationUriString: String
+        ) {
+            if (shouldFail) error("PDF write failed")
+            this.report = report
+            this.language = language
+            destinationUri = destinationUriString
+        }
     }
 
     private fun waitUntil(timeoutMillis: Long = 2_000, condition: () -> Boolean) {
