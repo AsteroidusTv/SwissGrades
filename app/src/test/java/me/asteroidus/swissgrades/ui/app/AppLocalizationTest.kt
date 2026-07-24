@@ -47,6 +47,7 @@ class AppLocalizationTest {
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
         assertEquals("Moyenne générale", strings.overallAverageTitle)
         assertEquals("4 branches notées", strings.contributingSubjects(4))
+        assertEquals("Semestre 2 · cumul S1 + S2", strings.semesterLabel(SchoolSemester.SEMESTER_2))
         assertEquals("Impact actuel", strings.gradeImpactTitle)
         assertEquals("Relevé de résultats PDF", strings.gradeReportSectionTitle)
         assertEquals(

@@ -67,6 +67,8 @@ data class AppStrings(
     val semesterTitle: String,
     val semester1Label: String,
     val semester2Label: String,
+    val gradeSemesterTitle: String,
+    val savingToPeriodTemplate: String,
     val plusPointsTargetSemesterTitle: String,
     val darkModeSystem: String,
     val darkModeLight: String,
@@ -341,6 +343,14 @@ data class AppStrings(
         return "${schoolYearLabel(year)} · ${semesterLabel(semester)}"
     }
 
+    fun semesterShortLabel(semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_1) "S1" else "S2"
+    }
+
+    fun savingToPeriod(year: SchoolYear, semester: SchoolSemester): String {
+        return savingToPeriodTemplate.replace("{period}", periodLabel(year, semester))
+    }
+
     companion object {
         val English = AppStrings(
             appName = "SwissGrades",
@@ -402,7 +412,9 @@ data class AppStrings(
             schoolYear3Label = "Third year",
             semesterTitle = "Semester",
             semester1Label = "Semester 1",
-            semester2Label = "Semester 2",
+            semester2Label = "Semester 2 · cumulative S1 + S2",
+            gradeSemesterTitle = "Grade semester",
+            savingToPeriodTemplate = "Saving to: {period}",
             plusPointsTargetSemesterTitle = "Import into semester",
             darkModeSystem = "Auto",
             darkModeLight = "Light",
@@ -599,7 +611,9 @@ data class AppStrings(
             schoolYear3Label = "Troisième année",
             semesterTitle = "Semestre",
             semester1Label = "Semestre 1",
-            semester2Label = "Semestre 2",
+            semester2Label = "Semestre 2 · cumul S1 + S2",
+            gradeSemesterTitle = "Semestre de la note",
+            savingToPeriodTemplate = "Enregistrée dans : {period}",
             plusPointsTargetSemesterTitle = "Importer dans le semestre",
             darkModeSystem = "Auto",
             darkModeLight = "Clair",

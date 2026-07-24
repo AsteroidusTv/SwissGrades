@@ -58,30 +58,13 @@ class GradeTrackerViewModel(
     }
 
     fun completeOnboarding(choice: InitialOptionChoice) {
-        var nextOptionSubjectId = 1
-        val subjects = SchoolYear.entries.map { year ->
-            createStoredOptionSubject(
-                choice = choice,
-                schoolYear = year,
-                id = "subject-${nextOptionSubjectId++}"
-            )
-        }
-        val nextSubjectSequence = subjects
-            .mapNotNull { subject -> subject.id.removePrefix("subject-").toIntOrNull() }
-            .maxOrNull()
-            ?.plus(1)
-            ?: 1
-        state = state.copy(
-            selectedOption = choice,
-            subjects = subjects,
-            nextSubjectSequence = nextSubjectSequence
-        )
         onboardingSelection = choice
         currentScreen = InternalScreen.PeriodPicker(
             selectedYear = state.selectedYear,
-            selectedSemester = state.selectedSemester
+            selectedSemester = state.selectedSemester,
+            isInitialSetup = true
         )
-        persistAndPublish()
+        publish()
     }
 
     fun openSettings() {
@@ -94,14 +77,15 @@ class GradeTrackerViewModel(
     fun openPeriodPicker() {
         currentScreen = InternalScreen.PeriodPicker(
             selectedYear = state.selectedYear,
-            selectedSemester = state.selectedSemester
+            selectedSemester = state.selectedSemester,
+            isInitialSetup = false
         )
         publish()
     }
 
     fun closePeriodPicker() {
-        if (currentScreen !is InternalScreen.PeriodPicker) return
-        currentScreen = InternalScreen.Main
+        val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
+        currentScreen = if (screen.isInitialSetup) InternalScreen.Onboarding else InternalScreen.Main
         publish()
     }
 
@@ -119,10 +103,29 @@ class GradeTrackerViewModel(
 
     fun confirmPeriodSelection() {
         val screen = currentScreen as? InternalScreen.PeriodPicker ?: return
-        state = state.copy(
-            selectedYear = screen.selectedYear,
-            selectedSemester = screen.selectedSemester
-        )
+        state = if (screen.isInitialSetup) {
+            val choice = onboardingSelection ?: return
+            var nextOptionSubjectId = 1
+            val subjects = SchoolYear.entries.map { year ->
+                createStoredOptionSubject(
+                    choice = choice,
+                    schoolYear = year,
+                    id = "subject-${nextOptionSubjectId++}"
+                )
+            }
+            state.copy(
+                selectedOption = choice,
+                subjects = subjects,
+                nextSubjectSequence = nextOptionSubjectId,
+                selectedYear = screen.selectedYear,
+                selectedSemester = screen.selectedSemester
+            )
+        } else {
+            state.copy(
+                selectedYear = screen.selectedYear,
+                selectedSemester = screen.selectedSemester
+            )
+        }
         currentScreen = InternalScreen.Main
         persistAndPublish()
     }
@@ -687,6 +690,12 @@ class GradeTrackerViewModel(
         publish()
     }
 
+    fun updateDraftSemester(semester: SchoolSemester) {
+        val screen = currentScreen as? InternalScreen.BranchDetail ?: return
+        screen.draft = screen.draft.copy(selectedSemester = semester)
+        publish()
+    }
+
     fun updateDraftDescription(input: String) {
         val screen = currentScreen as? InternalScreen.BranchDetail ?: return
         screen.draft = screen.draft.copy(descriptionInput = input)
@@ -1057,6 +1066,7 @@ class GradeTrackerViewModel(
                 subjectId = subject.id,
                 title = subject.localizedDisplayName(state.language),
                 subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
+                schoolYear = subject.schoolYear,
                 isCounted = subject.isCounted,
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
@@ -1100,6 +1110,7 @@ class GradeTrackerViewModel(
             subjectId = subject.id,
             title = subject.localizedDisplayName(state.language),
             subtitle = subject.optionChoice?.let(state.language::optionChoiceLabel),
+            schoolYear = subject.schoolYear,
             isCounted = subject.isCounted,
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
@@ -1292,6 +1303,7 @@ class GradeTrackerViewModel(
             id = note.id,
             numericValue = note.value,
             weightCoefficient = note.weight.coefficient,
+            semester = note.semester,
             displayValue = formatOneOrTwoDecimals(note.value),
             noteTypeLabel = strings.noteTypeLabel(note.weight),
             description = note.description,
@@ -1424,7 +1436,8 @@ private sealed interface InternalScreen {
     data object Main : InternalScreen
     data class PeriodPicker(
         var selectedYear: SchoolYear,
-        var selectedSemester: SchoolSemester
+        var selectedSemester: SchoolSemester,
+        val isInitialSetup: Boolean
     ) : InternalScreen
     data class AddSubject(
         val addSubjectForm: AddSubjectFormUiState = AddSubjectFormUiState(),

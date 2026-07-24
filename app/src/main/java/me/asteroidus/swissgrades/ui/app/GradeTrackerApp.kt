@@ -296,6 +296,7 @@ fun GradeTrackerApp(
                                     onConfirmDeleteNote = viewModel::confirmDeleteNote,
                                     onDraftValueChanged = viewModel::updateDraftValue,
                                     onDraftTypeChanged = viewModel::updateDraftType,
+                                    onDraftSemesterChanged = viewModel::updateDraftSemester,
                                     onDraftDescriptionChanged = viewModel::updateDraftDescription,
                                     onImportDraftAttachments = viewModel::importDraftAttachments,
                                     onPrepareCameraCapture = viewModel::prepareCameraCapture,

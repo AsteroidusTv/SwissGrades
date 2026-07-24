@@ -108,6 +108,7 @@ fun BranchDetailScreen(
     onConfirmDeleteNote: () -> Unit,
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
+    onDraftSemesterChanged: (SchoolSemester) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
     onImportDraftAttachments: (List<String>) -> Unit,
     onPrepareCameraCapture: () -> PendingCameraCaptureRequest?,
@@ -313,6 +314,7 @@ fun BranchDetailScreen(
                     accentBlue = accentBlue,
                     onDraftValueChanged = onDraftValueChanged,
                     onDraftTypeChanged = onDraftTypeChanged,
+                    onDraftSemesterChanged = onDraftSemesterChanged,
                     onDraftDescriptionChanged = onDraftDescriptionChanged,
                     onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
                     onRemoveDraftAttachment = onRemoveDraftAttachment,
@@ -977,6 +979,7 @@ private fun AddGradeSheetContent(
     accentBlue: Color,
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
+    onDraftSemesterChanged: (SchoolSemester) -> Unit,
     onDraftDescriptionChanged: (String) -> Unit,
     onShowAttachmentSourceDialog: () -> Unit,
     onRemoveDraftAttachment: (String) -> Unit,
@@ -1005,6 +1008,60 @@ private fun AddGradeSheetContent(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold
         )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = strings.savingToPeriod(detail.schoolYear, detail.draft.selectedSemester),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("grade-destination-period")
+            )
+            Text(
+                text = strings.gradeSemesterTitle,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
+            ) {
+                SchoolSemester.entries.forEach { semester ->
+                    val isSelected = detail.draft.selectedSemester == semester
+                    OutlinedCard(
+                        onClick = { onDraftSemesterChanged(semester) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics {
+                                selected = isSelected
+                                role = Role.RadioButton
+                                contentDescription = strings.semesterLabel(semester)
+                            }
+                            .testTag("grade-semester-${semester.name}"),
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(
+                            if (isSelected) 2.dp else 1.dp,
+                            if (isSelected) accentBlue else appCardBorderColor()
+                        ),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = if (isSelected) appSoftAccentContainer() else appCardSurface()
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = strings.semesterShortLabel(semester),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
         OutlinedTextField(
             value = detail.draft.valueInput,
             onValueChange = onDraftValueChanged,
@@ -1533,6 +1590,21 @@ private fun NoteHistoryCard(
                             color = accentBlue,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
+                        )
+                    }
+
+                    Card(
+                        shape = RoundedCornerShape(999.dp),
+                        colors = CardDefaults.cardColors(containerColor = appSoftAccentContainer())
+                    ) {
+                        Text(
+                            text = strings.semesterShortLabel(note.semester),
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .testTag("note-semester-${note.id}"),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = accentBlue,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 

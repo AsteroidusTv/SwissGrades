@@ -25,6 +25,7 @@ class GradeTrackerViewModelTest {
 
         viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
         assertTrue(viewModel.uiState.value.screen is ScreenUiState.PeriodPicker)
+        assertNull(repository.load()?.selectedOption)
         viewModel.confirmPeriodSelection()
 
         val screen = viewModel.uiState.value.screen as ScreenUiState.Main
@@ -32,6 +33,21 @@ class GradeTrackerViewModelTest {
         assertEquals(null, screen.optionSubject.subtitle)
         assertTrue(screen.optionSubject.isInBasket)
         assertTrue(screen.userSubjects.isEmpty())
+    }
+
+    @Test
+    fun backingOutOfInitialPeriodSelection_keepsOnboardingUncommitted() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(GradeTrackerAppState())
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.completeOnboarding(InitialOptionChoice.SPANISH)
+        viewModel.updatePendingYear(SchoolYear.YEAR_3)
+        viewModel.updatePendingSemester(SchoolSemester.SEMESTER_2)
+        viewModel.closePeriodPicker()
+
+        assertTrue(viewModel.uiState.value.screen is ScreenUiState.Onboarding)
+        assertEquals(GradeTrackerAppState(), repository.load())
     }
 
     @Test
@@ -530,6 +546,47 @@ class GradeTrackerViewModelTest {
         viewModel.confirmPeriodSelection()
         val firstSemesterMain = viewModel.uiState.value.screen as ScreenUiState.Main
         assertEquals("5.0", firstSemesterMain.userSubjects.single { it.title == "History" }.averageLabel)
+    }
+
+    @Test
+    fun editingGrade_canMoveItToAnotherSemester() {
+        val repository = InMemoryGradeTrackerRepository
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                subjects = listOf(
+                    testStoredOptionSubject(InitialOptionChoice.SPANISH),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "History",
+                        isInBasket = false,
+                        notes = listOf(
+                            StoredNote(
+                                id = "note-1",
+                                value = 5.0,
+                                weight = AssessmentWeight.FULL,
+                                description = "Essay",
+                                createdAtEpochMillis = 1L,
+                                semester = SchoolSemester.SEMESTER_1
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val viewModel = GradeTrackerViewModel(repository)
+
+        viewModel.openSubject("subject-2")
+        viewModel.requestEditNote("note-1")
+        viewModel.updateDraftSemester(SchoolSemester.SEMESTER_2)
+        viewModel.addNote()
+
+        val note = repository.load()?.subjects
+            ?.single { it.id == "subject-2" }
+            ?.notes
+            ?.single()
+        assertEquals(SchoolSemester.SEMESTER_2, note?.semester)
     }
 
     @Test

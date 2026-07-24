@@ -300,6 +300,61 @@ class GradeTrackerAppInstrumentedTest {
     }
 
     @Test
+    fun gradeHistoryAndEditorExposeTheStoredSemester() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                selectedSemester = SchoolSemester.SEMESTER_2,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        notes = listOf(
+                            storedNote(id = "note-1", value = 4.0),
+                            storedNote(id = "note-2", value = 5.0).copy(
+                                semester = SchoolSemester.SEMESTER_2
+                            )
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 3
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("subject-card-subject-2")
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        scrollBranchDetailUntilTag("note-semester-note-2")
+
+        assertTagText("note-semester-note-1", "S1")
+        assertTagText("note-semester-note-2", "S2")
+        composeRule.onNodeWithTag("note-card-note-2", useUnmergedTree = true)
+            .performClick()
+        assertTagText(
+            "grade-destination-period",
+            "Enregistrée dans : Première année · Semestre 2 · cumul S1 + S2"
+        )
+        composeRule.onNodeWithTag(
+            "grade-semester-${SchoolSemester.SEMESTER_1.name}",
+            useUnmergedTree = true
+        ).performClick()
+        assertTagText(
+            "grade-destination-period",
+            "Enregistrée dans : Première année · Semestre 1"
+        )
+    }
+
+    @Test
     fun pdfReportExportExplainsCumulativeScopeBeforeOpeningFilePicker() {
         repository.save(
             GradeTrackerAppState(
