@@ -7,14 +7,11 @@ import me.asteroidus.swissgrades.domain.GradeCalculator
 import me.asteroidus.swissgrades.domain.GradeImpact
 import me.asteroidus.swissgrades.domain.GradeImpactCalculator
 import me.asteroidus.swissgrades.domain.OfficialAverageTarget
-import me.asteroidus.swissgrades.domain.PromotionEvaluator
 import me.asteroidus.swissgrades.domain.model.AssessmentWeight
 import me.asteroidus.swissgrades.domain.model.Branch
 import me.asteroidus.swissgrades.domain.model.Grade
 import me.asteroidus.swissgrades.domain.model.OptionType
-import me.asteroidus.swissgrades.domain.model.PromotionEvaluationInput
 import me.asteroidus.swissgrades.domain.model.PromotionEvaluationResult
-import me.asteroidus.swissgrades.domain.model.PromotionRoleAssignment
 import me.asteroidus.swissgrades.domain.model.SubSubject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +36,8 @@ class GradeTrackerViewModel(
     private val attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
     private val backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
     private val plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
-    private val resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
+    private val resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage),
+    private val gradeReportExporter: GradeReportExporter = NoOpGradeReportExporter
 ) : ViewModel() {
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
@@ -366,6 +364,7 @@ class GradeTrackerViewModel(
 
     fun exportBackup(destinationUriString: String) {
         val screen = currentScreen as? InternalScreen.Settings ?: return
+        if (screen.isBackupInProgress || screen.isGradeReportExportInProgress) return
         val stateSnapshot = state
         screen.isBackupInProgress = true
         screen.backupMessage = null
@@ -387,6 +386,40 @@ class GradeTrackerViewModel(
             }
             if (currentScreen === screen) {
                 screen.isBackupInProgress = false
+            }
+            publish()
+        }
+    }
+
+    fun exportGradeReport(destinationUriString: String) {
+        val screen = currentScreen as? InternalScreen.Settings ?: return
+        if (screen.isBackupInProgress || screen.isGradeReportExportInProgress) return
+        val stateSnapshot = state
+        screen.isGradeReportExportInProgress = true
+        screen.gradeReportMessage = null
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                val report = GradeReportBuilder.build(stateSnapshot)
+                gradeReportExporter.export(
+                    report = report,
+                    language = stateSnapshot.language,
+                    destinationUriString = destinationUriString
+                )
+            }.onSuccess {
+                if (currentScreen === screen) {
+                    screen.gradeReportMessage = strings.gradeReportExportSuccess
+                    screen.gradeReportMessageTone = DashboardStatusTone.POSITIVE
+                }
+            }.onFailure {
+                if (currentScreen === screen) {
+                    screen.gradeReportMessage = strings.gradeReportExportFailure
+                    screen.gradeReportMessageTone = DashboardStatusTone.NEGATIVE
+                }
+            }
+            if (currentScreen === screen) {
+                screen.isGradeReportExportInProgress = false
             }
             publish()
         }
@@ -843,7 +876,8 @@ class GradeTrackerViewModel(
             attachmentStorage: GradeAttachmentStorage = NoOpGradeAttachmentStorage,
             backupCoordinator: AppBackupCoordinator = NoOpAppBackupCoordinator,
             plusPointsImportCoordinator: PlusPointsImportCoordinator = NoOpPlusPointsImportCoordinator,
-            resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage)
+            resetAppUseCase: ResetAppUseCase = DefaultResetAppUseCase(attachmentStorage),
+            gradeReportExporter: GradeReportExporter = NoOpGradeReportExporter
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -853,7 +887,8 @@ class GradeTrackerViewModel(
                         attachmentStorage,
                         backupCoordinator,
                         plusPointsImportCoordinator,
-                        resetAppUseCase
+                        resetAppUseCase,
+                        gradeReportExporter
                     ) as T
                 }
             }
@@ -919,16 +954,24 @@ class GradeTrackerViewModel(
             is InternalScreen.Settings -> ScreenUiState.Settings(
                 settings = SettingsUiState(
                     selectedOption = requireNotNull(state.selectedOption),
+                    selectedYear = state.selectedYear,
                     selectedSemester = state.selectedSemester,
                     selectedLanguage = state.language,
                     selectedThemeMode = state.themeMode,
                     backupFileNameSuggestion = backupCoordinator.suggestedBackupFileName(),
+                    gradeReportFileNameSuggestion = gradeReportExporter.suggestedFileName(
+                        state.selectedYear,
+                        state.selectedSemester
+                    ),
                     pendingImportDisplayName = target.pendingPreparedImport?.displayName,
                     pendingPlusPointsImportDisplayName = target.pendingPreparedPlusPointsImport?.displayName,
                     pendingPlusPointsTargetSemester = target.pendingPlusPointsTargetSemester,
                     backupMessage = target.backupMessage,
                     backupMessageTone = target.backupMessageTone,
-                    isBackupInProgress = target.isBackupInProgress
+                    isBackupInProgress = target.isBackupInProgress,
+                    gradeReportMessage = target.gradeReportMessage,
+                    gradeReportMessageTone = target.gradeReportMessageTone,
+                    isGradeReportExportInProgress = target.isGradeReportExportInProgress
                 )
             )
         }
@@ -1076,38 +1119,7 @@ class GradeTrackerViewModel(
     }
 
     private fun buildPromotionEvaluationResult(): PromotionEvaluationResult? {
-        val currentYearSubjects = state.subjectsForSelectedYear()
-        val option = currentYearSubjects.firstOrNull { it.isOptionSubject } ?: return null
-        val basketSubjects = currentYearSubjects.filter { it.isCounted && it.isInBasket && !it.isOptionSubject }
-        if (basketSubjects.size != 3) return null
-
-        val firstBasketSubject = basketSubjects[0]
-        val secondBasketSubject = basketSubjects[1]
-        val thirdBasketSubject = basketSubjects[2]
-        val basketSubjectIds = setOf(
-            firstBasketSubject.id,
-            secondBasketSubject.id,
-            thirdBasketSubject.id,
-            option.id
-        )
-
-        val assignments = buildList {
-            add(PromotionRoleAssignment.German(firstBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.French(secondBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.Math(thirdBasketSubject.toSimpleBranch(state.selectedSemester)))
-            add(PromotionRoleAssignment.Option(option.toBranch(state.selectedSemester)))
-            currentYearSubjects
-                .filter { it.isCounted && !it.isOptionSubject && it.id !in basketSubjectIds }
-                .forEach { subject ->
-                    add(
-                        PromotionRoleAssignment.Additional(
-                            branch = subject.toSimpleBranch(state.selectedSemester),
-                            isExplicitlyEmpty = subject.notes.none { it.isIncludedIn(state.selectedSemester) }
-                        )
-                    )
-                }
-        }
-        return PromotionEvaluator.evaluate(PromotionEvaluationInput.create(assignments))
+        return PromotionEvaluationFactory.evaluate(state)
     }
 
     private fun promotionUnavailableHeadline(): String {
@@ -1430,7 +1442,10 @@ private sealed interface InternalScreen {
         var pendingPlusPointsTargetSemester: SchoolSemester? = null,
         var backupMessage: String? = null,
         var backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
-        var isBackupInProgress: Boolean = false
+        var isBackupInProgress: Boolean = false,
+        var gradeReportMessage: String? = null,
+        var gradeReportMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+        var isGradeReportExportInProgress: Boolean = false
     ) : InternalScreen
 }
 

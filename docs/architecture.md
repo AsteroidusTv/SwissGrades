@@ -9,6 +9,8 @@ SwissGrades is a single-activity, local-first Android application written in Kot
 - `GradeTrackerUiState` is the immutable presentation state observed by Compose.
 - Pure calculations live under `domain`; they must not depend on Android, persistence, colors, or localized strings.
 - Android storage, file pickers, attachments, backup archives, and PlusPoints files are infrastructure boundaries under `ui/app`.
+- `GradeReportBuilder` creates an immutable report snapshot, while `LocalGradeReportPdfExporter`
+  owns Android PDF rendering and destination-URI writes.
 
 Navigation uses typed internal screen state rather than the Android Navigation component. Back handling delegates to the ViewModel. Scroll positions are temporary UI state and are not persisted across process death.
 
@@ -22,6 +24,8 @@ The authoritative application state is `GradeTrackerAppState`.
 - Semester 2 calculations include grades from both semesters.
 - Optional attachments are staged under app-private storage and committed under `files/attachments/notes/{noteId}`.
 - Manual `.sgb` backups contain serialized state and referenced attachment files.
+- Manual PDF reports contain calculated results and grade details for the selected period, but
+  never contain attachments, targets, or simulator state.
 
 Editor and simulator inputs are temporary. They never become authoritative until explicitly saved. Multi-grade plans and grade-impact values are derived in memory and are not persisted.
 
@@ -44,6 +48,8 @@ All selected files and serialized content are untrusted.
 - Backup entries, manifest paths, note identifiers, and attachment identifiers are validated before filesystem use.
 - Restore targets are canonicalized under app-controlled directories.
 - Android cloud backup excludes grades and attachments. Manual exports are explicit user actions; Android device-transfer behavior is documented in the privacy policy.
+- PDF reports are written only to a destination selected by the user and are never retained in
+  app storage after export.
 - Secrets and signing credentials are supplied through local Gradle properties or environment variables and are never committed.
 
 ## Validation

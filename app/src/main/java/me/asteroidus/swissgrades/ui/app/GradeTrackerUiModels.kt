@@ -116,16 +116,21 @@ data class AddSubjectFormUiState(
 @Immutable
 data class SettingsUiState(
     val selectedOption: InitialOptionChoice,
+    val selectedYear: SchoolYear,
     val selectedSemester: SchoolSemester,
     val selectedLanguage: AppLanguage,
     val selectedThemeMode: AppThemeMode,
     val backupFileNameSuggestion: String,
+    val gradeReportFileNameSuggestion: String,
     val pendingImportDisplayName: String? = null,
     val pendingPlusPointsImportDisplayName: String? = null,
     val pendingPlusPointsTargetSemester: SchoolSemester? = null,
     val backupMessage: String? = null,
     val backupMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
-    val isBackupInProgress: Boolean = false
+    val isBackupInProgress: Boolean = false,
+    val gradeReportMessage: String? = null,
+    val gradeReportMessageTone: DashboardStatusTone = DashboardStatusTone.NEUTRAL,
+    val isGradeReportExportInProgress: Boolean = false
 )
 
 @Immutable

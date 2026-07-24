@@ -4,13 +4,6 @@ This roadmap lists hypotheses, not commitments. New work should be validated wit
 
 ## Active candidates
 
-### Human-readable export
-
-- Problem: `.sgb` backups are intended for the app, not for users who want to review or share a summary.
-- MVP: an explicit local CSV or PDF export containing subjects, grades, weights, official averages, points, and period.
-- Risk: grades are sensitive; sharing must remain an explicit user action with clear privacy copy.
-- Validation: measure tester demand and successful opening of generated exports before expanding formats.
-
 ### Accessibility pass
 
 - Problem: custom cards, attachments, motion, and dense layouts have not been fully verified with TalkBack, large fonts, or reduced motion.
@@ -44,3 +37,4 @@ Cross-device recovery has value, but accounts and cloud storage would introduce 
 - Saved branch average targets.
 - One-to-three-grade what-if planning with temporary, non-persisted inputs.
 - Current saved-grade impact explanations.
+- Personal PDF grade reports with explicit privacy and non-official-document warnings.

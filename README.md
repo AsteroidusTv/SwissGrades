@@ -36,6 +36,7 @@ Instead of waiting for a report card, you can enter grades as they come in, orga
 - optional photo/gallery attachments for grades
 - PlusPoints import support
 - local backup import/export support
+- localized personal PDF grade reports with cumulative semester context
 - edit and delete for subjects and grades
 
 ## Supported option types

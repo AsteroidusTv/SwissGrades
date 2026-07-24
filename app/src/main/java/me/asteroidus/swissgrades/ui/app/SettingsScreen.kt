@@ -50,6 +50,7 @@ internal fun SettingsScreen(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onImportPlusPoints: () -> Unit,
+    onExportGradeReport: () -> Unit,
     onDismissPendingImport: () -> Unit,
     onConfirmPendingImport: () -> Unit,
     onDismissPendingPlusPointsImport: () -> Unit,
@@ -63,6 +64,9 @@ internal fun SettingsScreen(
     val language = LocalAppLanguage.current
     var pendingOptionChange by remember { mutableStateOf<InitialOptionChoice?>(null) }
     var isResetConfirmationVisible by remember { mutableStateOf(false) }
+    var isGradeReportConfirmationVisible by remember { mutableStateOf(false) }
+    val isFileOperationInProgress =
+        settings.isBackupInProgress || settings.isGradeReportExportInProgress
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -128,7 +132,7 @@ internal fun SettingsScreen(
             ) {
                 Button(
                     onClick = onExportBackup,
-                    enabled = !settings.isBackupInProgress,
+                    enabled = !isFileOperationInProgress,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -140,7 +144,7 @@ internal fun SettingsScreen(
                 }
                 Button(
                     onClick = onImportBackup,
-                    enabled = !settings.isBackupInProgress,
+                    enabled = !isFileOperationInProgress,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
@@ -174,12 +178,39 @@ internal fun SettingsScreen(
         }
 
         SettingsChoiceSection(
+            title = strings.gradeReportSectionTitle,
+            description = strings.gradeReportSectionDescription
+        ) {
+            Button(
+                onClick = { isGradeReportConfirmationVisible = true },
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("export-grade-report-button"),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = appSelectedOptionContainer(),
+                    contentColor = appAccentBlue()
+                )
+            ) {
+                Text(strings.exportGradeReportLabel, textAlign = TextAlign.Center)
+            }
+
+            settings.gradeReportMessage?.let { message ->
+                SettingsStatusMessage(
+                    message = message,
+                    tone = settings.gradeReportMessageTone
+                )
+            }
+        }
+
+        SettingsChoiceSection(
             title = strings.plusPointsSectionTitle,
             description = strings.plusPointsSectionDescription
         ) {
             Button(
                 onClick = onImportPlusPoints,
-                enabled = !settings.isBackupInProgress,
+                enabled = !isFileOperationInProgress,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -230,7 +261,7 @@ internal fun SettingsScreen(
         ) {
             Button(
                 onClick = { isResetConfirmationVisible = true },
-                enabled = !settings.isBackupInProgress,
+                enabled = !isFileOperationInProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("reset-app-button"),
@@ -267,6 +298,24 @@ internal fun SettingsScreen(
             onConfirm = {
                 isResetConfirmationVisible = false
                 onResetApp()
+            }
+        )
+    }
+
+    if (isGradeReportConfirmationVisible) {
+        ConfirmationDialog(
+            title = strings.gradeReportExportTitle,
+            message = strings.gradeReportExportMessage(
+                strings.gradeReportPeriodLabel(
+                    settings.selectedYear,
+                    settings.selectedSemester
+                )
+            ),
+            confirmLabel = strings.gradeReportExportConfirm,
+            onDismiss = { isGradeReportConfirmationVisible = false },
+            onConfirm = {
+                isGradeReportConfirmationVisible = false
+                onExportGradeReport()
             }
         )
     }
@@ -318,6 +367,33 @@ internal fun SettingsScreen(
             },
             shape = RoundedCornerShape(24.dp),
             containerColor = appCardSurface()
+        )
+    }
+}
+
+@Composable
+private fun SettingsStatusMessage(
+    message: String,
+    tone: DashboardStatusTone
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = when (tone) {
+            DashboardStatusTone.POSITIVE -> appPositiveBackground()
+            DashboardStatusTone.NEGATIVE -> appWarningBackground()
+            DashboardStatusTone.NEUTRAL -> appNeutralBackground()
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = when (tone) {
+                DashboardStatusTone.POSITIVE -> appPositiveColor()
+                DashboardStatusTone.NEGATIVE -> appWarningColor()
+                DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
+            }
         )
     }
 }

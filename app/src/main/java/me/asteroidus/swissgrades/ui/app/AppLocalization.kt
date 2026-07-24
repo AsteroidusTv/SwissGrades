@@ -22,6 +22,15 @@ data class AppStrings(
     val themeSectionDescription: String,
     val backupSectionTitle: String,
     val backupSectionDescription: String,
+    val gradeReportSectionTitle: String,
+    val gradeReportSectionDescription: String,
+    val exportGradeReportLabel: String,
+    val gradeReportExportTitle: String,
+    val gradeReportExportMessageTemplate: String,
+    val gradeReportExportConfirm: String,
+    val gradeReportExportSuccess: String,
+    val gradeReportExportFailure: String,
+    val gradeReportCumulativePeriodTemplate: String,
     val plusPointsSectionTitle: String,
     val plusPointsSectionDescription: String,
     val exportBackupLabel: String,
@@ -211,6 +220,18 @@ data class AppStrings(
         return backupImportMessageTemplate.replace("{file}", fileName)
     }
 
+    fun gradeReportExportMessage(period: String): String {
+        return gradeReportExportMessageTemplate.replace("{period}", period)
+    }
+
+    fun gradeReportPeriodLabel(year: SchoolYear, semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_2) {
+            gradeReportCumulativePeriodTemplate.replace("{year}", schoolYearLabel(year))
+        } else {
+            periodLabel(year, semester)
+        }
+    }
+
     fun plusPointsImportMessage(fileName: String): String {
         return plusPointsImportMessageTemplate.replace("{file}", fileName)
     }
@@ -329,6 +350,17 @@ data class AppStrings(
             themeSectionDescription = "Choose whether the app follows the system, stays light, or stays dark.",
             backupSectionTitle = "Backup",
             backupSectionDescription = "Export your SwissGrades data or restore a previous SwissGrades backup.",
+            gradeReportSectionTitle = "PDF grade report",
+            gradeReportSectionDescription = "Create a readable personal summary of the currently selected period.",
+            exportGradeReportLabel = "Create PDF report",
+            gradeReportExportTitle = "Create a personal grade report?",
+            gradeReportExportMessageTemplate = "The PDF will contain your grades, weights, averages, and " +
+                "promotion summary for {period}. Photos, targets, and simulations are excluded. " +
+                "This document contains sensitive data and is not an official school report.",
+            gradeReportExportConfirm = "Choose destination",
+            gradeReportExportSuccess = "PDF report created successfully.",
+            gradeReportExportFailure = "The PDF report could not be created.",
+            gradeReportCumulativePeriodTemplate = "{year} · Cumulative situation S1 + S2",
             plusPointsSectionTitle = "PlusPoints migration",
             plusPointsSectionDescription = "Import a PlusPoints export and replace the current school data.",
             exportBackupLabel = "Export backup",
@@ -513,6 +545,17 @@ data class AppStrings(
             themeSectionDescription = "Choisis si l'application suit le système, reste claire ou reste sombre.",
             backupSectionTitle = "Sauvegarde",
             backupSectionDescription = "Exporte tes données SwissGrades ou restaure une sauvegarde SwissGrades existante.",
+            gradeReportSectionTitle = "Relevé de résultats PDF",
+            gradeReportSectionDescription = "Crée un résumé personnel lisible de la période actuellement sélectionnée.",
+            exportGradeReportLabel = "Créer le relevé PDF",
+            gradeReportExportTitle = "Créer un relevé personnel ?",
+            gradeReportExportMessageTemplate = "Le PDF contiendra tes notes, leurs poids, tes moyennes et le " +
+                "résumé de promotion pour {period}. Les photos, objectifs et simulations sont exclus. " +
+                "Ce document contient des données sensibles et n’est pas un bulletin scolaire officiel.",
+            gradeReportExportConfirm = "Choisir l’emplacement",
+            gradeReportExportSuccess = "Relevé PDF créé avec succès.",
+            gradeReportExportFailure = "Le relevé PDF n’a pas pu être créé.",
+            gradeReportCumulativePeriodTemplate = "{year} · Situation cumulative S1 + S2",
             plusPointsSectionTitle = "Migration PlusPoints",
             plusPointsSectionDescription = "Importe un export PlusPoints et remplace les données scolaires actuelles.",
             exportBackupLabel = "Exporter la sauvegarde",
