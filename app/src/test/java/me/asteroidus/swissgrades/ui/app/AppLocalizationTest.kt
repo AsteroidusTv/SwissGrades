@@ -49,7 +49,12 @@ class AppLocalizationTest {
         assertEquals("Objectif temporaire du scénario", strings.temporaryScenarioTargetLabel)
         assertEquals("Moyenne générale", strings.overallAverageTitle)
         assertEquals("4 branches notées", strings.contributingSubjects(4))
-        assertEquals("Semestre 2 · cumul S1 + S2", strings.semesterLabel(SchoolSemester.SEMESTER_2))
+        assertEquals("Semestre 2", strings.semesterLabel(SchoolSemester.SEMESTER_2))
+        assertEquals("Cumul S1 + S2", strings.semester2CumulativeHint)
+        assertEquals(
+            "Semestre 2. Cumul S1 + S2",
+            strings.semesterAccessibilityLabel(SchoolSemester.SEMESTER_2)
+        )
         assertEquals("Impact actuel", strings.gradeImpactTitle)
         assertEquals("Relevé de résultats PDF", strings.gradeReportSectionTitle)
         assertEquals(

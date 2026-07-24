@@ -354,7 +354,7 @@ class GradeTrackerAppInstrumentedTest {
             .performClick()
         assertTagText(
             "grade-destination-period",
-            "Enregistrée dans : Première année · Semestre 2 · cumul S1 + S2"
+            "Enregistrée dans : Première année · Semestre 2 · Cumul S1 + S2"
         )
         composeRule.onNodeWithTag(
             "grade-semester-${SchoolSemester.SEMESTER_1.name}",
@@ -533,6 +533,17 @@ class GradeTrackerAppInstrumentedTest {
             .assertIsDisplayed()
             .performTouchInput { click() }
         waitForTag("confirm-period-selection")
+        composeRule.onNodeWithTag(
+            "semester-${SchoolSemester.SEMESTER_2.name}",
+            useUnmergedTree = true
+        ).performTouchInput { click() }
+        composeRule.onNodeWithText("Semestre 2", useUnmergedTree = true)
+            .assertIsDisplayed()
+        assertTagText("period-cumulative-hint", "Cumul S1 + S2")
+        composeRule.onNodeWithText(
+            "Première année · Semestre 2",
+            useUnmergedTree = true
+        ).assertIsDisplayed()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             runCatching {
                 composeRule.onNodeWithTag(

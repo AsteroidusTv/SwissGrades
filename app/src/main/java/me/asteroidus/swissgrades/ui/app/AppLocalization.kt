@@ -73,6 +73,7 @@ data class AppStrings(
     val semesterTitle: String,
     val semester1Label: String,
     val semester2Label: String,
+    val semester2CumulativeHint: String,
     val gradeSemesterTitle: String,
     val savingToPeriodTemplate: String,
     val plusPointsTargetSemesterTitle: String,
@@ -354,6 +355,14 @@ data class AppStrings(
         }
     }
 
+    fun semesterAccessibilityLabel(semester: SchoolSemester): String {
+        return if (semester == SchoolSemester.SEMESTER_2) {
+            "${semesterLabel(semester)}. $semester2CumulativeHint"
+        } else {
+            semesterLabel(semester)
+        }
+    }
+
     fun schoolYearLabel(year: SchoolYear): String {
         return when (year) {
             SchoolYear.YEAR_1 -> schoolYear1Label
@@ -371,7 +380,13 @@ data class AppStrings(
     }
 
     fun savingToPeriod(year: SchoolYear, semester: SchoolSemester): String {
-        return savingToPeriodTemplate.replace("{period}", periodLabel(year, semester))
+        val period = periodLabel(year, semester)
+        val detailedPeriod = if (semester == SchoolSemester.SEMESTER_2) {
+            "$period · $semester2CumulativeHint"
+        } else {
+            period
+        }
+        return savingToPeriodTemplate.replace("{period}", detailedPeriod)
     }
 
     companion object {
@@ -441,7 +456,8 @@ data class AppStrings(
             schoolYear3Label = "Third year",
             semesterTitle = "Semester",
             semester1Label = "Semester 1",
-            semester2Label = "Semester 2 · cumulative S1 + S2",
+            semester2Label = "Semester 2",
+            semester2CumulativeHint = "Cumulative S1 + S2",
             gradeSemesterTitle = "Grade semester",
             savingToPeriodTemplate = "Saving to: {period}",
             plusPointsTargetSemesterTitle = "Import into semester",
@@ -650,7 +666,8 @@ data class AppStrings(
             schoolYear3Label = "Troisième année",
             semesterTitle = "Semestre",
             semester1Label = "Semestre 1",
-            semester2Label = "Semestre 2 · cumul S1 + S2",
+            semester2Label = "Semestre 2",
+            semester2CumulativeHint = "Cumul S1 + S2",
             gradeSemesterTitle = "Semestre de la note",
             savingToPeriodTemplate = "Enregistrée dans : {period}",
             plusPointsTargetSemesterTitle = "Importer dans le semestre",

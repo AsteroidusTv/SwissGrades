@@ -841,6 +841,14 @@ private fun PeriodSummaryButton(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+                if (selectedSemester == SchoolSemester.SEMESTER_2) {
+                    Text(
+                        text = strings.semester2CumulativeHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("period-summary-cumulative-hint")
+                    )
+                }
             }
             Surface(
                 shape = CircleShape,
@@ -880,7 +888,7 @@ internal fun SemesterSwitcher(
                     .semantics {
                         selected = isSelected
                         role = Role.RadioButton
-                        contentDescription = strings.semesterLabel(semester)
+                        contentDescription = strings.semesterAccessibilityLabel(semester)
                     }
                     .testTag("semester-${semester.name}"),
                 shape = RoundedCornerShape(20.dp),
@@ -1020,6 +1028,16 @@ private fun PeriodPickerScreen(
                             selectedSemester = selectedSemester,
                             onSelectSemester = onSelectSemester
                         )
+                        if (selectedSemester == SchoolSemester.SEMESTER_2) {
+                            Text(
+                                text = strings.semester2CumulativeHint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .testTag("period-cumulative-hint")
+                            )
+                        }
                     }
                 }
             }
@@ -1117,7 +1135,7 @@ private fun PeriodSemesterSelector(
                         .semantics {
                             this.selected = selected
                             role = Role.RadioButton
-                            contentDescription = strings.semesterLabel(semester)
+                            contentDescription = strings.semesterAccessibilityLabel(semester)
                         }
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (selected) appAccentBlue() else Color.Transparent)
@@ -1132,7 +1150,7 @@ private fun PeriodSemesterSelector(
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        maxLines = 2
+                        maxLines = 1
                     )
                 }
             }

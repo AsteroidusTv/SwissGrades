@@ -1056,7 +1056,7 @@ private fun AddGradeSheetContent(
                             .semantics {
                                 selected = isSelected
                                 role = Role.RadioButton
-                                contentDescription = strings.semesterLabel(semester)
+                                contentDescription = strings.semesterAccessibilityLabel(semester)
                             }
                             .testTag("grade-semester-${semester.name}"),
                         shape = RoundedCornerShape(18.dp),
