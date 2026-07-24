@@ -530,6 +530,27 @@ class GradeTrackerAppInstrumentedTest {
     }
 
     @Test
+    fun firstUseOffersPlusPointsImportLanguageAndManualSetup() {
+        launchApp()
+
+        composeRule.onNodeWithTag(
+            "onboarding-language-${AppLanguage.ENGLISH}",
+            useUnmergedTree = true
+        ).performClick()
+
+        composeRule.onNodeWithText("Start with your grades", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("onboarding-import-pluspoints", useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(
+            "onboarding-option-${InitialOptionChoice.SPANISH.name}",
+            useUnmergedTree = true
+        )
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun firstUsePeriodConfirmationRemainsDirectlyClickable() {
         launchApp()
 

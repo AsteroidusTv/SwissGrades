@@ -183,7 +183,15 @@ enum class DashboardStatusTone {
 @Immutable
 sealed interface ScreenUiState {
     data class Onboarding(
-        val selectedOption: InitialOptionChoice? = null
+        val selectedOption: InitialOptionChoice? = null,
+        val selectedYear: SchoolYear,
+        val selectedLanguage: AppLanguage,
+        val pendingPlusPointsImportDisplayName: String? = null,
+        val pendingPlusPointsTargetSemester: SchoolSemester? = null,
+        val importedSubjectCount: Int = 0,
+        val importedGradeCount: Int = 0,
+        val importMessage: String? = null,
+        val isImportInProgress: Boolean = false
     ) : ScreenUiState
 
     data class Main(

@@ -43,6 +43,11 @@ class GradeTrackerViewModel(
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
     private var currentScreen: InternalScreen = if (state.isOnboardingCompleted) InternalScreen.Main else InternalScreen.Onboarding
     private var onboardingSelection: InitialOptionChoice? = state.selectedOption
+    private var onboardingImportYear: SchoolYear = state.selectedYear
+    private var pendingOnboardingPlusPointsImport: PreparedPlusPointsImport? = null
+    private var pendingOnboardingPlusPointsSemester: SchoolSemester? = null
+    private var onboardingImportMessage: String? = null
+    private var isOnboardingImportInProgress: Boolean = false
 
     private val _uiState = MutableStateFlow(createUiState())
     val uiState: StateFlow<GradeTrackerUiState> = _uiState.asStateFlow()
@@ -58,6 +63,7 @@ class GradeTrackerViewModel(
     }
 
     fun completeOnboarding(choice: InitialOptionChoice) {
+        clearPendingOnboardingImport()
         onboardingSelection = choice
         currentScreen = InternalScreen.PeriodPicker(
             selectedYear = state.selectedYear,
@@ -65,6 +71,93 @@ class GradeTrackerViewModel(
             isInitialSetup = true
         )
         publish()
+    }
+
+    fun updateOnboardingImportYear(year: SchoolYear) {
+        if (currentScreen !is InternalScreen.Onboarding || onboardingImportYear == year) return
+        onboardingImportYear = year
+        publish()
+    }
+
+    fun prepareOnboardingPlusPointsImport(sourceUriString: String) {
+        if (currentScreen !is InternalScreen.Onboarding) return
+        clearPendingOnboardingImport()
+        isOnboardingImportInProgress = true
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                plusPointsImportCoordinator.prepareImport(sourceUriString)
+            }.onSuccess { preparedImport ->
+                if (currentScreen is InternalScreen.Onboarding) {
+                    pendingOnboardingPlusPointsImport = preparedImport
+                    pendingOnboardingPlusPointsSemester =
+                        preparedImport.sourceSemester ?: SchoolSemester.SEMESTER_1
+                } else {
+                    plusPointsImportCoordinator.discardPreparedImport(preparedImport)
+                }
+            }.onFailure {
+                if (currentScreen is InternalScreen.Onboarding) {
+                    onboardingImportMessage = strings.plusPointsImportFailure
+                }
+            }
+            isOnboardingImportInProgress = false
+            publish()
+        }
+    }
+
+    fun dismissPendingOnboardingPlusPointsImport() {
+        if (currentScreen !is InternalScreen.Onboarding) return
+        clearPendingOnboardingImport()
+        publish()
+    }
+
+    fun updatePendingOnboardingPlusPointsSemester(semester: SchoolSemester) {
+        if (currentScreen !is InternalScreen.Onboarding || pendingOnboardingPlusPointsImport == null) return
+        pendingOnboardingPlusPointsSemester = semester
+        publish()
+    }
+
+    fun confirmOnboardingPlusPointsImport() {
+        if (currentScreen !is InternalScreen.Onboarding) return
+        val preparedImport = pendingOnboardingPlusPointsImport ?: return
+        val targetSemester = pendingOnboardingPlusPointsSemester ?: SchoolSemester.SEMESTER_1
+        val targetYear = onboardingImportYear
+        isOnboardingImportInProgress = true
+        publish()
+
+        viewModelScope.launch(saveDispatcher) {
+            runCatching {
+                val emptyState = GradeTrackerAppState(
+                    selectedYear = targetYear,
+                    selectedSemester = targetSemester,
+                    language = state.language,
+                    themeMode = state.themeMode
+                )
+                val importedState = mergePlusPointsImport(
+                    currentState = emptyState,
+                    importedState = preparedImport.importedState,
+                    targetYear = targetYear,
+                    targetSemester = targetSemester
+                ).withSharedSubjects()
+                repository.save(importedState)
+                state = importedState
+            }.onSuccess {
+                currentScreen = InternalScreen.Main
+                onboardingSelection = state.selectedOption
+                pendingOnboardingPlusPointsImport = null
+                pendingOnboardingPlusPointsSemester = null
+                onboardingImportMessage = null
+            }.onFailure {
+                onboardingImportMessage = strings.plusPointsImportFailure
+                pendingOnboardingPlusPointsImport = null
+                pendingOnboardingPlusPointsSemester = null
+            }.also {
+                plusPointsImportCoordinator.discardPreparedImport(preparedImport)
+            }
+            isOnboardingImportInProgress = false
+            publish()
+        }
     }
 
     fun openSettings() {
@@ -139,6 +232,7 @@ class GradeTrackerViewModel(
     fun changeLanguage(language: AppLanguage) {
         if (state.language == language) return
         state = state.copy(language = language)
+        onboardingImportMessage = null
         persistAndPublish()
     }
 
@@ -153,6 +247,8 @@ class GradeTrackerViewModel(
         state = resetAppUseCase.reset()
         currentScreen = InternalScreen.Onboarding
         onboardingSelection = null
+        onboardingImportYear = state.selectedYear
+        clearPendingOnboardingImport()
         persistAndPublish()
     }
 
@@ -907,7 +1003,25 @@ class GradeTrackerViewModel(
     private fun createUiState(): GradeTrackerUiState {
         val screen = when (val target = currentScreen) {
             is InternalScreen.Onboarding -> ScreenUiState.Onboarding(
-                selectedOption = onboardingSelection
+                selectedOption = onboardingSelection,
+                selectedYear = onboardingImportYear,
+                selectedLanguage = state.language,
+                pendingPlusPointsImportDisplayName = pendingOnboardingPlusPointsImport?.displayName,
+                pendingPlusPointsTargetSemester = pendingOnboardingPlusPointsSemester,
+                importedSubjectCount = pendingOnboardingPlusPointsImport
+                    ?.importedState
+                    ?.subjects
+                    ?.size
+                    ?: 0,
+                importedGradeCount = pendingOnboardingPlusPointsImport
+                    ?.importedState
+                    ?.subjects
+                    ?.sumOf { subject ->
+                        subject.notes.size + subject.subSubjects.sumOf { it.notes.size }
+                    }
+                    ?: 0,
+                importMessage = onboardingImportMessage,
+                isImportInProgress = isOnboardingImportInProgress
             )
 
             is InternalScreen.PeriodPicker -> ScreenUiState.PeriodPicker(
@@ -1340,6 +1454,14 @@ class GradeTrackerViewModel(
         screen.pendingPreparedPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
         screen.pendingPreparedPlusPointsImport = null
         screen.pendingPlusPointsTargetSemester = null
+    }
+
+    private fun clearPendingOnboardingImport() {
+        pendingOnboardingPlusPointsImport?.let(plusPointsImportCoordinator::discardPreparedImport)
+        pendingOnboardingPlusPointsImport = null
+        pendingOnboardingPlusPointsSemester = null
+        onboardingImportMessage = null
+        isOnboardingImportInProgress = false
     }
 }
 
