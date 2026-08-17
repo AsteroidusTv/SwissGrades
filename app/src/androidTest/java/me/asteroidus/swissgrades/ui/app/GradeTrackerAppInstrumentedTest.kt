@@ -472,17 +472,21 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("visible-edit-note-note-1", useUnmergedTree = true)
             .performClick()
         waitForTag("add-note")
+        composeRule.onNodeWithTag("grade-editor-screen", useUnmergedTree = true)
+            .assertIsDisplayed()
 
         val saveButton = composeRule.onNodeWithTag("add-note")
         saveButton
-            .performScrollTo()
             .assertIsDisplayed()
             .assertTextContains("Enregistrer")
 
         composeRule.onNodeWithTag("note-value-input", useUnmergedTree = true)
             .performTextReplacement("5,5")
-        saveButton
+        composeRule.onNodeWithTag("note-type-QUARTER")
             .performScrollTo()
+            .assertIsDisplayed()
+            .assertTextContains("Quart de note")
+        saveButton
             .assertIsDisplayed()
             .performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {

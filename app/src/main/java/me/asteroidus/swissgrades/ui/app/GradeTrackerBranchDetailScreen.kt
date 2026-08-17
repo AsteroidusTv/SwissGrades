@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,7 +55,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -63,7 +63,6 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -132,7 +131,6 @@ fun BranchDetailScreen(
     val positiveGreen = appPositiveOnBlue()
     val warningRed = appWarningColor()
     val onBlueSupport = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.84f)
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var pendingCameraRequest by remember(detail.subjectId, detail.draft.editingNoteId) {
         mutableStateOf<PendingCameraCaptureRequest?>(null)
     }
@@ -173,7 +171,30 @@ fun BranchDetailScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        if (detail.isAddGradeSheetVisible) {
+            GradeEditorScreen(
+                detail = detail,
+                activeSubSubjectName = activeSubSubject?.name,
+                accentBlue = accentBlue,
+                onBack = onDismissAddNoteSheet,
+                onDraftValueChanged = onDraftValueChanged,
+                onDraftTypeChanged = onDraftTypeChanged,
+                onDraftSemesterChanged = onDraftSemesterChanged,
+                onDraftDescriptionChanged = onDraftDescriptionChanged,
+                onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
+                onRemoveDraftAttachment = onRemoveDraftAttachment,
+                onPreviewAttachment = { attachments, index ->
+                    attachmentViewer = AttachmentViewerState(
+                        attachments = attachments,
+                        selectedIndex = index,
+                        gradeTitle = detail.draft.descriptionInput
+                            .ifBlank { strings.evaluationDefaultTitle }
+                    )
+                },
+                onAddNote = onAddNote
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -317,34 +338,6 @@ fun BranchDetailScreen(
                     )
                 }
             }
-        }
-
-        if (detail.isAddGradeSheetVisible) {
-            ModalBottomSheet(
-                onDismissRequest = onDismissAddNoteSheet,
-                sheetState = sheetState,
-                containerColor = appCardSurface()
-            ) {
-                AddGradeSheetContent(
-                    detail = detail,
-                    activeSubSubjectName = activeSubSubject?.name,
-                    accentBlue = accentBlue,
-                    onDraftValueChanged = onDraftValueChanged,
-                    onDraftTypeChanged = onDraftTypeChanged,
-                    onDraftSemesterChanged = onDraftSemesterChanged,
-                    onDraftDescriptionChanged = onDraftDescriptionChanged,
-                    onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
-                    onRemoveDraftAttachment = onRemoveDraftAttachment,
-                    onPreviewAttachment = { attachments, index ->
-                        attachmentViewer = AttachmentViewerState(
-                            attachments = attachments,
-                            selectedIndex = index,
-                            gradeTitle = detail.draft.descriptionInput
-                                .ifBlank { strings.evaluationDefaultTitle }
-                        )
-                    },
-                    onAddNote = onAddNote
-                )
             }
         }
 
@@ -1000,12 +993,12 @@ private fun GradeHistoryHeader(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddGradeSheetContent(
+private fun GradeEditorScreen(
     detail: SubjectDetailUiState,
     activeSubSubjectName: String?,
     accentBlue: Color,
+    onBack: () -> Unit,
     onDraftValueChanged: (String) -> Unit,
     onDraftTypeChanged: (NoteTypeUi) -> Unit,
     onDraftSemesterChanged: (SchoolSemester) -> Unit,
@@ -1018,26 +1011,54 @@ private fun AddGradeSheetContent(
     val strings = currentAppStrings()
     val sectionSpacing = 16.dp
     val inlineSpacing = 10.dp
+    val title = when {
+        detail.draft.editingNoteId != null && detail.isCompositeOption ->
+            strings.editGradeIn(activeSubSubjectName ?: detail.title)
+        detail.draft.editingNoteId != null -> strings.editGrade
+        detail.isCompositeOption -> strings.addGradeTo(activeSubSubjectName ?: detail.title)
+        else -> strings.addGrade
+    }
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(sectionSpacing)
+            .fillMaxSize()
+            .testTag("grade-editor-screen")
     ) {
-        Text(
-            text = when {
-                detail.draft.editingNoteId != null && detail.isCompositeOption ->
-                    strings.editGradeIn(activeSubSubjectName ?: detail.title)
-                detail.draft.editingNoteId != null -> strings.editGrade
-                detail.isCompositeOption -> strings.addGradeTo(activeSubSubjectName ?: detail.title)
-                else -> strings.addGrade
-            },
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    top = AppScreenTopPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 12.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            HeaderBackButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("back-from-grade-editor")
+            )
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppScreenHorizontalPadding)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing)
+        ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = strings.savingToPeriod(detail.schoolYear, detail.draft.selectedSemester),
@@ -1111,16 +1132,16 @@ private fun AddGradeSheetContent(
             ),
             shape = RoundedCornerShape(20.dp)
         )
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(inlineSpacing)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             NoteTypeUi.entries.forEach { type ->
                 val isSelected = detail.draft.selectedType == type
                 OutlinedCard(
                     onClick = { onDraftTypeChanged(type) },
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .semantics {
                             selected = isSelected
                             role = Role.RadioButton
@@ -1139,16 +1160,14 @@ private fun AddGradeSheetContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 14.dp, horizontal = 8.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(vertical = 14.dp, horizontal = 18.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
                             text = strings.noteTypeLabel(type.weight),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (isSelected) accentBlue else MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
                 }
@@ -1257,31 +1276,44 @@ private fun AddGradeSheetContent(
                 modifier = Modifier.testTag("note-attachment-error")
             )
         }
-        Button(
-            onClick = onAddNote,
+        }
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("add-note"),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentBlue,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
+                .imePadding()
+                .padding(
+                    start = AppScreenHorizontalPadding,
+                    end = AppScreenHorizontalPadding,
+                    bottom = 12.dp
+                )
         ) {
-            Row(
-                modifier = Modifier.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onAddNote,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("add-note"),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentBlue,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text(
-                    text = if (detail.draft.editingNoteId != null) strings.saveChanges else strings.addGrade,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Icon(
-                    imageVector = if (detail.draft.editingNoteId != null) Icons.Filled.Edit else Icons.Filled.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 10.dp)
-                )
+                Row(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = if (detail.draft.editingNoteId != null) strings.saveChanges else strings.addGrade,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Icon(
+                        imageVector = if (detail.draft.editingNoteId != null) Icons.Filled.Edit else Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
             }
         }
     }
