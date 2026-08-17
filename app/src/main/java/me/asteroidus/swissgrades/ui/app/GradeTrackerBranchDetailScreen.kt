@@ -25,13 +25,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,7 +83,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -177,8 +174,6 @@ fun BranchDetailScreen(
         DashboardStatusTone.NEUTRAL -> onBlueSupport
         else -> statusColor
     }
-    val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = detail.isAddGradeSheetVisible,
@@ -217,20 +212,18 @@ fun BranchDetailScreen(
                     onAddNote = onAddNote
                 )
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .testTag("branch-detail-list"),
-                        contentPadding = PaddingValues(
-                            start = AppScreenHorizontalPadding,
-                            top = AppScreenTopPadding,
-                            end = AppScreenHorizontalPadding,
-                            bottom = 16.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("branch-detail-list"),
+                    contentPadding = PaddingValues(
+                        start = AppScreenHorizontalPadding,
+                        top = AppScreenTopPadding,
+                        end = AppScreenHorizontalPadding,
+                        bottom = 16.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                         item {
                             BranchDetailHeader(
                                 detail = detail,
@@ -336,37 +329,30 @@ fun BranchDetailScreen(
                                 )
                             }
                         }
-                    }
 
-                    if (!isImeVisible) {
-                        Button(
-                            onClick = onShowAddNoteSheet,
-                            modifier = Modifier
-                                .padding(
-                                    start = AppScreenHorizontalPadding,
-                                    top = 12.dp,
-                                    end = AppScreenHorizontalPadding,
-                                    bottom = 12.dp
-                                )
-                                .fillMaxWidth()
-                                .testTag("show-add-note-sheet"),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                        item {
+                            Button(
+                                onClick = onShowAddNoteSheet,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("show-add-note-sheet"),
+                                shape = RoundedCornerShape(28.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
                             ) {
-                                Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
-                                Icon(
-                                    imageVector = Icons.Filled.Add,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(start = 10.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.padding(start = 10.dp)
+                                    )
+                                }
                             }
                         }
-                    }
                 }
             }
         }
