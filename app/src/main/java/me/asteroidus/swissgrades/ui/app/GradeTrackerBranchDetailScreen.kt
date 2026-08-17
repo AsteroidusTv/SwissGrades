@@ -11,6 +11,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -1020,6 +1022,7 @@ private fun AddGradeSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 8.dp)
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(sectionSpacing)
@@ -1260,7 +1263,10 @@ private fun AddGradeSheetContent(
                 .fillMaxWidth()
                 .testTag("add-note"),
             shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentBlue,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
         ) {
             Row(
                 modifier = Modifier.padding(vertical = 8.dp),

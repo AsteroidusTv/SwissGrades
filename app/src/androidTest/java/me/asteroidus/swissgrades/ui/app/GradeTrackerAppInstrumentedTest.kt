@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -434,6 +435,63 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("attachment-viewer-image-0", useUnmergedTree = true)
             .assertIsDisplayed()
             .assertContentDescriptionEquals("Photo 1 sur 1 pour Geometry")
+    }
+
+    @Test
+    fun editingGradeSaveActionRemainsVisibleAndPersistsChanges() {
+        repository.save(
+            GradeTrackerAppState(
+                selectedOption = InitialOptionChoice.SPANISH,
+                subjects = listOf(
+                    StoredSubject(
+                        id = "subject-1",
+                        name = "Option",
+                        isInBasket = false,
+                        isOptionSubject = true,
+                        optionChoice = InitialOptionChoice.SPANISH
+                    ),
+                    StoredSubject(
+                        id = "subject-2",
+                        name = "Mathematics",
+                        isInBasket = false,
+                        notes = listOf(
+                            storedNote(id = "note-1", value = 5.0).copy(description = "Geometry")
+                        )
+                    )
+                ),
+                nextSubjectSequence = 3,
+                nextNoteSequence = 2
+            )
+        )
+
+        launchApp()
+        scrollMainScreenUntilTag("subject-card-subject-2")
+        composeRule.onNodeWithTag("subject-card-subject-2", useUnmergedTree = true)
+            .performClick()
+        scrollBranchDetailUntilTag("visible-edit-note-note-1")
+        composeRule.onNodeWithTag("visible-edit-note-note-1", useUnmergedTree = true)
+            .performClick()
+        waitForTag("add-note")
+
+        val saveButton = composeRule.onNodeWithTag("add-note")
+        saveButton
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertTextContains("Enregistrer")
+
+        composeRule.onNodeWithTag("note-value-input", useUnmergedTree = true)
+            .performTextReplacement("5,5")
+        saveButton
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            repository.load()?.subjects
+                ?.firstOrNull { it.id == "subject-2" }
+                ?.notes
+                ?.firstOrNull { it.id == "note-1" }
+                ?.value == 5.5
+        }
     }
 
     @Test
