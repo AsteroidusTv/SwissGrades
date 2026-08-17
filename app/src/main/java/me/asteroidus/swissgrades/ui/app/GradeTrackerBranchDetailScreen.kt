@@ -5,7 +5,14 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,12 +26,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -78,6 +86,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -169,175 +178,196 @@ fun BranchDetailScreen(
         DashboardStatusTone.NEUTRAL -> onBlueSupport
         else -> statusColor
     }
+    val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     Box(modifier = modifier.fillMaxSize()) {
-        if (detail.isAddGradeSheetVisible) {
-            GradeEditorScreen(
-                detail = detail,
-                activeSubSubjectName = activeSubSubject?.name,
-                accentBlue = accentBlue,
-                onBack = onDismissAddNoteSheet,
-                onDraftValueChanged = onDraftValueChanged,
-                onDraftTypeChanged = onDraftTypeChanged,
-                onDraftSemesterChanged = onDraftSemesterChanged,
-                onDraftDescriptionChanged = onDraftDescriptionChanged,
-                onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
-                onRemoveDraftAttachment = onRemoveDraftAttachment,
-                onPreviewAttachment = { attachments, index ->
-                    attachmentViewer = AttachmentViewerState(
-                        attachments = attachments,
-                        selectedIndex = index,
-                        gradeTitle = detail.draft.descriptionInput
-                            .ifBlank { strings.evaluationDefaultTitle }
-                    )
-                },
-                onAddNote = onAddNote
-            )
-        } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .testTag("branch-detail-list"),
-                contentPadding = PaddingValues(
-                    start = AppScreenHorizontalPadding,
-                    top = AppScreenTopPadding,
-                    end = AppScreenHorizontalPadding,
-                    bottom = 16.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-            item {
-                BranchDetailHeader(
+        AnimatedContent(
+            targetState = detail.isAddGradeSheetVisible,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                if (targetState) {
+                    (slideInHorizontally { width -> width / 3 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { width -> -width / 3 } + fadeOut())
+                } else {
+                    (slideInHorizontally { width -> -width / 3 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { width -> width / 3 } + fadeOut())
+                }
+            },
+            label = "grade-editor-transition"
+        ) { editorVisible ->
+            if (editorVisible) {
+                GradeEditorScreen(
                     detail = detail,
-                    onBack = onBack,
-                    onEditSubject = onEditSubject
-                )
-            }
-
-            item {
-                BranchDetailSummaryCard(
-                    detail = detail,
-                    hasAverage = hasAverage,
+                    activeSubSubjectName = activeSubSubject?.name,
                     accentBlue = accentBlue,
-                    onBlueSupport = onBlueSupport,
-                    statusLabelColor = statusLabelColor
-                )
-            }
-
-            item {
-                BranchTargetAverageCard(
-                    detail = detail,
-                    accentBlue = accentBlue,
-                    onTargetAverageChanged = onTargetAverageChanged
-                )
-            }
-
-            if (!detail.isCompositeOption) {
-                item {
-                    TargetSimulationCard(
-                        notes = visibleNotes,
-                        accentBlue = accentBlue,
-                        initialTargetInput = detail.targetAverageInput,
-                        targetKey = detail.subjectId
-                    )
-                }
-            }
-
-            if (detail.isCompositeOption) {
-                item {
-                    CompositeSubSubjectSelectorCard(
-                        detail = detail,
-                        activeSubSubject = activeSubSubject,
-                        accentBlue = accentBlue,
-                        onSelectedSubSubjectChanged = onSelectedSubSubjectChanged
-                    )
-                }
-            }
-
-            if (shouldShowEvolution(visibleNotes.size)) {
-                item {
-                    EvolutionCard(
-                        evolutionNotes = evolutionNotes,
-                        accentBlue = accentBlue
-                    )
-                }
-            }
-
-            item {
-                GradeHistoryHeader(
-                    detail = detail,
-                    activeSubSubject = activeSubSubject,
-                    visibleNotes = visibleNotes
-                )
-            }
-
-            if (visibleNotes.isEmpty()) {
-                item {
-                    OutlinedCard(
-                        onClick = onShowAddNoteSheet,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("empty-notes-card"),
-                        shape = DashboardCardShape,
-                        border = appCardBorder(),
-                        colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface())
-                    ) {
-                        Text(
-                            text = strings.emptyNotes,
-                            modifier = Modifier
-                                .padding(20.dp)
-                                .testTag("empty-notes"),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    onBack = onDismissAddNoteSheet,
+                    onDraftValueChanged = onDraftValueChanged,
+                    onDraftTypeChanged = onDraftTypeChanged,
+                    onDraftSemesterChanged = onDraftSemesterChanged,
+                    onDraftDescriptionChanged = onDraftDescriptionChanged,
+                    onShowAttachmentSourceDialog = { showAttachmentSourceDialog = true },
+                    onRemoveDraftAttachment = onRemoveDraftAttachment,
+                    onPreviewAttachment = { attachments, index ->
+                        attachmentViewer = AttachmentViewerState(
+                            attachments = attachments,
+                            selectedIndex = index,
+                            gradeTitle = detail.draft.descriptionInput
+                                .ifBlank { strings.evaluationDefaultTitle }
                         )
-                    }
-                }
+                    },
+                    onAddNote = onAddNote
+                )
             } else {
-                items(visibleNotes, key = { note -> note.id }) { note ->
-                    SwipeableNoteHistoryCard(
-                        note = note,
-                        onRequestEdit = { onRequestEditNote(note.id) },
-                        onRequestDelete = { onRequestDeleteNote(note.id) },
-                        onPreviewAttachments = { index ->
-                            attachmentViewer = AttachmentViewerState(
-                                attachments = note.attachments,
-                                selectedIndex = index,
-                                gradeTitle = note.description.ifBlank { strings.evaluationDefaultTitle }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .testTag("branch-detail-list"),
+                        contentPadding = PaddingValues(
+                            start = AppScreenHorizontalPadding,
+                            top = AppScreenTopPadding,
+                            end = AppScreenHorizontalPadding,
+                            bottom = 16.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            BranchDetailHeader(
+                                detail = detail,
+                                onBack = onBack,
+                                onEditSubject = onEditSubject
                             )
                         }
-                    )
-                }
-            }
-            }
 
-            Button(
-                onClick = onShowAddNoteSheet,
-                modifier = Modifier
-                    .padding(
-                        start = AppScreenHorizontalPadding,
-                        end = AppScreenHorizontalPadding,
-                        bottom = 12.dp
-                    )
-                    .fillMaxWidth()
-                    .testTag("show-add-note-sheet"),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = null,
-                        modifier = Modifier.padding(start = 10.dp)
-                    )
+                        item {
+                            BranchDetailSummaryCard(
+                                detail = detail,
+                                hasAverage = hasAverage,
+                                accentBlue = accentBlue,
+                                onBlueSupport = onBlueSupport,
+                                statusLabelColor = statusLabelColor
+                            )
+                        }
+
+                        item {
+                            BranchTargetAverageCard(
+                                detail = detail,
+                                accentBlue = accentBlue,
+                                onTargetAverageChanged = onTargetAverageChanged
+                            )
+                        }
+
+                        if (!detail.isCompositeOption) {
+                            item {
+                                TargetSimulationCard(
+                                    notes = visibleNotes,
+                                    accentBlue = accentBlue,
+                                    initialTargetInput = detail.targetAverageInput,
+                                    targetKey = detail.subjectId
+                                )
+                            }
+                        }
+
+                        if (detail.isCompositeOption) {
+                            item {
+                                CompositeSubSubjectSelectorCard(
+                                    detail = detail,
+                                    activeSubSubject = activeSubSubject,
+                                    accentBlue = accentBlue,
+                                    onSelectedSubSubjectChanged = onSelectedSubSubjectChanged
+                                )
+                            }
+                        }
+
+                        if (shouldShowEvolution(visibleNotes.size)) {
+                            item {
+                                EvolutionCard(
+                                    evolutionNotes = evolutionNotes,
+                                    accentBlue = accentBlue
+                                )
+                            }
+                        }
+
+                        item {
+                            GradeHistoryHeader(
+                                detail = detail,
+                                activeSubSubject = activeSubSubject,
+                                visibleNotes = visibleNotes
+                            )
+                        }
+
+                        if (visibleNotes.isEmpty()) {
+                            item {
+                                OutlinedCard(
+                                    onClick = onShowAddNoteSheet,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("empty-notes-card"),
+                                    shape = DashboardCardShape,
+                                    border = appCardBorder(),
+                                    colors = CardDefaults.outlinedCardColors(
+                                        containerColor = appCardSurface()
+                                    )
+                                ) {
+                                    Text(
+                                        text = strings.emptyNotes,
+                                        modifier = Modifier
+                                            .padding(20.dp)
+                                            .testTag("empty-notes"),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(visibleNotes, key = { note -> note.id }) { note ->
+                                SwipeableNoteHistoryCard(
+                                    note = note,
+                                    onRequestEdit = { onRequestEditNote(note.id) },
+                                    onRequestDelete = { onRequestDeleteNote(note.id) },
+                                    onPreviewAttachments = { index ->
+                                        attachmentViewer = AttachmentViewerState(
+                                            attachments = note.attachments,
+                                            selectedIndex = index,
+                                            gradeTitle = note.description
+                                                .ifBlank { strings.evaluationDefaultTitle }
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(visible = !isImeVisible) {
+                        Button(
+                            onClick = onShowAddNoteSheet,
+                            modifier = Modifier
+                                .padding(
+                                    start = AppScreenHorizontalPadding,
+                                    end = AppScreenHorizontalPadding,
+                                    bottom = 12.dp
+                                )
+                                .fillMaxWidth()
+                                .testTag("show-add-note-sheet"),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(strings.addGrade, style = MaterialTheme.typography.titleMedium)
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(start = 10.dp)
+                                )
+                            }
+                        }
+                    }
                 }
-            }
             }
         }
 
@@ -1281,7 +1311,6 @@ private fun GradeEditorScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding()
                 .padding(
                     start = AppScreenHorizontalPadding,
                     end = AppScreenHorizontalPadding,

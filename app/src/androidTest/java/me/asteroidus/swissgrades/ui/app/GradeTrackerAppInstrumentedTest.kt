@@ -248,7 +248,12 @@ class GradeTrackerAppInstrumentedTest {
             "Les modifications ici ne changent pas l’objectif sauvegardé."
         )
         composeRule.onNodeWithTag("target-average-input", useUnmergedTree = true)
+            .performClick()
             .performTextReplacement("6.0")
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("show-add-note-sheet", useUnmergedTree = true)
+                .fetchSemanticsNodes().isEmpty()
+        }
         composeRule.onNodeWithTag("use-saved-target", useUnmergedTree = true)
             .performScrollTo()
             .performTouchInput { click() }
