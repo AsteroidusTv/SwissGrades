@@ -212,9 +212,9 @@ internal fun TargetSimulationCard(
                         focusedBorderColor = appCardBorderColor(),
                         unfocusedBorderColor = appCardBorderColor(),
                         errorBorderColor = MaterialTheme.colorScheme.error,
-                        focusedContainerColor = appNeutralBackground(),
-                        unfocusedContainerColor = appNeutralBackground(),
-                        errorContainerColor = appNeutralBackground(),
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        errorContainerColor = Color.Transparent,
                         focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )

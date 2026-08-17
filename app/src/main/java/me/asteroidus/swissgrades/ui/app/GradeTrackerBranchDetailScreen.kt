@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -339,12 +338,13 @@ fun BranchDetailScreen(
                         }
                     }
 
-                    AnimatedVisibility(visible = !isImeVisible) {
+                    if (!isImeVisible) {
                         Button(
                             onClick = onShowAddNoteSheet,
                             modifier = Modifier
                                 .padding(
                                     start = AppScreenHorizontalPadding,
+                                    top = 12.dp,
                                     end = AppScreenHorizontalPadding,
                                     bottom = 12.dp
                                 )
