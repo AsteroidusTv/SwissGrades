@@ -187,8 +187,9 @@ The project supports a manual GitHub release flow through:
 
 - [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml)
 
-It runs only when manually dispatched. It can:
+It can:
 
+- create an automatic prerelease on every push to `main` / `master`
 - build a signed release APK
 - build a signed release AAB
 - upload native debug symbols for Play Console
@@ -196,7 +197,7 @@ It runs only when manually dispatched. It can:
 - publish a GitHub Release
 - upload release artifacts
 
-Merging to `main` runs validation without publishing an APK or GitHub Release. Before a manual release of the Carnet update, verify a signed upgrade from 1.6.0 with preserved data.
+Automatic pushes create prereleases so the repository can always expose the latest installable build without turning every push into a final stable release. Before merging the Carnet update into `main`, verify a signed upgrade from 1.6.0 with preserved data or explicitly decide how to handle the automatic release trigger.
 
 ### Required GitHub Secrets
 
