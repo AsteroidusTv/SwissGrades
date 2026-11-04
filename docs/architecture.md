@@ -14,6 +14,8 @@ SwissGrades is a single-activity, local-first Android application written in Kot
 
 Navigation uses typed internal screen state rather than the Android Navigation component. Back handling delegates to the ViewModel. Scroll positions are temporary UI state and are not persisted across process death.
 
+The Carnet refactor adds three root destinations: subjects, promotion overview, and settings. `MainSection` is transient ViewModel state, never part of the persisted JSON. `CarnetComponents` owns the new subject list and navigation; the detail and full-page editor use Carnet presentation components while file workflows remain connected. The full UI composition plan is in `CARNET_COMPONENT_PLAN.md`, with implementation decisions in `CARNET_ARCHITECTURE.md`.
+
 ## Persistence and ownership
 
 The authoritative application state is `GradeTrackerAppState`.
@@ -37,6 +39,7 @@ Editor and simulator inputs are temporary. They never become authoritative until
 - Composite options contain exactly two sub-subjects. Each internal weighted average is rounded to two decimals before the combined result is rounded to a half grade.
 - Saved average targets accept only whole or half grades.
 - Promotion evaluation uses structured domain statuses and reasons. UI labels and tones are localized at the presentation boundary.
+- A negative total of promotion points is an explicit blocking reason, including when the basket reaches 16.
 
 The promotion model currently expects exactly three counted non-option basket branches plus the option branch. Any future support for different school rules requires an explicit product decision and migration strategy.
 
@@ -70,3 +73,6 @@ CI runs unit tests, app/test assembly, release validation, and managed-device te
 - Clarify promotion basket roles instead of relying on positional interpretation if school-specific rules expand.
 - Improve attachment accessibility semantics and add a stable attachment UI smoke test.
 - Continue consolidating spacing, typography, and component tokens without speculative redesign.
+
+
+The Carnet presentation now includes compact root navigation, subject and grade rows, four structured promotion conditions, and settings rows with focused dialogs. Subject/grade deletion uses the existing swipe and confirmation flow; screen readers receive custom semantic actions without a persistent trash button. Simulation inputs use saveable UI state so scrolling them out of a lazy list does not discard a temporary plan. `CarnetLocalization.kt` groups the feature copy to keep the large `AppStrings` constructor within the JVM method-signature limit.

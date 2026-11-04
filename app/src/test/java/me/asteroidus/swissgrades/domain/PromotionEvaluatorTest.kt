@@ -23,6 +23,36 @@ import me.asteroidus.swissgrades.domain.model.SubSubject
 class PromotionEvaluatorTest {
 
     @Test
+    fun sufficientBasketDoesNotHideNegativeCompensation() {
+        val result = PromotionEvaluator.evaluate(promotionInput(
+            PromotionRoleAssignment.German(simpleBranch("German", 4.0)),
+            PromotionRoleAssignment.French(simpleBranch("French", 4.0)),
+            PromotionRoleAssignment.Math(simpleBranch("Math", 4.0)),
+            PromotionRoleAssignment.Option(simpleBranch("Option", 4.0, OptionType.SPANISH)),
+            PromotionRoleAssignment.Additional(simpleBranch("History", 3.5))
+        ))
+        assertEquals(16.0, result.basketTotal!!, 0.0)
+        assertEquals(-1.0, result.promotionPointsTotal!!, 0.0)
+        assertEquals(PromotionStatus.BLOCKED, result.status)
+        assertTrue(result.blockingReasons.contains(PromotionBlockingReason.NegativeCompensation(-1.0)))
+    }
+
+    @Test
+    fun zeroCompensationMeetsTheCompensationThreshold() {
+        val result = PromotionEvaluator.evaluate(promotionInput(
+            PromotionRoleAssignment.German(simpleBranch("German", 4.0)),
+            PromotionRoleAssignment.French(simpleBranch("French", 4.0)),
+            PromotionRoleAssignment.Math(simpleBranch("Math", 4.0)),
+            PromotionRoleAssignment.Option(simpleBranch("Option", 4.0, OptionType.SPANISH)),
+            PromotionRoleAssignment.Additional(simpleBranch("History", 3.5)),
+            PromotionRoleAssignment.Additional(simpleBranch("English", 5.0))
+        ))
+        assertEquals(0.0, result.promotionPointsTotal!!, 0.0)
+        assertEquals(PromotionStatus.PROMOTED, result.status)
+        assertTrue(result.blockingReasons.isEmpty())
+    }
+
+    @Test
     fun evaluate_returnsPromotedForValidCompleteDataWithSimpleOption() {
         val result = PromotionEvaluator.evaluate(
             promotionInput(
@@ -329,7 +359,8 @@ class PromotionEvaluatorTest {
             )
         )
 
-        assertEquals(PromotionStatus.PROMOTED, result.status)
+        assertEquals(PromotionStatus.BLOCKED, result.status)
+        assertTrue(result.blockingReasons.any { it is PromotionBlockingReason.NegativeCompensation })
         assertFalse(result.blockingReasons.any { it is PromotionBlockingReason.MoreThanFourBranchesBelowFour })
     }
 

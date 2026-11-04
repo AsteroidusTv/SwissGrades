@@ -14,9 +14,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -32,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,7 +51,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -218,8 +216,9 @@ fun GradeTrackerApp(
     }
     val screenStateHolder = rememberSaveableStateHolder()
 
-    BackHandler(enabled = screenSupportsInAppBack(uiState.screen)) {
+    BackHandler(enabled = screenSupportsInAppBack(uiState.screen) || (uiState.screen as? ScreenUiState.Main)?.selectedSection == MainSection.PROMOTION) {
         when (uiState.screen) {
+            is ScreenUiState.Main -> viewModel.openMainSection(MainSection.SUBJECTS)
             is ScreenUiState.AddSubject -> viewModel.hideAddSubjectForm()
             is ScreenUiState.BranchDetail -> viewModel.backFromDetail()
             is ScreenUiState.PeriodPicker -> viewModel.closePeriodPicker()
@@ -231,25 +230,42 @@ fun GradeTrackerApp(
     SwissGradesTheme(darkTheme = useDarkTheme) {
         ApplyEdgeToEdgeSystemBars(darkTheme = useDarkTheme)
         ProvideAppStrings(uiState.language) {
+            val main = uiState.screen as? ScreenUiState.Main
+            val settings = (uiState.screen as? ScreenUiState.Settings)?.settings
+            val detail = (uiState.screen as? ScreenUiState.BranchDetail)?.detail
+            val showCarnetNavigation = main != null || settings != null || detail != null && !detail.isAddGradeSheetVisible
+            val contentInsetSides = if (showCarnetNavigation) {
+                WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+            } else {
+                WindowInsetsSides.Vertical + WindowInsetsSides.Horizontal
+            }
             Surface(
                 modifier = modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Top + WindowInsetsSides.Bottom
-                            )
-                        )
+                Column(
+                    modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(contentInsetSides))
                 ) {
+                    val authenticatedScreen = uiState.screen !is ScreenUiState.Onboarding
+                    if (authenticatedScreen) {
+                        CarnetAppHeader(
+                            year = uiState.selectedYear, semester = uiState.selectedSemester,
+                            enabled = uiState.screen is ScreenUiState.Main,
+                            onPeriod = viewModel::openPeriodPicker,
+                            onAddSubject = if (uiState.screen is ScreenUiState.Main) viewModel::showAddSubjectForm else null
+                        )
+                    }
                     AnimatedContent(
                         targetState = uiState.screen,
-                        modifier = Modifier.fillMaxSize(),
-                        contentKey = { screenAnimationKey(it) },
+                        modifier = Modifier.fillMaxWidth().weight(1f).testTag("carnet-page-content"),
+                        contentKey = { screenSaveableStateKey(it) },
+                        contentAlignment = Alignment.TopStart,
                         transitionSpec = {
-                            screenTransition(initialState, targetState)
+                            ContentTransform(
+                                targetContentEnter = fadeIn(tween(180)),
+                                initialContentExit = fadeOut(tween(100)),
+                                sizeTransform = null
+                            )
                         },
                         label = "grade-tracker-screen-transition"
                     ) { screen ->
@@ -281,7 +297,8 @@ fun GradeTrackerApp(
                                     onShowAddSubjectForm = viewModel::showAddSubjectForm,
                                     onDeleteSubject = viewModel::deleteSubject,
                                     onOpenPeriodPicker = viewModel::openPeriodPicker,
-                                    onOpenSettings = viewModel::openSettings,
+                                    onAddGrade = viewModel::openGradeEditor,
+                                    onOpenPromotion = { viewModel.openMainSection(MainSection.PROMOTION) },
                                     onPromotionSetupAction = { action, subjectId ->
                                         when (action) {
                                             PromotionSetupAction.ADD_SUBJECT -> viewModel.showAddSubjectForm()
@@ -363,10 +380,20 @@ fun GradeTrackerApp(
                                     onConfirmPendingPlusPointsImport = viewModel::confirmPlusPointsImport,
                                     onResetApp = viewModel::resetApp,
                                     onBack = viewModel::closeSettings,
+                                    showBackButton = false,
                                     modifier = Modifier
                                 )
                             }
                         }
+                    }
+                    if (showCarnetNavigation) {
+                        CarnetNavigation(
+                            selectedSection = main?.selectedSection ?: MainSection.SUBJECTS,
+                            settingsSelected = settings != null,
+                            enabled = settings?.isBackupInProgress != true && settings?.isGradeReportExportInProgress != true,
+                            onSelectSection = viewModel::openMainSection,
+                            onSettings = viewModel::openSettings
+                        )
                     }
                 }
             }
@@ -411,45 +438,16 @@ private fun screenAnimationKey(screen: ScreenUiState): String {
         is ScreenUiState.PeriodPicker -> "period-picker"
         is ScreenUiState.AddSubject -> "add-subject"
         is ScreenUiState.Settings -> "settings"
-        is ScreenUiState.BranchDetail -> "branch-detail-${screen.detail.subjectId}"
+        is ScreenUiState.BranchDetail -> "branch-detail-${screen.detail.subjectId}-${if (screen.detail.isAddGradeSheetVisible) "editor" else "history"}"
     }
 }
 
 private fun screenSaveableStateKey(screen: ScreenUiState): String {
     return when (screen) {
         is ScreenUiState.Main -> {
-            "main-${screen.selectedYear.name}-${screen.selectedSemester.name}"
+            "main-${screen.selectedYear.name}-${screen.selectedSemester.name}-${screen.selectedSection.name}"
         }
         else -> screenAnimationKey(screen)
-    }
-}
-
-private fun screenTransition(
-    initialScreen: ScreenUiState,
-    targetScreen: ScreenUiState
-): ContentTransform {
-    val initialDepth = screenDepth(initialScreen)
-    val targetDepth = screenDepth(targetScreen)
-
-    return if (targetDepth > initialDepth) {
-        slideInHorizontally(initialOffsetX = { it / 5 }) + fadeIn() togetherWith
-            slideOutHorizontally(targetOffsetX = { -it / 10 }) + fadeOut()
-    } else if (targetDepth < initialDepth) {
-        slideInHorizontally(initialOffsetX = { -it / 5 }) + fadeIn() togetherWith
-            slideOutHorizontally(targetOffsetX = { it / 10 }) + fadeOut()
-    } else {
-        fadeIn() togetherWith fadeOut()
-    }
-}
-
-private fun screenDepth(screen: ScreenUiState): Int {
-    return when (screen) {
-        is ScreenUiState.Onboarding -> 0
-        is ScreenUiState.Main -> 1
-        is ScreenUiState.PeriodPicker -> 2
-        is ScreenUiState.AddSubject,
-        is ScreenUiState.BranchDetail,
-        is ScreenUiState.Settings -> 2
     }
 }
 
@@ -485,9 +483,9 @@ private fun OnboardingScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(
-                start = AppScreenHorizontalPadding,
+                start = 22.dp,
                 top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
+                end = 22.dp,
                 bottom = AppScreenBottomPadding
             ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -496,27 +494,30 @@ private fun OnboardingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = strings.appName,
-                style = MaterialTheme.typography.displaySmall,
-                color = accentBlue,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CarnetLogo()
+                Text(
+                    text = strings.appName,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = accentBlue,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Start
+                )
+            }
             Text(
                 text = strings.onboardingTitle,
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Start
             )
             Text(
                 text = strings.onboardingIntro,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Start
             )
         }
 
@@ -535,7 +536,7 @@ private fun OnboardingScreen(
 
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = CarnetSurfaceShape,
             colors = CardDefaults.outlinedCardColors(containerColor = appCardSurface()),
             border = BorderStroke(1.dp, appCardBorderColor())
         ) {
@@ -551,11 +552,11 @@ private fun OnboardingScreen(
                         imageVector = Icons.Filled.FileOpen,
                         contentDescription = null,
                         tint = accentBlue,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = strings.onboardingImportTitle,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -582,7 +583,7 @@ private fun OnboardingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("onboarding-import-pluspoints"),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = CarnetSurfaceShape,
                     colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
                 ) {
                     Text(
@@ -609,7 +610,7 @@ private fun OnboardingScreen(
         Text(
             text = strings.onboardingManualTitle,
             modifier = Modifier.padding(top = 16.dp),
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Text(
@@ -637,11 +638,11 @@ private fun OnboardingScreen(
                 .fillMaxWidth()
                 .padding(top = 8.dp)
                 .testTag("onboarding-continue"),
-            shape = RoundedCornerShape(28.dp),
+            shape = CarnetButtonShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = accentBlue,
                 disabledContainerColor = accentBlue.copy(alpha = 0.35f),
-                disabledContentColor = Color.White.copy(alpha = 0.8f)
+                disabledContentColor = MaterialTheme.colorScheme.onSurface
             )
         ) {
             Row(
@@ -653,7 +654,7 @@ private fun OnboardingScreen(
             ) {
                 Text(
                     text = strings.continueLabel,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center
                 )
                 Icon(
@@ -661,14 +662,14 @@ private fun OnboardingScreen(
                     contentDescription = null,
                     modifier = Modifier
                         .padding(start = 12.dp)
-                        .size(28.dp)
+                        .size(20.dp)
                 )
             }
         }
     }
 
     state.pendingPlusPointsImportDisplayName?.let { displayName ->
-        AlertDialog(
+        CarnetDialog(
             onDismissRequest = onDismissPendingImport,
             title = {
                 Text(
@@ -678,7 +679,7 @@ private fun OnboardingScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
                         text = displayName,
                         style = MaterialTheme.typography.titleMedium,
@@ -722,12 +723,11 @@ private fun OnboardingScreen(
                     Text(strings.cancelLabel)
                 }
             },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = appCardSurface()
         )
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun <T> OnboardingChoiceRow(
     choices: List<T>,
@@ -737,9 +737,11 @@ private fun <T> OnboardingChoiceRow(
     testTagPrefix: String,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    androidx.compose.foundation.layout.FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        maxItemsInEachRow = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) 1 else choices.size
     ) {
         choices.forEach { choice ->
             val isSelected = choice == selectedChoice
@@ -752,7 +754,7 @@ private fun <T> OnboardingChoiceRow(
                         selected = isSelected
                         role = Role.RadioButton
                     },
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.outlinedCardColors(
                     containerColor = if (isSelected) {
                         appSelectedOptionContainer()
@@ -774,8 +776,6 @@ private fun <T> OnboardingChoiceRow(
                     color = if (isSelected) appAccentBlue() else MaterialTheme.colorScheme.onSurface,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -796,7 +796,7 @@ internal fun OnboardingOptionCard(
     val idleBadgeBackground = appIdleBadgeBackground()
     val selectedBadgeBackground = appSelectedBadgeBackground()
     val idleBadgeTint = appIdleBadgeTint()
-    val selectedBadgeTint = Color.White
+    val selectedBadgeTint = MaterialTheme.colorScheme.onPrimary
     val selectedSecondaryText = appAccentBlue()
     val optionLabel = language.optionChoiceLabel(choice)
 
@@ -807,7 +807,7 @@ internal fun OnboardingOptionCard(
             role = Role.RadioButton
             contentDescription = optionLabel
         },
-        shape = RoundedCornerShape(24.dp),
+        shape = CarnetSurfaceShape,
         colors = CardDefaults.outlinedCardColors(
             containerColor = if (isSelected) selectedContainer else MaterialTheme.colorScheme.surface
         ),
@@ -816,19 +816,19 @@ internal fun OnboardingOptionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(68.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Card(
                     modifier = Modifier.fillMaxSize(),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) {
                             selectedBadgeBackground
@@ -841,7 +841,7 @@ internal fun OnboardingOptionCard(
                         Icon(
                             imageVector = choice.onboardingIcon(),
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = if (isSelected) selectedBadgeTint else idleBadgeTint
                         )
                     }
@@ -854,12 +854,10 @@ internal fun OnboardingOptionCard(
             ) {
                 Text(
                     text = optionLabel,
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = language.optionCategoryLabel(choice).uppercase(),
+                    text = language.optionCategoryLabel(choice),
                     style = MaterialTheme.typography.titleSmall,
                     color = if (isSelected) {
                         selectedSecondaryText
@@ -896,123 +894,26 @@ private fun MainScreen(
     onShowAddSubjectForm: () -> Unit,
     onDeleteSubject: (String) -> Unit,
     onOpenPeriodPicker: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onAddGrade: (String) -> Unit,
+    onOpenPromotion: () -> Unit,
     onPromotionSetupAction: (PromotionSetupAction, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = appAccentBlue()
-    val strings = currentAppStrings()
-    var pendingDeleteSubjectId by remember { mutableStateOf<String?>(null) }
-    val pendingDeleteSubject = pendingDeleteSubjectId?.let { pendingId ->
-        state.userSubjects.firstOrNull { it.id == pendingId }
-    }
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("main-screen-list"),
-        contentPadding = PaddingValues(
-            start = AppScreenHorizontalPadding,
-            top = AppScreenTopPadding,
-            end = AppScreenHorizontalPadding,
-            bottom = AppScreenListBottomPadding
-        ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = strings.appName,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = accentBlue,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.testTag("open-settings")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = strings.openSettingsLabel,
-                        tint = accentBlue
-                    )
-                }
+    CarnetMainScreen(
+        state = state,
+        onOpenSubject = onOpenSubject,
+        onAddGrade = onAddGrade,
+        onAddSubject = onShowAddSubjectForm,
+        onDeleteSubject = onDeleteSubject,
+        onOpenPeriodPicker = onOpenPeriodPicker,
+        onOpenPromotion = onOpenPromotion,
+        modifier = modifier,
+        promotionContent = {
+            CarnetPromotionOverview(state.summary, state.promotionSetup) {
+                state.promotionSetup?.let { onPromotionSetupAction(it.action, it.actionSubjectId) }
             }
         }
-        item {
-            PeriodSummaryButton(
-                selectedYear = state.selectedYear,
-                selectedSemester = state.selectedSemester,
-                onClick = onOpenPeriodPicker
-            )
-        }
-        if (state.promotionSetup == null) {
-            item {
-                SummaryCard(state.summary)
-            }
-        } else {
-            val promotionSetup = state.promotionSetup
-            item {
-                PromotionSetupCard(
-                    setup = promotionSetup,
-                    onAction = { onPromotionSetupAction(promotionSetup.action, promotionSetup.actionSubjectId) }
-                )
-            }
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(strings.mySubjects, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                Button(
-                    onClick = onShowAddSubjectForm,
-                    modifier = Modifier.testTag("show-add-subject-header"),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = appSoftAccentContainer(),
-                        contentColor = accentBlue
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = strings.addLabel,
-                        modifier = Modifier.padding(start = 6.dp)
-                    )
-                }
-            }
-        }
-        item {
-            SubjectCard(subject = state.optionSubject, onOpenSubject = onOpenSubject)
-        }
-        items(state.userSubjects, key = { it.id }) { subject ->
-            SwipeableSubjectCard(
-                subject = subject,
-                onOpenSubject = onOpenSubject,
-                onRequestDeleteSubject = { pendingDeleteSubjectId = subject.id }
-            )
-        }
-    }
-
-    pendingDeleteSubject?.let { subject ->
-        DeleteConfirmationDialog(
-            title = strings.deleteSubjectTitle,
-            message = strings.deleteSubjectMessage(subject.title),
-            onDismiss = { pendingDeleteSubjectId = null },
-            onConfirm = {
-                pendingDeleteSubjectId = null
-                onDeleteSubject(subject.id)
-            }
-        )
-    }
+    )
 }
 
 @Composable
@@ -1180,9 +1081,9 @@ private fun PeriodPickerScreen(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(
-                    start = AppScreenHorizontalPadding,
+                    start = 22.dp,
                     top = AppScreenTopPadding,
-                    end = AppScreenHorizontalPadding,
+                    end = 22.dp,
                     bottom = 16.dp
                 ),
             verticalArrangement = Arrangement.spacedBy(22.dp)
@@ -1214,7 +1115,7 @@ private fun PeriodPickerScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Surface(
-                    shape = RoundedCornerShape(100.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = appSoftAccentContainer()
                 ) {
                     Text(
@@ -1229,7 +1130,7 @@ private fun PeriodPickerScreen(
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
+                shape = CarnetSurfaceShape,
                 color = appCardSurface(),
                 border = appCardBorder()
             ) {
@@ -1286,12 +1187,12 @@ private fun PeriodPickerScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    start = AppScreenHorizontalPadding,
-                    end = AppScreenHorizontalPadding,
+                    start = 22.dp,
+                    end = 22.dp,
                     bottom = 12.dp
                 )
                 .testTag("confirm-period-selection"),
-            shape = RoundedCornerShape(24.dp),
+            shape = CarnetButtonShape,
             colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
         ) {
             Text(
@@ -1324,7 +1225,7 @@ private fun PeriodYearSelector(
                         contentDescription = strings.schoolYearLabel(year)
                     }
                     .testTag("period-year-${year.name}"),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = if (selected) appSelectedOptionContainer() else Color.Transparent,
                 border = BorderStroke(
                     if (selected) 2.dp else 1.dp,
@@ -1334,12 +1235,12 @@ private fun PeriodYearSelector(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(104.dp),
+                        .heightIn(min = 64.dp).padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "${index + 1}",
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (selected) appAccentBlue() else MaterialTheme.colorScheme.onSurface
                     )
@@ -1357,7 +1258,7 @@ private fun PeriodSemesterSelector(
     val strings = currentAppStrings()
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = appCardBorder()
     ) {
@@ -1375,7 +1276,7 @@ private fun PeriodSemesterSelector(
                             role = Role.RadioButton
                             contentDescription = strings.semesterAccessibilityLabel(semester)
                         }
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(if (selected) appAccentBlue() else Color.Transparent)
                         .clickable(role = Role.Button) { onSelectSemester(semester) }
                         .testTag("semester-${semester.name}")
@@ -1388,7 +1289,6 @@ private fun PeriodSemesterSelector(
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
                     )
                 }
             }
@@ -1398,7 +1298,7 @@ private fun PeriodSemesterSelector(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeableSubjectCard(
+internal fun SwipeableSubjectCard(
     subject: SubjectListItemUiState,
     onOpenSubject: (String) -> Unit,
     onRequestDeleteSubject: () -> Unit
@@ -1453,9 +1353,10 @@ private fun SwipeableSubjectCard(
             }
         }
     ) {
-        SubjectCard(
+        CarnetSubjectRow(
             subject = subject,
-            onOpenSubject = onOpenSubject,
+            onOpen = { onOpenSubject(subject.id) },
+            onDelete = onRequestDeleteSubject,
             modifier = Modifier.blockEndToStartSwipeMotion(dismissState)
         )
     }

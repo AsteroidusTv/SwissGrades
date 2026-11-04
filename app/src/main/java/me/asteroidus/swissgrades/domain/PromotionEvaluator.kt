@@ -67,8 +67,22 @@ object PromotionEvaluator {
                 }
         }
 
+        val promotionPointsTotal = if (missingDataReasons.isEmpty()) {
+            val requiredPoints = listOf(germanAverage, frenchAverage, mathAverage, optionAverage)
+                .sumOf { GradeCalculator.computePromotionPoints(it!!) }
+            val additionalPoints = additionalBranchAverages.sumOf { (_, average) ->
+                average?.let(GradeCalculator::computePromotionPoints) ?: 0.0
+            }
+            requiredPoints + additionalPoints
+        } else {
+            null
+        }
+
         val availableBranchAverages = branchAverages.filter { it.average != null }
         val blockingReasons = buildList {
+            if (promotionPointsTotal != null && promotionPointsTotal < 0.0) {
+                add(PromotionBlockingReason.NegativeCompensation(promotionPointsTotal))
+            }
             addAll(
                 availableBranchAverages
                     .filter { it.average!! < 3.0 }
@@ -113,16 +127,6 @@ object PromotionEvaluator {
             mathAverage = mathAverage,
             optionAverage = optionAverage
         )
-        val promotionPointsTotal = if (missingDataReasons.isEmpty()) {
-            val requiredPoints = listOf(germanAverage, frenchAverage, mathAverage, optionAverage)
-                .sumOf { GradeCalculator.computePromotionPoints(it!!) }
-            val additionalPoints = additionalBranchAverages.sumOf { (_, average) ->
-                average?.let(GradeCalculator::computePromotionPoints) ?: 0.0
-            }
-            requiredPoints + additionalPoints
-        } else {
-            null
-        }
 
         val status = when {
             missingDataReasons.isNotEmpty() -> PromotionStatus.INCOMPLETE

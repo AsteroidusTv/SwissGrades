@@ -124,6 +124,8 @@ data class BranchAverageResult(
 )
 
 sealed interface PromotionBlockingReason {
+    data class NegativeCompensation(val points: Double) : PromotionBlockingReason
+
     data class BranchAverageBelowThree(
         val branchName: String,
         val average: Double

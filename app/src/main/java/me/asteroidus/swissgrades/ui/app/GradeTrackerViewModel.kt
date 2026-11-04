@@ -42,6 +42,7 @@ class GradeTrackerViewModel(
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
     private var state: GradeTrackerAppState = (repository.load() ?: GradeTrackerAppState()).withSharedSubjects()
     private var currentScreen: InternalScreen = if (state.isOnboardingCompleted) InternalScreen.Main else InternalScreen.Onboarding
+    private var mainSection = MainSection.SUBJECTS
     private var onboardingSelection: InitialOptionChoice? = state.selectedOption
     private var onboardingImportYear: SchoolYear = state.selectedYear
     private var pendingOnboardingPlusPointsImport: PreparedPlusPointsImport? = null
@@ -161,10 +162,28 @@ class GradeTrackerViewModel(
     }
 
     fun openSettings() {
+        if (currentScreen is InternalScreen.Settings) return
         state.selectedOption?.let {
             currentScreen = InternalScreen.Settings()
             publish()
         }
+    }
+
+    fun openMainSection(section: MainSection) {
+        if (!state.isOnboardingCompleted) return
+        val settings = currentScreen as? InternalScreen.Settings
+        if (settings?.isBackupInProgress == true || settings?.isGradeReportExportInProgress == true) return
+        if (settings != null) clearPendingSettingsImport()
+        mainSection = section
+        currentScreen = InternalScreen.Main
+        publish()
+    }
+
+    fun openGradeEditor(subjectId: String) {
+        val subject = state.subjectsForSelectedYear().firstOrNull { it.id == subjectId } ?: return
+        openSubject(subjectId)
+        // A composite option needs an explicit sub-subject choice before opening the draft.
+        if (subject.subSubjects.isEmpty()) showAddGradeSheet()
     }
 
     fun openPeriodPicker() {
@@ -224,8 +243,11 @@ class GradeTrackerViewModel(
     }
 
     fun closeSettings() {
+        val settings = currentScreen as? InternalScreen.Settings ?: return
+        if (settings.isBackupInProgress || settings.isGradeReportExportInProgress) return
         clearPendingSettingsImport()
         currentScreen = InternalScreen.Main
+        mainSection = MainSection.SUBJECTS
         publish()
     }
 
@@ -243,6 +265,7 @@ class GradeTrackerViewModel(
     }
 
     fun resetApp() {
+        mainSection = MainSection.SUBJECTS
         clearPendingSettingsImport()
         state = resetAppUseCase.reset()
         currentScreen = InternalScreen.Onboarding
@@ -1056,7 +1079,8 @@ class GradeTrackerViewModel(
                     summary = summary,
                     promotionSetup = promotionSetup,
                     optionSubject = optionSubject,
-                    userSubjects = userSubjects
+                    userSubjects = userSubjects,
+                    selectedSection = mainSection
                 )
             }
 
@@ -1101,7 +1125,9 @@ class GradeTrackerViewModel(
         return GradeTrackerUiState(
             screen = screen,
             language = state.language,
-            themeMode = state.themeMode
+            themeMode = state.themeMode,
+            selectedYear = state.selectedYear,
+            selectedSemester = state.selectedSemester
         )
     }
 
@@ -1117,6 +1143,23 @@ class GradeTrackerViewModel(
         val totalPromotionPoints = state.totalPromotionPoints(subjectMetrics)
         val basketTotal = state.currentBasketTotal(subjectMetrics)
         val insufficiencyCount = state.insufficiencyCount(subjectMetrics)
+        val complete = promotionResult != null && promotionResult.missingDataReasons.isEmpty()
+        val minimumAverage = promotionResult?.branchAverages?.mapNotNull { it.average }?.minOrNull()
+        fun status(value: Double?, passes: (Double) -> Boolean): ConditionStatus = when {
+            value == null -> ConditionStatus.UNKNOWN
+            !passes(value) -> ConditionStatus.UNMET
+            complete -> ConditionStatus.MET
+            else -> ConditionStatus.UNKNOWN
+        }
+        val conditions = listOf(
+            PromotionConditionUiState(PromotionConditionKind.BASKET, basketTotal, status(basketTotal) { it >= 16.0 }),
+            PromotionConditionUiState(PromotionConditionKind.COMPENSATION, promotionResult?.promotionPointsTotal,
+                status(promotionResult?.promotionPointsTotal) { it >= 0.0 }),
+            PromotionConditionUiState(PromotionConditionKind.INSUFFICIENCIES, insufficiencyCount.toDouble(),
+                status(insufficiencyCount.toDouble()) { it <= 4.0 }),
+            PromotionConditionUiState(PromotionConditionKind.MINIMUM_AVERAGE, minimumAverage,
+                status(minimumAverage) { it >= 3.0 })
+        )
         return if (promotionResult != null) {
             val promotion = PromotionDashboardPresenter.present(promotionResult, strings)
             DashboardSummaryUiState(
@@ -1136,7 +1179,8 @@ class GradeTrackerViewModel(
                 basketValue = basketTotal,
                 insufficienciesLabel = "$insufficiencyCount / 4",
                 insufficiencyCount = insufficiencyCount,
-                statusTone = promotion.statusTone
+                statusTone = promotion.statusTone,
+                conditions = conditions
             )
         } else {
             DashboardSummaryUiState(
@@ -1156,7 +1200,8 @@ class GradeTrackerViewModel(
                 basketValue = basketTotal,
                 insufficienciesLabel = "$insufficiencyCount / 4",
                 insufficiencyCount = insufficiencyCount,
-                statusTone = DashboardStatusTone.NEUTRAL
+                statusTone = DashboardStatusTone.NEUTRAL,
+                conditions = conditions
             )
         }
     }
@@ -1193,6 +1238,7 @@ class GradeTrackerViewModel(
                 isOptionSubject = subject.isOptionSubject,
                 isCompositeOption = true,
                 targetAverageInput = subject.targetAverage?.let(state.language::formatOneOrTwoDecimals),
+                officialAverageValue = roundedAverage,
                 officialAverageLabel = roundedAverage?.let(state.language::formatOneOrTwoDecimals)
                     ?: strings.emptyNotes,
                 secondaryAverageTitle = strings.compositeAverage,
@@ -1244,6 +1290,7 @@ class GradeTrackerViewModel(
             isOptionSubject = subject.isOptionSubject,
             notes = subject.notes.filter { it.isIncludedIn(state.selectedSemester) }.map(::toNoteUiState),
             targetAverageInput = subject.targetAverage?.let(state.language::formatOneOrTwoDecimals),
+            officialAverageValue = officialAverage,
             officialAverageLabel = officialAverage?.let(state.language::formatOneOrTwoDecimals)
                 ?: strings.emptyNotes,
             secondaryAverageTitle = strings.rawAverage,
@@ -1377,7 +1424,8 @@ class GradeTrackerViewModel(
             isCounted = subject.isCounted,
             isInBasket = subject.isInBasket,
             isOptionSubject = subject.isOptionSubject,
-            isCompositeOption = subject.subSubjects.isNotEmpty()
+            isCompositeOption = subject.subSubjects.isNotEmpty(),
+            noteCount = subject.allStoredNotesForList().count { it.isIncludedIn(state.selectedSemester) }
         )
     }
 
@@ -2020,3 +2068,5 @@ private fun Double?.toBranchStatusTone(): DashboardStatusTone {
         else -> DashboardStatusTone.NEGATIVE
     }
 }
+
+private fun StoredSubject.allStoredNotesForList(): List<StoredNote> = notes + subSubjects.flatMap { it.notes }

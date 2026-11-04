@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,6 +28,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+
+@Composable
+internal fun CarnetDialog(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit = {},
+    dismissButton: (@Composable () -> Unit)? = null
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        shape = CarnetSurfaceShape,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        title = { ProvideTextStyle(MaterialTheme.typography.titleLarge, title) },
+        text = { ProvideTextStyle(MaterialTheme.typography.bodyMedium, text) },
+        confirmButton = confirmButton,
+        dismissButton = dismissButton
+    )
+}
 
 @Composable
 internal fun DeleteConfirmationDialog(
@@ -55,14 +76,12 @@ internal fun ConfirmationDialog(
 ) {
     val strings = currentAppStrings()
     val accentBlue = appAccentBlue()
-    AlertDialog(
+    CarnetDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
-        containerColor = appCardSurface(),
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
         },
@@ -70,7 +89,7 @@ internal fun ConfirmationDialog(
             Text(
                 text = message,
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
@@ -78,7 +97,7 @@ internal fun ConfirmationDialog(
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = accentBlue),
-                shape = RoundedCornerShape(18.dp)
+                shape = CarnetButtonShape
             ) {
                 Text(confirmLabel)
             }
