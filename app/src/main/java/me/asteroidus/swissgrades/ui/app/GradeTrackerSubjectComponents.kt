@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +41,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -58,22 +58,21 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.ui.zIndex
 import me.asteroidus.swissgrades.ui.theme.AppPositiveDark
 import me.asteroidus.swissgrades.ui.theme.AppWarningDark
 import me.asteroidus.swissgrades.ui.theme.SwissBlue
 import me.asteroidus.swissgrades.ui.theme.SwissBlueDark
-
-private val AddSubjectAvailableColors = listOf(
-    SubjectColorChoice.BLUE,
-    SubjectColorChoice.TEAL,
-    SubjectColorChoice.SLATE,
-    SubjectColorChoice.PURPLE,
-    SubjectColorChoice.PINK,
-    SubjectColorChoice.GREEN,
-    SubjectColorChoice.AMBER,
-    SubjectColorChoice.ORANGE
-)
 
 private val AddSubjectAvailableIcons = listOf(
     SubjectIconChoice.BOOK,
@@ -90,6 +89,7 @@ private val AddSubjectAvailableIcons = listOf(
     SubjectIconChoice.SPORT
 )
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AddSubjectScreen(
     state: AddSubjectFormUiState,
@@ -102,227 +102,143 @@ fun AddSubjectScreen(
     onCreate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentBlue = appAccentBlue()
+    val accent = appAccentBlue()
     val strings = currentAppStrings()
-    val activeColor = state.selectedColor
-        .takeIf { it in AddSubjectAvailableColors }
-        ?: SubjectColorChoice.BLUE
     val isEditing = state.editingSubjectId != null
+    var personalizationExpanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = AppScreenHorizontalPadding,
-                    top = AppScreenTopPadding,
-                    end = AppScreenHorizontalPadding,
-                    bottom = AppScreenBottomPadding
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-add-subject")
-            )
-            Text(
-                text = if (isEditing) strings.editSubjectTitle else strings.addSubjectTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppScreenHorizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = strings.subjectNameLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
-                OutlinedTextField(
-                    value = state.nameInput,
-                    onValueChange = onNameChanged,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("add-subject-name"),
-                    placeholder = { Text(strings.subjectNamePlaceholder) },
-                    singleLine = true,
-                    isError = state.errorMessage != null,
-                    shape = RoundedCornerShape(20.dp),
-                    textStyle = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = appCardBorderColor(),
-                        unfocusedBorderColor = appCardBorderColor(),
-                        errorBorderColor = MaterialTheme.colorScheme.error,
-                        focusedContainerColor = appCardSurface(),
-                        unfocusedContainerColor = appCardSurface(),
-                        errorContainerColor = appCardSurface(),
-                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = DashboardCardShape,
-                colors = CardDefaults.cardColors(containerColor = appSelectedOptionContainer()),
-                border = appCardBorder()
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 720.dp).fillMaxSize().imePadding()) {
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 18.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                androidx.compose.material3.TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("back-from-add-subject"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(strings.addToBasketTitle, style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            strings.addToBasketDescription,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = state.isInBasket,
-                        onCheckedChange = onBasketChanged,
-                        enabled = state.isCounted,
-                        modifier = Modifier.testTag("add-subject-basket")
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(20.dp))
+                    Text(strings.subjectsTabLabel, Modifier.padding(start = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = DashboardCardShape,
-                colors = CardDefaults.cardColors(containerColor = appSelectedOptionContainer()),
-                border = appCardBorder()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 18.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(strings.countInResultsTitle, style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            strings.countInResultsDescription,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = state.isCounted,
-                        onCheckedChange = onCountedChanged,
-                        modifier = Modifier.testTag("add-subject-counted")
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(
-                    text = strings.personalizationTitle,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
+                    text = if (isEditing) strings.editSubjectTitle else strings.addSubjectTitle,
+                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
+                    fontWeight = FontWeight.SemiBold
                 )
-
-                AddSubjectAvailableColors.chunked(4).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        row.forEach { colorChoice ->
-                            ColorChoiceChip(
-                                colorChoice = colorChoice,
-                                isSelected = activeColor == colorChoice,
-                                onClick = { onColorSelected(colorChoice) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(strings.subjectNameLabel, style = MaterialTheme.typography.labelLarge)
+                    OutlinedTextField(
+                        value = state.nameInput,
+                        onValueChange = onNameChanged,
+                        modifier = Modifier.fillMaxWidth().testTag("add-subject-name"),
+                        placeholder = { Text(strings.subjectNamePlaceholder) },
+                        singleLine = true,
+                        isError = state.errorMessage != null,
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = appCardBorderColor(),
+                            focusedContainerColor = appCardSurface(),
+                            unfocusedContainerColor = appCardSurface()
+                        )
+                    )
                 }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AddSubjectAvailableIcons.chunked(4).forEach { row ->
-                        Row(
+                SubjectConfigurationSwitch(
+                    title = strings.countInResultsTitle,
+                    description = strings.countInResultsDescription,
+                    checked = state.isCounted,
+                    onCheckedChange = onCountedChanged,
+                    testTag = "add-subject-counted"
+                )
+                SubjectConfigurationSwitch(
+                    title = strings.addToBasketTitle,
+                    description = strings.addToBasketDescription,
+                    checked = state.isInBasket,
+                    enabled = state.isCounted,
+                    onCheckedChange = onBasketChanged,
+                    testTag = "add-subject-basket"
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    androidx.compose.material3.TextButton(
+                        onClick = { personalizationExpanded = !personalizationExpanded },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("toggle-subject-personalization"),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                    ) {
+                        Text(strings.personalizationTitle.lowercase().replaceFirstChar { it.titlecase() },
+                            Modifier.weight(1f), style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface)
+                        Icon(if (personalizationExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null)
+                    }
+                    if (personalizationExpanded) {
+                        androidx.compose.foundation.layout.FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            row.forEach { iconChoice ->
-                                IconChoiceChip(
-                                    iconChoice = iconChoice,
-                                    accentColor = activeColor.toColor(isDarkPalette()),
-                                    isSelected = state.selectedIcon == iconChoice,
-                                    onClick = { onIconSelected(iconChoice) },
-                                    modifier = Modifier.weight(1f)
-                                )
+                            AddSubjectAvailableIcons.forEach { icon ->
+                                IconChoiceChip(icon, MaterialTheme.colorScheme.primary, state.selectedIcon == icon,
+                                    { onIconSelected(icon) }, Modifier.size(48.dp))
                             }
                         }
                     }
                 }
+                state.errorMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("add-subject-error"))
+                }
             }
-
-            state.errorMessage?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.testTag("add-subject-error")
-                )
-            }
-        }
-
-        Button(
-            onClick = onCreate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .testTag("confirm-add-subject"),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
-        ) {
-            Row(
-                modifier = Modifier.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Button(
+                onClick = onCreate,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp)
+                    .heightIn(min = 50.dp).testTag("confirm-add-subject"),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(15.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent)
             ) {
-                Text(
-                    text = if (isEditing) strings.saveChanges else strings.createSubject,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Icon(
-                    imageVector = if (isEditing) Icons.Filled.Edit else Icons.Filled.Add,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 10.dp)
-                )
+                Icon(if (isEditing) Icons.Filled.Check else Icons.Filled.Add, null, Modifier.size(20.dp))
+                Text(if (isEditing) strings.saveChanges else strings.createSubject, Modifier.padding(start = 8.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun SubjectConfigurationSwitch(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    testTag: String,
+    enabled: Boolean = true
+) {
+    Column {
+        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(description, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.secondaryContainer,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledCheckedTrackColor = MaterialTheme.colorScheme.secondaryContainer,
+                    disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledCheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledUncheckedTrackColor = MaterialTheme.colorScheme.surface,
+                    disabledUncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    disabledUncheckedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                modifier = Modifier.testTag(testTag))
+        }
+        androidx.compose.material3.HorizontalDivider(color = appCardBorderColor())
     }
 }
 
@@ -432,7 +348,7 @@ fun SubjectCard(
     }
 }
 
-private fun SubjectIconChoice.toImageVector(): ImageVector {
+internal fun SubjectIconChoice.toImageVector(): ImageVector {
     return when (this) {
         SubjectIconChoice.BOOK -> Icons.Filled.AutoStories
         SubjectIconChoice.SCIENCE -> Icons.Filled.Science
@@ -449,7 +365,7 @@ private fun SubjectIconChoice.toImageVector(): ImageVector {
     }
 }
 
-private fun SubjectColorChoice.toColor(darkTheme: Boolean = false): Color {
+internal fun SubjectColorChoice.toColor(darkTheme: Boolean = false): Color {
     return when (this) {
         SubjectColorChoice.BLUE -> if (darkTheme) SwissBlueDark else SwissBlue
         SubjectColorChoice.RED -> if (darkTheme) AppWarningDark else Color(0xFFD11F1F)
@@ -463,7 +379,7 @@ private fun SubjectColorChoice.toColor(darkTheme: Boolean = false): Color {
     }
 }
 
-private fun SubjectColorChoice.toSoftBackgroundColor(darkTheme: Boolean): Color {
+internal fun SubjectColorChoice.toSoftBackgroundColor(darkTheme: Boolean): Color {
     return when (this) {
         SubjectColorChoice.BLUE -> if (darkTheme) Color(0xFF1B2A40) else Color(0xFFEAF2FF)
         SubjectColorChoice.RED -> if (darkTheme) Color(0xFF41232A) else Color(0xFFFFECEC)
@@ -522,7 +438,7 @@ private fun ColorChoiceChip(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
-                    .size(28.dp)
+                    .size(20.dp)
                     .zIndex(1f),
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -536,7 +452,7 @@ private fun ColorChoiceChip(
                         imageVector = Icons.Filled.Check,
                         contentDescription = null,
                         tint = chipColor,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
             }
@@ -555,7 +471,7 @@ private fun IconChoiceChip(
     val language = LocalAppLanguage.current
     Card(
         modifier = modifier
-            .height(72.dp)
+            .heightIn(min = 48.dp)
             .semantics {
                 selected = isSelected
                 role = Role.RadioButton
@@ -563,7 +479,7 @@ private fun IconChoiceChip(
             }
             .clickable(onClick = onClick, role = Role.RadioButton)
             .testTag("subject-icon-${iconChoice.name}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             if (isSelected) 2.dp else 1.dp,
             if (isSelected) accentColor else appCardBorderColor()

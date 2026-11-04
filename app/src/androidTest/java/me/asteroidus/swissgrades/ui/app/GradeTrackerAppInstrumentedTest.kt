@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -91,9 +93,10 @@ class GradeTrackerAppInstrumentedTest {
 
         launchApp()
 
+        composeRule.onNodeWithTag("carnet-nav-PROMOTION").performClick()
         assertTagText("overall-average-title", "Moyenne générale")
         assertTagText("overall-average-contributors", "4 branches notées")
-        assertTagText("promotion-status", "PROMU")
+        assertTagText("promotion-status", "Conditions remplies à ce stade")
     }
 
     @Test
@@ -159,8 +162,9 @@ class GradeTrackerAppInstrumentedTest {
 
         launchApp()
 
+        composeRule.onNodeWithTag("carnet-nav-PROMOTION").performClick()
         assertTagDisplayed("promotion-setup-card")
-        assertTagAbsent("dashboard-summary")
+        assertTagDisplayed("dashboard-summary")
         composeRule.onNodeWithTag("promotion-setup-action", useUnmergedTree = true)
             .performClick()
         assertTagDisplayed("add-subject-name")
@@ -250,16 +254,11 @@ class GradeTrackerAppInstrumentedTest {
             .performTextReplacement("6.0")
         composeRule.onNodeWithTag("use-saved-target", useUnmergedTree = true)
             .performScrollTo()
-            .performTouchInput { click() }
+            .performClick()
         assertTagText("target-average-input", "5,0")
-        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
-            .performScrollTo()
-        composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
-            .performTouchInput { swipeUp(startY = 1_500f, endY = 1_100f) }
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true)
-            .performTouchInput { click() }
-            .assertIsSelected()
+        composeRule.onNodeWithTag("target-count-picker", useUnmergedTree = true).performScrollTo().performClick()
+        composeRule.onNodeWithTag("target-planned-grade-count-2", useUnmergedTree = true).performClick()
+
 
         composeRule.onNodeWithTag("target-simulation-required-value", useUnmergedTree = true)
             .performScrollTo()
@@ -303,7 +302,7 @@ class GradeTrackerAppInstrumentedTest {
             .performClick()
 
         composeRule.onNodeWithTag("grade-impact-card", useUnmergedTree = true)
-            .assertIsDisplayed()
+            .performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("grade-impact-with", useUnmergedTree = true)
             .assertTextEquals("5,0")
         composeRule.onNodeWithTag("grade-impact-without", useUnmergedTree = true)
@@ -349,7 +348,9 @@ class GradeTrackerAppInstrumentedTest {
             .performClick()
         scrollBranchDetailUntilTag("note-semester-note-2")
 
+        scrollBranchDetailUntilTag("note-semester-note-1")
         assertTagText("note-semester-note-1", "S1")
+        scrollBranchDetailUntilTag("note-semester-note-2")
         assertTagText("note-semester-note-2", "S2")
         composeRule.onNodeWithTag("note-card-note-2", useUnmergedTree = true)
             .performClick()
@@ -500,9 +501,11 @@ class GradeTrackerAppInstrumentedTest {
         composeRule.onNodeWithTag("open-settings", useUnmergedTree = true)
             .performClick()
 
-        assertTextDisplayed("Préférences de l'app")
-        assertTextDisplayed("Configuration scolaire")
-        composeRule.onNodeWithText("Données et exports", useUnmergedTree = true)
+        composeRule.onNodeWithTag("settings-appearance").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings-language").assertIsDisplayed()
+        composeRule.onNodeWithText("Configuration scolaire", useUnmergedTree = true)
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Mes données", useUnmergedTree = true)
             .performScrollTo()
             .assertIsDisplayed()
         assertTagAbsent("settings-option-BIOLOGY_CHEMISTRY")
@@ -594,29 +597,12 @@ class GradeTrackerAppInstrumentedTest {
     }
 
     private fun scrollBranchDetailUntilTag(tag: String) {
-        repeat(12) {
-            val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
-                .fetchSemanticsNodes().isNotEmpty()
-            if (targetExists) return
-
-            composeRule.onNodeWithTag("branch-detail-list", useUnmergedTree = true)
-                .performTouchInput { swipeUp() }
-            composeRule.waitForIdle()
-        }
-        waitForTag(tag)
+        val rowTag = if (tag.startsWith("note-semester-")) tag.replace("note-semester-", "note-card-") else tag
+        composeRule.onNodeWithTag("branch-detail-list").performScrollToNode(hasTestTag(rowTag))
     }
 
     private fun scrollMainScreenUntilTag(tag: String) {
-        repeat(12) {
-            val targetExists = composeRule.onAllNodesWithTag(tag, useUnmergedTree = true)
-                .fetchSemanticsNodes().isNotEmpty()
-            if (targetExists) return
-
-            composeRule.onNodeWithTag("main-screen-list", useUnmergedTree = true)
-                .performTouchInput { swipeUp() }
-            composeRule.waitForIdle()
-        }
-        waitForTag(tag)
+        composeRule.onNodeWithTag("main-screen-list").performScrollToNode(hasTestTag(tag))
     }
 
     private fun launchApp() {

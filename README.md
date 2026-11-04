@@ -65,6 +65,8 @@ Composite options:
 
 ## Product direction
 
+The `codex/carnet-refonte` branch implements the Carnet interface: compact subject and grade rows, a dedicated promotion overview, full-page grade entry, and focused settings dialogs. Subject and grade deletion remains swipe-based with confirmation. The persisted 1.6.0 format is unchanged; signed upgrade/release validation is still pending. See [`docs/CARNET_COMPONENT_PLAN.md`](docs/CARNET_COMPONENT_PLAN.md) and [`docs/TEST_STRATEGY.md`](docs/TEST_STRATEGY.md).
+
 SwissGrades is currently focused on being a strong personal-use app:
 
 - clear grade entry
@@ -94,8 +96,8 @@ See the full privacy policy here:
 
 ## Current release
 
-- Version name: `1.5.0`
-- Version code: `5`
+- Version name: `1.6.0`
+- Version code: `6`
 - Minimum SDK: `24`
 - Target SDK: `36`
 
@@ -195,7 +197,7 @@ It can:
 - publish a GitHub Release
 - upload release artifacts
 
-Automatic pushes create prereleases so the repository can always expose the latest installable build without turning every push into a final stable release.
+Automatic pushes create prereleases so the repository can always expose the latest installable build without turning every push into a final stable release. Before merging the Carnet update into `main`, verify a signed upgrade from 1.6.0 with preserved data or explicitly decide how to handle the automatic release trigger.
 
 ### Required GitHub Secrets
 
@@ -214,4 +216,4 @@ Automatic pushes create prereleases so the repository can always expose the late
 
 ## Current state
 
-SwissGrades has a release-ready personal grade tracking workflow with semester-aware subjects, weighted grades, target average simulation, localized option handling, local backups/imports, and automated validation in CI.
+SwissGrades has a personal grade tracking workflow with semester-aware subjects, weighted grades, target average simulation, localized option handling, local backups/imports, and automated validation in CI. Signed upgrade validation for the Carnet update remains pending.

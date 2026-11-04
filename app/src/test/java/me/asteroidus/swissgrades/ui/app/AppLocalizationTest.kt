@@ -43,8 +43,8 @@ class AppLocalizationTest {
         )
 
         assertEquals("Choisis ton option", strings.chooseOption)
-        assertEquals("Mes branches", strings.mySubjects)
-        assertEquals("Paramètres", strings.optionSettingsTitle)
+        assertEquals("Mes matières", strings.mySubjects)
+        assertEquals("Réglages", strings.optionSettingsTitle)
         assertEquals("Simulateur de note", strings.targetSimulationTitle)
         assertEquals("Objectif temporaire du scénario", strings.temporaryScenarioTargetLabel)
         assertEquals("Moyenne générale", strings.overallAverageTitle)

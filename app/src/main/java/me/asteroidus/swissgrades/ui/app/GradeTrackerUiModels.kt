@@ -49,7 +49,8 @@ data class SubjectListItemUiState(
     val isCounted: Boolean,
     val isInBasket: Boolean,
     val isOptionSubject: Boolean,
-    val isCompositeOption: Boolean
+    val isCompositeOption: Boolean,
+    val noteCount: Int = 0
 )
 
 @Immutable
@@ -85,6 +86,7 @@ data class SubjectDetailUiState(
     val subSubjects: List<CompositeSubSubjectDetailUiState> = emptyList(),
     val targetAverageInput: String? = null,
     val officialAverageLabel: String = AppStrings.English.emptyNotes,
+    val officialAverageValue: Double? = null,
     val secondaryAverageTitle: String = AppStrings.English.rawAverage,
     val secondaryAverageLabel: String = AppStrings.English.emptyNotes,
     val pointsLabel: String = AppStrings.English.emptyNotes,
@@ -149,8 +151,14 @@ data class DashboardSummaryUiState(
     val basketValue: Double?,
     val insufficienciesLabel: String,
     val insufficiencyCount: Int,
-    val statusTone: DashboardStatusTone
+    val statusTone: DashboardStatusTone,
+    val conditions: List<PromotionConditionUiState> = emptyList()
 )
+
+enum class PromotionConditionKind { BASKET, COMPENSATION, INSUFFICIENCIES, MINIMUM_AVERAGE }
+enum class ConditionStatus { MET, UNMET, UNKNOWN }
+@Immutable
+data class PromotionConditionUiState(val kind: PromotionConditionKind, val value: Double?, val status: ConditionStatus)
 
 @Immutable
 data class PromotionSetupUiState(
@@ -180,6 +188,8 @@ enum class DashboardStatusTone {
     NEUTRAL
 }
 
+enum class MainSection { SUBJECTS, PROMOTION }
+
 @Immutable
 sealed interface ScreenUiState {
     data class Onboarding(
@@ -200,7 +210,8 @@ sealed interface ScreenUiState {
         val summary: DashboardSummaryUiState,
         val promotionSetup: PromotionSetupUiState?,
         val optionSubject: SubjectListItemUiState,
-        val userSubjects: List<SubjectListItemUiState>
+        val userSubjects: List<SubjectListItemUiState>,
+        val selectedSection: MainSection = MainSection.SUBJECTS
     ) : ScreenUiState
 
     data class PeriodPicker(
@@ -225,5 +236,7 @@ sealed interface ScreenUiState {
 data class GradeTrackerUiState(
     val screen: ScreenUiState,
     val language: AppLanguage,
-    val themeMode: AppThemeMode
+    val themeMode: AppThemeMode,
+    val selectedYear: SchoolYear = SchoolYear.YEAR_1,
+    val selectedSemester: SchoolSemester = SchoolSemester.SEMESTER_1
 )

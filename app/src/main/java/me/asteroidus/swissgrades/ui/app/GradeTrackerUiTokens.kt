@@ -45,11 +45,11 @@ internal fun appCardBorder(): BorderStroke = BorderStroke(1.dp, appCardBorderCol
 internal fun appSoftAccentContainer(): Color = MaterialTheme.colorScheme.secondaryContainer
 
 @Composable
-internal fun appProgressTrack(): Color = if (isDarkPalette()) Color(0xFF304053) else Color(0xFFDCE4F2)
+internal fun appProgressTrack(): Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
 
 @Composable
 internal fun appSelectedOptionContainer(): Color =
-    if (isDarkPalette()) Color(0xFF16263B) else Color(0xFFF7FAFF)
+    MaterialTheme.colorScheme.secondaryContainer
 
 @Composable
 internal fun appSelectedOptionBorder(): Color = MaterialTheme.colorScheme.primary
@@ -59,14 +59,14 @@ internal fun appIdleOptionBorder(): Color = appCardBorderColor()
 
 @Composable
 internal fun appIdleBadgeBackground(): Color =
-    if (isDarkPalette()) Color(0xFF22344B) else Color(0xFFE1ECFF)
+    MaterialTheme.colorScheme.secondaryContainer
 
 @Composable
 internal fun appSelectedBadgeBackground(): Color = MaterialTheme.colorScheme.primary
 
 @Composable
 internal fun appIdleBadgeTint(): Color =
-    if (isDarkPalette()) SwissBlueDark else Color(0xFF1459B2)
+    MaterialTheme.colorScheme.primary
 
 @Composable
 internal fun appPositiveColor(): Color = if (isDarkPalette()) AppPositiveDark else AppPositiveLight
@@ -87,7 +87,7 @@ internal fun appWarningBackground(): Color =
 
 @Composable
 internal fun appNeutralBackground(): Color =
-    if (isDarkPalette()) Color(0xFF223046) else Color(0xFFF1F5FB)
+    MaterialTheme.colorScheme.surfaceVariant
 
 @Composable
 internal fun appSwipeDeleteBackground(): Color =

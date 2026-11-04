@@ -1,26 +1,32 @@
 package me.asteroidus.swissgrades.ui.app
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,7 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -39,8 +45,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun SettingsScreen(
@@ -59,7 +65,8 @@ internal fun SettingsScreen(
     onConfirmPendingPlusPointsImport: () -> Unit,
     onResetApp: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showBackButton: Boolean = true
 ) {
     val strings = currentAppStrings()
     val language = LocalAppLanguage.current
@@ -69,246 +76,186 @@ internal fun SettingsScreen(
     var isOptionChooserExpanded by remember { mutableStateOf(false) }
     val isFileOperationInProgress =
         settings.isBackupInProgress || settings.isGradeReportExportInProgress
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(
-                start = AppScreenHorizontalPadding,
-                top = AppScreenTopPadding,
-                end = AppScreenHorizontalPadding,
-                bottom = AppScreenBottomPadding
-            ),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    var isAppearanceChooserVisible by remember { mutableStateOf(false) }
+    var isLanguageChooserVisible by remember { mutableStateOf(false) }
+    var isBackupChooserVisible by remember { mutableStateOf(false) }
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 720.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp, vertical = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            HeaderBackButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("back-from-settings")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (showBackButton) {
+                    HeaderBackButton(onClick = onBack, modifier = Modifier.testTag("back-from-settings"))
+                }
+                Text(
+                    text = strings.optionSettingsTitle,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Text(
+                text = strings.settingsIntro,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+            CarnetSettingsRow(
+                icon = Icons.Outlined.Palette,
+                title = strings.themeSectionTitle,
+                supportingText = strings.themeModeLabel(settings.selectedThemeMode),
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("settings-appearance"),
+                onClick = { isAppearanceChooserVisible = true }
+            )
+            CarnetSettingsRow(
+                icon = Icons.Outlined.Language,
+                title = strings.languageSectionTitle,
+                supportingText = strings.languageLabel(settings.selectedLanguage),
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("settings-language"),
+                onClick = { isLanguageChooserVisible = true }
+            )
+
+            SettingsGroupHeading(strings.myDataTitle)
+            if (isFileOperationInProgress) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().testTag("settings-file-operation-progress").padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text(strings.fileOperationInProgress, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            CarnetSettingsRow(
+                icon = Icons.Outlined.Archive,
+                title = strings.backupAndRestoreLabel,
+                supportingText = strings.backupFilesCaption,
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("settings-backup-and-restore"),
+                onClick = { isBackupChooserVisible = true }
+            )
+            settings.backupMessage?.let { SettingsStatusMessage(it, settings.backupMessageTone) }
+            CarnetSettingsRow(
+                icon = Icons.Outlined.FileUpload,
+                title = strings.importPlusPointsLabel,
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("import-pluspoints-button"),
+                onClick = onImportPlusPoints
+            )
+            CarnetSettingsRow(
+                icon = Icons.Outlined.Description,
+                title = strings.exportGradeReportLabel,
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("export-grade-report-button"),
+                onClick = { isGradeReportConfirmationVisible = true }
+            )
+            settings.gradeReportMessage?.let { SettingsStatusMessage(it, settings.gradeReportMessageTone) }
+
+            SettingsGroupHeading(strings.schoolSetupGroupTitle)
+            CarnetSettingsRow(
+                icon = Icons.Outlined.School,
+                title = strings.optionSectionTitle,
+                supportingText = language.optionChoiceLabel(settings.selectedOption),
+                enabled = !isFileOperationInProgress,
+                modifier = Modifier.testTag("toggle-option-choices"),
+                onClick = { isOptionChooserExpanded = true }
             )
             Text(
-                text = strings.optionSettingsTitle,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                text = "${strings.schoolYearLabel(settings.selectedYear)} · ${strings.semesterLabel(settings.selectedSemester)}",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+            CarnetSettingsRow(
+                icon = Icons.Outlined.RestartAlt,
+                title = strings.resetAppLabel,
+                supportingText = strings.resetSectionDescription,
+                enabled = !isFileOperationInProgress,
+                destructive = true,
+                modifier = Modifier.padding(top = 8.dp).testTag("reset-app-button"),
+                onClick = { isResetConfirmationVisible = true }
             )
         }
+    }
 
-        SettingsGroupHeading(strings.appPreferencesGroupTitle)
-
-        SettingsChoiceSection(
-            title = strings.languageSectionTitle,
-            description = strings.languageSectionDescription
-        ) {
-            AppLanguage.entries.forEach { language ->
-                SettingsChoiceCard(
-                    title = strings.languageLabel(language),
-                    selected = settings.selectedLanguage == language,
-                    onClick = { onSelectLanguage(language) }
-                )
-            }
-        }
-
-        SettingsChoiceSection(
+    if (isAppearanceChooserVisible) {
+        SettingsSelectionDialog(
             title = strings.themeSectionTitle,
-            description = strings.themeSectionDescription
+            description = strings.themeSectionDescription,
+            onDismiss = { isAppearanceChooserVisible = false }
         ) {
-            AppThemeMode.entries.forEach { themeMode ->
-                SettingsChoiceCard(
-                    title = strings.themeModeLabel(themeMode),
-                    selected = settings.selectedThemeMode == themeMode,
-                    onClick = { onSelectThemeMode(themeMode) }
-                )
+            AppThemeMode.entries.forEach { mode ->
+                SettingsChoiceCard(strings.themeModeLabel(mode), settings.selectedThemeMode == mode) {
+                    isAppearanceChooserVisible = false
+                    onSelectThemeMode(mode)
+                }
             }
         }
-
-        SettingsGroupHeading(strings.schoolSetupGroupTitle)
-
-        SettingsChoiceSection(
-            title = strings.optionSectionTitle,
-            description = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption))
+    }
+    if (isLanguageChooserVisible) {
+        SettingsSelectionDialog(
+            title = strings.languageSectionTitle,
+            description = strings.languageSectionDescription,
+            onDismiss = { isLanguageChooserVisible = false }
         ) {
-            Button(
-                onClick = { isOptionChooserExpanded = !isOptionChooserExpanded },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("toggle-option-choices"),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = appSelectedOptionContainer(),
-                    contentColor = appAccentBlue()
-                )
-            ) {
-                Text(
-                    if (isOptionChooserExpanded) {
-                        strings.hideOptionChoicesLabel
-                    } else {
-                        strings.changeOptionLabel
+            AppLanguage.entries.forEach { choice ->
+                SettingsChoiceCard(strings.languageLabel(choice), settings.selectedLanguage == choice) {
+                    isLanguageChooserVisible = false
+                    onSelectLanguage(choice)
+                }
+            }
+        }
+    }
+    if (isBackupChooserVisible) {
+        SettingsSelectionDialog(
+            title = strings.backupAndRestoreLabel,
+            description = strings.backupSectionDescription,
+            onDismiss = { isBackupChooserVisible = false }
+        ) {
+            CarnetSettingsRow(Icons.Outlined.FileDownload, strings.exportBackupLabel,
+                modifier = Modifier.testTag("export-backup-button"), onClick = {
+                    isBackupChooserVisible = false
+                    onExportBackup()
+                })
+            CarnetSettingsRow(Icons.Outlined.FileUpload, strings.importBackupLabel,
+                modifier = Modifier.testTag("import-backup-button"), onClick = {
+                    isBackupChooserVisible = false
+                    onImportBackup()
+                })
+        }
+    }
+    if (isOptionChooserExpanded) {
+        SettingsSelectionDialog(
+            title = strings.changeOptionLabel,
+            description = strings.optionDescription(language.optionChoiceLabel(settings.selectedOption)),
+            onDismiss = { isOptionChooserExpanded = false }
+        ) {
+            InitialOptionChoice.entries.forEach { choice ->
+                SettingsChoiceCard(
+                    title = language.optionChoiceLabel(choice),
+                    selected = settings.selectedOption == choice,
+                    modifier = Modifier.testTag("settings-option-${choice.name}"),
+                    onClick = {
+                        isOptionChooserExpanded = false
+                        if (settings.selectedOption != choice) pendingOptionChange = choice
                     }
                 )
-            }
-
-            if (isOptionChooserExpanded) {
-                InitialOptionChoice.entries.forEach { choice ->
-                    OnboardingOptionCard(
-                        choice = choice,
-                        isSelected = settings.selectedOption == choice,
-                        onClick = {
-                            if (settings.selectedOption != choice) {
-                                pendingOptionChange = choice
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings-option-${choice.name}")
-                    )
-                }
-            }
-        }
-
-        SettingsGroupHeading(strings.dataManagementGroupTitle)
-
-        if (isFileOperationInProgress) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings-file-operation-progress"),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 3.dp
-                )
-                Text(
-                    text = strings.fileOperationInProgress,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.backupSectionTitle,
-            description = strings.backupSectionDescription
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = onExportBackup,
-                    enabled = !isFileOperationInProgress,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = appSoftAccentContainer(),
-                        contentColor = appAccentBlue()
-                    )
-                ) {
-                    Text(strings.exportBackupLabel, textAlign = TextAlign.Center)
-                }
-                Button(
-                    onClick = onImportBackup,
-                    enabled = !isFileOperationInProgress,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = appAccentBlue())
-                ) {
-                    Text(strings.importBackupLabel, textAlign = TextAlign.Center)
-                }
-            }
-
-            settings.backupMessage?.let { message ->
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = when (settings.backupMessageTone) {
-                        DashboardStatusTone.POSITIVE -> appPositiveBackground()
-                        DashboardStatusTone.NEGATIVE -> appWarningBackground()
-                        DashboardStatusTone.NEUTRAL -> appNeutralBackground()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = message,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (settings.backupMessageTone) {
-                            DashboardStatusTone.POSITIVE -> appPositiveColor()
-                            DashboardStatusTone.NEGATIVE -> appWarningColor()
-                            DashboardStatusTone.NEUTRAL -> MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                }
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.gradeReportSectionTitle,
-            description = strings.gradeReportSectionDescription
-        ) {
-            Button(
-                onClick = { isGradeReportConfirmationVisible = true },
-                enabled = !isFileOperationInProgress,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("export-grade-report-button"),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = appSelectedOptionContainer(),
-                    contentColor = appAccentBlue()
-                )
-            ) {
-                Text(strings.exportGradeReportLabel, textAlign = TextAlign.Center)
-            }
-
-            settings.gradeReportMessage?.let { message ->
-                SettingsStatusMessage(
-                    message = message,
-                    tone = settings.gradeReportMessageTone
-                )
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.plusPointsSectionTitle,
-            description = strings.plusPointsSectionDescription
-        ) {
-            Button(
-                onClick = onImportPlusPoints,
-                enabled = !isFileOperationInProgress,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = appSelectedOptionContainer(),
-                    contentColor = appAccentBlue()
-                )
-            ) {
-                Text(strings.importPlusPointsLabel, textAlign = TextAlign.Center)
-            }
-        }
-
-        SettingsChoiceSection(
-            title = strings.resetSectionTitle,
-            description = strings.resetSectionDescription
-        ) {
-            Button(
-                onClick = { isResetConfirmationVisible = true },
-                enabled = !isFileOperationInProgress,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("reset-app-button"),
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = appWarningBackground(),
-                    contentColor = appWarningColor()
-                )
-            ) {
-                Text(strings.resetAppLabel, textAlign = TextAlign.Center)
             }
         }
     }
@@ -369,7 +316,7 @@ internal fun SettingsScreen(
     }
 
     settings.pendingPlusPointsImportDisplayName?.let { displayName ->
-        AlertDialog(
+        CarnetDialog(
             onDismissRequest = onDismissPendingPlusPointsImport,
             title = {
                 Text(
@@ -379,7 +326,7 @@ internal fun SettingsScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         strings.plusPointsImportMessage(
                             fileName = displayName,
@@ -410,8 +357,6 @@ internal fun SettingsScreen(
                     Text(strings.cancelLabel)
                 }
             },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = appCardSurface()
         )
     }
 }
@@ -420,10 +365,70 @@ internal fun SettingsScreen(
 private fun SettingsGroupHeading(title: String) {
     Text(
         text = title,
-        modifier = Modifier.padding(top = 12.dp),
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = appAccentBlue()
+        modifier = Modifier.padding(top = 18.dp, bottom = 2.dp),
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+}
+
+@Composable
+private fun CarnetSettingsRow(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    enabled: Boolean = true,
+    destructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    Column(modifier.fillMaxWidth()) {
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            color = MaterialTheme.colorScheme.background,
+            contentColor = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.heightIn(min = 56.dp).padding(vertical = 17.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(title, fontSize = 14.sp, lineHeight = 20.sp)
+                    supportingText?.let {
+                        Text(it, fontSize = 13.sp, lineHeight = 19.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun SettingsSelectionDialog(
+    title: String,
+    description: String,
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val strings = currentAppStrings()
+    CarnetDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                content()
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(strings.cancelLabel) } },
     )
 }
 
@@ -455,73 +460,30 @@ private fun SettingsStatusMessage(
 }
 
 @Composable
-private fun SettingsChoiceSection(
-    title: String,
-    description: String,
-    content: @Composable () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            content()
-        }
-    }
-}
-
-@Composable
 private fun SettingsChoiceCard(
     title: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    OutlinedCard(
+    Surface(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                this.selected = selected
-                role = Role.RadioButton
-                contentDescription = title
-            },
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            if (selected) 2.dp else 1.dp,
-            if (selected) appSelectedOptionBorder() else appCardBorderColor()
-        ),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = if (selected) appSelectedOptionContainer() else appCardSurface()
-        )
+        modifier = modifier.fillMaxWidth().semantics {
+            this.selected = selected
+            role = Role.RadioButton
+            contentDescription = title
+        },
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) appSelectedOptionBorder() else appCardBorderColor())
-            )
+            Text(title, Modifier.weight(1f), fontSize = 14.sp, lineHeight = 20.sp,
+                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal)
+            if (selected) Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(20.dp))
         }
     }
 }
