@@ -1144,7 +1144,7 @@ class GradeTrackerViewModel(
         val basketTotal = state.currentBasketTotal(subjectMetrics)
         val insufficiencyCount = state.insufficiencyCount(subjectMetrics)
         val complete = promotionResult != null && promotionResult.missingDataReasons.isEmpty()
-        val minimumAverage = promotionResult?.branchAverages?.mapNotNull { it.average }?.minOrNull()
+        val minimumAverage = calculableAverages.minOrNull()
         fun status(value: Double?, passes: (Double) -> Boolean): ConditionStatus = when {
             value == null -> ConditionStatus.UNKNOWN
             !passes(value) -> ConditionStatus.UNMET

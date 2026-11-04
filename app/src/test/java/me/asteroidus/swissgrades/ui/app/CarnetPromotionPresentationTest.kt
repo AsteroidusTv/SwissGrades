@@ -14,6 +14,18 @@ class CarnetPromotionPresentationTest {
     }
 
     @Test
+    fun incompleteBasketStillShowsKnownAverageBelowThreeAsUnmet() {
+        val summary = summaryForSubjects(listOf(
+            subject("math", 2.5),
+            subject("sport", 1.0, basket = false).copy(isCounted = false)
+        ))
+        assertFalse(summary.isPromotionCalculable)
+        val minimum = summary.conditions.single { it.kind == PromotionConditionKind.MINIMUM_AVERAGE }
+        assertEquals(2.5, minimum.value!!, 0.0)
+        assertEquals(ConditionStatus.UNMET, minimum.status)
+    }
+
+    @Test
     fun negativeCompensationHasItsOwnUnmetRowDespiteSufficientBasket() {
         val summary = summary(listOf(subject("history", 3.5, basket = false)))
         val conditions = summary.conditions.associateBy { it.kind }
@@ -36,6 +48,10 @@ class CarnetPromotionPresentationTest {
             subject("language1", 4.0), subject("language2", 4.0), subject("math", 4.0),
             subject("option", 4.0).copy(isOptionSubject = true, optionChoice = InitialOptionChoice.SPANISH)
         ) + extra
+        return summaryForSubjects(subjects)
+    }
+
+    private fun summaryForSubjects(subjects: List<StoredSubject>): DashboardSummaryUiState {
         val repository = object : GradeTrackerRepository {
             override fun load() = GradeTrackerAppState(selectedOption = InitialOptionChoice.SPANISH, subjects = subjects)
             override fun save(state: GradeTrackerAppState) = error("Reading a summary must not save data")
